@@ -1,0 +1,31 @@
+{
+  "name": "s7-websocket-bridge",
+  "version": "2.0.0",
+  "description": "Node.js bridge for Siemens S7 PLC to WebSocket communication",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "serve": "npx http-server . -p 3001 -c-1",
+    "serve:python": "python3 -m http.server 3001",
+    "test:plc": "node test-plc.js",
+    "test:write": "node test-write.js"
+  },
+  "keywords": [
+    "siemens",
+    "s7",
+    "plc",
+    "websocket",
+    "industrial",
+    "three.js",
+    "webgl",
+    "webgpu"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "nodes7": "^0.3.13",
+    "ws": "^8.18.0"
+  }
+}

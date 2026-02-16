@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebGL 3D - S7 PLC Visualization</title>
+    <link rel="stylesheet" href="../styles/common.css">
+    <link rel="stylesheet" href="../styles/3d.css">
+    <link rel="stylesheet" href="../styles/navigation.css">
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+
+    <!-- Navigation -->
+    <div class="navigation">
+        <!-- Connection Status -->
+        <div class="connection-status-nav">
+            <div class="status-dot" id="statusDot"></div>
+            <span class="status-text" id="statusText">Connecting...</span>
+        </div>
+        
+        <!-- Navigation Buttons -->
+        <a href="../" class="nav-btn nav-btn-home">🏠 Home</a>
+        <a href="../2d/" class="nav-btn">🎯 2D</a>
+        <a href="../webgl/" class="nav-btn active">🎨 WebGL</a>
+        <a href="../webgpu/" class="nav-btn">⚡ WebGPU</a>
+    </div>
+
+    <div class="overlay">
+        <h2>📊 PLC Data</h2>
+        <div class="data-row">
+            <span class="label">Status:</span>
+            <span class="value" id="status">---</span>
+        </div>
+        <div class="data-row">
+            <span class="label">Clock:</span>
+            <span class="value" id="clock">---</span>
+        </div>
+        <div class="data-row">
+            <span class="label">Position:</span>
+            <span class="value" id="pos">---</span>
+        </div>
+        <div class="data-row">
+            <span class="label">FPS:</span>
+            <span class="value" id="fps">0</span>
+        </div>
+        <div class="data-row">
+            <span class="label">Latency:</span>
+            <span class="value" id="latency">0ms</span>
+        </div>
+        
+        <h2 style="margin-top: 20px;">✍️ Write to PLC</h2>
+        <div style="display: flex; gap: 8px; margin-top: 10px;">
+            <input 
+                type="number" 
+                id="writeInput" 
+                min="0" 
+                max="255" 
+                placeholder="0-255"
+                style="flex: 1; padding: 6px; border-radius: 4px; border: 1px solid rgba(102, 126, 234, 0.3); background: rgba(0,0,0,0.4); color: white; font-size: 13px;"
+            />
+            <button 
+                id="writeButton"
+                style="padding: 6px 16px; background: rgba(102, 126, 234, 0.8); border: none; border-radius: 4px; color: white; cursor: pointer; font-weight: 500; font-size: 13px;"
+            >Send</button>
+        </div>
+    </div>
+
+    <div class="controls">
+        <p>🖱️ Drag to rotate</p>
+        <p>🖱️ Scroll to zoom</p>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module" src="../../src/client/webgl/index.js"></script>
+</body>
+</html>

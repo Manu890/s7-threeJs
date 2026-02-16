@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2D Canvas - S7 PLC Visualization</title>
+    <link rel="stylesheet" href="../styles/common.css">
+    <link rel="stylesheet" href="../styles/2d.css">
+    <link rel="stylesheet" href="../styles/navigation.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <div class="navigation">
+        <!-- Connection Status -->
+        <div class="connection-status-nav">
+            <div class="status-dot" id="statusDot"></div>
+            <span class="status-text" id="statusText">Connecting...</span>
+        </div>
+        
+        <!-- Navigation Buttons -->
+        <a href="../" class="nav-btn nav-btn-home">🏠 Home</a>
+        <a href="../2d/" class="nav-btn active">🎯 2D</a>
+        <a href="../webgl/" class="nav-btn">🎨 WebGL</a>
+        <a href="../webgpu/" class="nav-btn">⚡ WebGPU</a>
+    </div>
+
+    <div class="header">
+        <h1>🏭 S7 PLC Real-time Monitor</h1>
+    </div>
+
+    <div class="container">
+        <div class="data-panel">
+            <h2>📊 PLC Data</h2>
+            <div class="data-item">
+                <label>Status (System)</label>
+                <div class="value" id="status">---</div>
+            </div>
+            <div class="data-item">
+                <label>Clock</label>
+                <div class="value" id="clock">---</div>
+            </div>
+            <div class="data-item">
+                <label>Position (Anim)</label>
+                <div class="value" id="pos">---</div>
+            </div>
+            
+            <h2 style="margin-top: 30px;">✍️ Write to PLC</h2>
+            <div class="data-item" style="flex-direction: column; align-items: stretch;">
+                <label>DB1002.BYTE0 (0-255)</label>
+                <div style="display: flex; gap: 10px; margin-top: 8px;">
+                    <input 
+                        type="number" 
+                        id="writeInput" 
+                        min="0" 
+                        max="255" 
+                        placeholder="0-255"
+                        style="flex: 1; padding: 8px; border-radius: 4px; border: 1px solid rgba(102, 126, 234, 0.3); background: rgba(0,0,0,0.3); color: white; font-size: 14px;"
+                    />
+                    <button 
+                        id="writeButton"
+                        style="padding: 8px 20px; background: rgba(102, 126, 234, 0.8); border: none; border-radius: 4px; color: white; cursor: pointer; font-weight: 500;"
+                    >Write</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="visualization">
+            <canvas id="canvas"></canvas>
+            <div class="stats">
+                <div>FPS: <span id="fps">0</span></div>
+                <div>Latency: <span id="latency">0</span>ms</div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="../../src/client/2d/index.js"></script>
+</body>
+</html>

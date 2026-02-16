@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S7 PLC Visualization - Select View</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 3rem;
+            font-size: 3rem;
+            text-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s, box-shadow 0.3s;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+            cursor: pointer;
+        }
+
+        .card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.3);
+        }
+
+        .card:active {
+            transform: translateY(-4px);
+        }
+
+        .card-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        .card h2 {
+            margin-bottom: 1rem;
+            color: #1f2937;
+        }
+
+        .card p {
+            color: #6b7280;
+            line-height: 1.6;
+            margin-bottom: 1rem;
+        }
+
+        .card-features {
+            list-style: none;
+            margin-top: 1rem;
+        }
+
+        .card-features li {
+            padding: 0.5rem 0;
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+
+        .card-features li:before {
+            content: "✓ ";
+            color: #10b981;
+            font-weight: bold;
+            margin-right: 0.5rem;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            margin-top: 1rem;
+        }
+
+        .badge-fast {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .badge-compatible {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-advanced {
+            background: #fce7f3;
+            color: #9f1239;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏭 S7 PLC Visualization</h1>
+        
+        <div class="cards">
+            <a href="2d/index.html" class="card">
+                <div class="card-icon">🎯</div>
+                <h2>2D Canvas</h2>
+                <p>Simple and lightweight 2D visualization using Canvas API</p>
+                <ul class="card-features">
+                    <li>No dependencies</li>
+                    <li>Fast loading</li>
+                    <li>Works everywhere</li>
+                    <li>Perfect for monitoring</li>
+                </ul>
+                <span class="badge badge-fast">⚡ Fast</span>
+            </a>
+
+            <a href="webgl/index.html" class="card">
+                <div class="card-icon">🎨</div>
+                <h2>WebGL 3D</h2>
+                <p>Full 3D visualization with Three.js WebGL renderer</p>
+                <ul class="card-features">
+                    <li>Three.js WebGL</li>
+                    <li>Standard materials</li>
+                    <li>Wide compatibility</li>
+                    <li>Interactive 3D</li>
+                </ul>
+                <span class="badge badge-compatible">✓ Compatible</span>
+            </a>
+
+            <a href="webgpu/index.html" class="card">
+                <div class="card-icon">⚡</div>
+                <h2>WebGPU 3D</h2>
+                <p>Next-gen 3D with WebGPU and TSL shaders</p>
+                <ul class="card-features">
+                    <li>Three.js WebGPU</li>
+                    <li>TSL shaders</li>
+                    <li>Best performance</li>
+                    <li>Chrome 113+</li>
+                </ul>
+                <span class="badge badge-advanced">🚀 Advanced</span>
+            </a>
+        </div>
+    </div>
+</body>
+</html>
