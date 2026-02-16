@@ -29,7 +29,7 @@ console.log("");
 
 plc.setVariables(testVariables);
 
-// Обработчики событий
+// Event handlers
 plc.onConnect(() => {
   console.log("✅ Connected to PLC!");
   console.log("");
@@ -39,7 +39,7 @@ plc.onError((error) => {
   console.error("❌ PLC error:", error.message);
 });
 
-// Подключаемся
+// Connect
 async function test() {
   try {
     console.log("🔌 Connecting to PLC...");
@@ -57,7 +57,7 @@ async function test() {
     console.log("");
     console.log("✅ Test successful!");
 
-    // Отключаемся
+    // Disconnect
     await plc.disconnect();
     console.log("👋 Disconnected from PLC");
   } catch (error) {
@@ -69,7 +69,7 @@ async function test() {
     console.error("═══════════════════════════════════════");
     console.error("");
 
-    // Частые ошибки:
+    // Common errors:
     console.error("💡 Possible reasons:");
     console.error(
       "   1. IP address is not accessible (check ping 192.168.0.10)"
