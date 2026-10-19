@@ -65,6 +65,24 @@ export const DEFAULT_PLC_CONFIG = {
 
 ---
 
+## 🧪 Run Without a Physical PLC (Mock PLC)
+
+You can run the visualizations without a Siemens PLC or PLCSIM Advanced. The mock PLC uses the same WebSocket data envelope as the real server and generates changing `status`, `clock`, and `pos` BYTE values. It also accepts simulated writes to the `read` variable.
+
+Open two terminals in the project directory:
+
+```bash
+# Terminal 1: start the simulated PLC/WebSocket server
+npm run mock:plc
+
+# Terminal 2: serve the frontend
+npm run serve
+```
+
+Then open [http://localhost:3001/public/](http://localhost:3001/public/). Keep the mock server running while testing. Stop it with Ctrl+C. The mock server uses port `8080`, just like the real WebSocket server; don't run `npm start` at the same time unless you change the mock port.
+
+Optional environment variables: `MOCK_PLC_PORT` (default `8080`) and `MOCK_PLC_INTERVAL_MS` (default `50`).
+
 ## 🚀 Quick Start
 
 ### Run Server (WebSocket + PLC):
