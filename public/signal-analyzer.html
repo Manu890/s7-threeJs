@@ -59,7 +59,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   <section class="trace-panel">
    <div class="trace-head"><div><strong>Signal traces · y(t)</strong><small>Numeric traces auto-scaled per signal · shared time axis</small></div><div class="legend" id="legend"></div></div>
    <div id="traces" class="trace-scroll"></div>
-   <div class="time-axis"><div class="axis-label">Time from now</div><div id="axisTicks" class="axis-ticks"><span>-30s</span><span>-22.5s</span><span>-15s</span><span>-7.5s</span><span>now</span></div></div>
+   <div class="time-axis"><div class="axis-label">Local clock (HH:mm:ss.SSS)</div><div id="axisTicks" class="axis-ticks"><span>--:--:--.---</span><span>--:--:--.---</span><span>--:--:--.---</span><span>--:--:--.---</span><span>--:--:--.---</span></div></div>
   </section>
  </div>
  <div class="footer"><span id="sampleStatus">Waiting for first sample…</span><span id="recordStatus">Recording is off</span><span>Source: WebSocket · ws://localhost:8080</span></div>
@@ -193,7 +193,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
    if(hoverTime!==null&&hoverTime>=from&&hoverTime<=now){const x=(hoverTime-from)/span*cw;ctx.strokeStyle="#d5dfebaa";ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,ch);ctx.stroke();ctx.setLineDash([]);let nearest=points[0];points.forEach(function(p){if(Math.abs(p.timestamp-hoverTime)<Math.abs(nearest.timestamp-hoverTime))nearest=p;});ctx.fillStyle=s.color;ctx.font="11px ui-monospace,Consolas,monospace";ctx.fillText(String(nearest[s.key]),Math.min(cw-90,Math.max(4,x+5)),14);}
   });
   const ticks=document.getElementById("axisTicks"),seconds=Number(document.getElementById("windowSelect").value);ticks.replaceChildren();
-  for(let i=0;i<=4;i++){const spanEl=document.createElement("span");spanEl.textContent=i===4?"now":"-"+(seconds*(4-i)/4)+"s";ticks.appendChild(spanEl);}
+  for(let i=0;i<=4;i++){const spanEl=document.createElement("span");const tickTime=new Date(now-seconds*1000+(seconds*1000*i/4));const hh=String(tickTime.getHours()).padStart(2,"0"),mm=String(tickTime.getMinutes()).padStart(2,"0"),ss=String(tickTime.getSeconds()).padStart(2,"0"),ms=String(tickTime.getMilliseconds()).padStart(3,"0");spanEl.textContent=hh+":"+mm+":"+ss+"."+ms;ticks.appendChild(spanEl);}
  }
  document.getElementById("addSignalForm").addEventListener("submit",function(e){
   e.preventDefault();const error=document.getElementById("signalFormError");
