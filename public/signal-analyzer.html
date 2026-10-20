@@ -232,7 +232,10 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   if(!signals.length)return;
   removeAllSignals();
  });
- document.getElementById("windowSelect").addEventListener("change",drawAll);
+ const windowSelect=document.getElementById("windowSelect"),timeZoom=document.getElementById("timeZoom"),timeZoomValue=document.getElementById("timeZoomValue");
+ function setTimeWindow(value){windowSelect.value=String(value);timeZoom.value=String(value);timeZoomValue.textContent=value>=60?(value/60)+" min":value+" s";drawAll();}
+ windowSelect.addEventListener("change",function(){setTimeWindow(Number(this.value));});
+ timeZoom.addEventListener("input",function(){setTimeWindow(Number(this.value));});
  document.getElementById("pauseBtn").addEventListener("click",function(){paused=!paused;this.textContent=paused?"▶ Resume display":"Ⅱ Pause display";if(!paused)drawAll();});
  document.getElementById("recordBtn").addEventListener("click",function(){
   recording=!recording;
