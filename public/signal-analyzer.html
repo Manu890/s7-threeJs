@@ -226,6 +226,15 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   if(!label)label=key;
   if(!/^[a-zA-Z_][a-zA-Z0-9_-]{0,39}$/.test(key)){error.textContent="Data key must start with a letter or underscore and use only letters, numbers, _ or -.";return;}
   if(signals.some(function(s){return s.key.toLowerCase()===key.toLowerCase();})){error.textContent="That data key is already in the signal list.";return;}
+  if(address){
+   const dbType=address.match(/^DB\d+\s*[,.:/]\s*([A-Z]+)\s*\d+/i);
+   if(dbType){
+    const aliases={BOOL:"X",X:"X",BYTE:"B",B:"B",CHAR:"C",C:"C",STRING:"S",S:"S",INT:"I",I:"I",DINT:"DI",DI:"DI",WORD:"W",W:"W",DWORD:"DW",DW:"DW",REAL:"R",R:"R",RINT:"RI",RI:"RI",RDINT:"RDI",RDI:"RDI",RWORD:"RW",RW:"RW",RDWORD:"RDW",RDW:"RDW",RREAL:"RR",RR:"RR",LREAL:"LR",LR:"LR",DT:"DT",DTZ:"DTZ",DTL:"DTL",DTLZ:"DTLZ"};
+    if(aliases[dbType[1].toUpperCase()])selectedType=aliases[dbType[1].toUpperCase()];
+   }else if(/^[A-Z]+\d+\.\d+$/i.test(address))selectedType="X";
+   else if(/^PI[WB]/i.test(address))selectedType=/^PIB/i.test(address)?"B":"I";
+   else if(/^PID/i.test(address))selectedType="DI";
+  }
   const ok=addSignal({key:key,label:label,address:address,type:selectedType});
   if(ok){document.getElementById("signalNameInput").value="";document.getElementById("signalKeyInput").value="";document.getElementById("signalAddressInput").value="";error.textContent="Signal added."; }
  });
