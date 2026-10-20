@@ -331,3 +331,10 @@ open http://localhost:3001/public/
 ```
 
 **Enjoy real-time PLC visualization!** 🎊
+
+
+## 📈 Live PLC Signal Analyzer
+
+A browser-based signal-trace view inspired by PLC logic analyzers is available alongside the 2D/3D visualizations. It shows the mock or real WebSocket stream for `status`, `clock`, `pos`, and `read` on a shared time axis, with signal visibility toggles, pause/resume display, a recording buffer, hover inspection, and CSV export.
+
+With the mock PLC and HTTP server running, open [http://localhost:3001/public/signal-analyzer.html](http://localhost:3001/public/signal-analyzer.html). The analyzer connects to the WebSocket server on port `8080`. Recording/export is browser-side and captures the samples received by this page; it does not change PLC values.
