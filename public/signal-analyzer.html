@@ -68,6 +68,24 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   {key:"pos",label:"Position",address:"DB1001,BYTE2",color:palette[2],builtin:true,visible:true},
   {key:"read",label:"Read / Write",address:"DB1002,BYTE0",color:palette[3],builtin:true,visible:true}
  ];
+ const SIGNAL_STORAGE_KEY="s7-threejs-signal-analyzer-signals-v1";
+ function saveCustomSignals(){
+  try{
+   localStorage.setItem(SIGNAL_STORAGE_KEY,JSON.stringify(signals.filter(function(s){return !s.builtin;}).map(function(s){return {key:s.key,label:s.label,address:s.address,visible:s.visible};})));
+  }catch(e){console.warn("Could not save signal configuration in this browser.",e);}
+ }
+ function restoreCustomSignals(){
+  try{
+   const saved=JSON.parse(localStorage.getItem(SIGNAL_STORAGE_KEY)||"[]");
+   if(!Array.isArray(saved))return;
+   saved.forEach(function(s){
+    if(!s||typeof s.key!=="string"||typeof s.label!=="string"||signals.some(function(existing){return existing.key.toLowerCase()===s.key.toLowerCase();}))return;
+    if(!/^[a-zA-Z_][a-zA-Z0-9_-]{0,39}$/.test(s.key))return;
+    signals.push({key:s.key,label:s.label,address:typeof s.address==="string"?s.address:"WebSocket key: "+s.key,color:palette[signals.length%palette.length],builtin:false,visible:s.visible!==false});
+   });
+  }catch(e){console.warn("Could not restore saved signal configuration.",e);}
+ }
+ restoreCustomSignals();
  const history=[]; const maxSamples=5000; let paused=false; let recording=false; let recorded=[]; let lastTimestamp=0; let socket=null; let hoverTime=null;
  const traces=document.getElementById("traces");
  function safeId(key){return key.replace(/[^a-zA-Z0-9_-]/g,"_");}
@@ -89,7 +107,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   signals.forEach(function(s){
    const row=document.createElement("div");row.className="signal-item";
    const checkbox=document.createElement("input");checkbox.type="checkbox";checkbox.checked=s.visible;checkbox.setAttribute("aria-label","Show "+s.label);
-   checkbox.addEventListener("change",function(){s.visible=checkbox.checked;drawAll();});
+   checkbox.addEventListener("change",function(){s.visible=checkbox.checked;saveCustomSignals();drawAll();});
    const details=document.createElement("span");details.style.minWidth="0";details.style.flex="1";
    const name=document.createElement("div");name.className="signal-name";name.textContent=s.label;
    const address=document.createElement("div");address.className="signal-address";address.textContent=s.address||("key: "+s.key);
@@ -120,7 +138,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
  function addSignal(config){
   if(signals.some(function(s){return s.key===config.key;}))return false;
   const s={key:config.key,label:config.label,address:config.address||("WebSocket key: "+config.key),color:palette[signals.length%palette.length],builtin:false,visible:true};
-  signals.push(s);addTrace(s);renderAllControls();
+  signals.push(s);addTrace(s);saveCustomSignals();renderAllControls();
   if(socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify({type:"addSignal",key:s.key}));
   const last=history.length?history[history.length-1]:null;
   if(last&&last[s.key]!==undefined)updateSignalValue(s,last[s.key]);
@@ -131,14 +149,14 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   signals.splice(idx,1);
   const row=traces.querySelector('[data-signal="'+CSS.escape(key)+'"]');if(row)row.remove();
   history.forEach(function(sample){delete sample[key];});recorded.forEach(function(sample){delete sample[key];});
-  renderAllControls();drawAll();
+  saveCustomSignals();renderAllControls();drawAll();
  }
  function removeAllSignals(){
   signals.splice(0,signals.length);
   traces.replaceChildren();
   history.forEach(function(sample){Object.keys(sample).forEach(function(key){if(key!=="timestamp")delete sample[key];});});
   recorded.forEach(function(sample){Object.keys(sample).forEach(function(key){if(key!=="timestamp")delete sample[key];});});
-  renderAllControls();drawAll();
+  saveCustomSignals();renderAllControls();drawAll();
   document.getElementById("sampleStatus").textContent="All signals removed. Add signals using the form.";
  }
  function updateSignalValue(s,value){
