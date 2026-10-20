@@ -338,3 +338,8 @@ open http://localhost:3001/public/
 A browser-based signal-trace view inspired by PLC logic analyzers is available alongside the 2D/3D visualizations. It shows the mock or real WebSocket stream for `status`, `clock`, `pos`, and `read` on a shared time axis, with signal visibility toggles, pause/resume display, a recording buffer, hover inspection, and CSV export.
 
 With the mock PLC and HTTP server running, open [http://localhost:3001/public/signal-analyzer.html](http://localhost:3001/public/signal-analyzer.html). The analyzer connects to the WebSocket server on port `8080`. Recording/export is browser-side and captures the samples received by this page; it does not change PLC values.
+
+
+### Add and remove analyzer signals
+
+The signal analyzer includes an **Add signal** form with a display name, WebSocket data key, and optional PLC address. Custom signals can be removed from the analyzer, hidden/shown, included in CSV exports, and recorded with the other signals. When using `npm run mock:plc`, adding a custom key asks the mock server to generate a simulated BYTE trace (0–255). For a physical PLC, adding a row in the browser does not configure PLC acquisition by itself: the backend's PLC variable configuration and data mapping must also be updated for that address/key.
