@@ -18,7 +18,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
 .trace-scroll{overflow-x:auto}.trace-row{display:grid;grid-template-columns:145px minmax(380px,1fr);min-height:112px;border-bottom:1px solid #202d3d}.trace-row:last-child{border-bottom:0}.trace-label{padding:14px 12px;border-right:1px solid var(--border);display:flex;flex-direction:column;justify-content:center;gap:4px}.trace-label strong{font-size:12px}.trace-label small{font:11px ui-monospace,Consolas,monospace;color:var(--muted)}.trace-label em{font-style:normal;font:12px ui-monospace,Consolas,monospace}.canvas-wrap{position:relative;min-width:0;background-color:var(--panel2);background-image:linear-gradient(#23304380 1px,transparent 1px),linear-gradient(90deg,#23304380 1px,transparent 1px);background-size:100% 28px,80px 100%}.trace-canvas{display:block;width:100%;height:112px}.time-axis{display:grid;grid-template-columns:145px minmax(380px,1fr);background:#0e1621;border-top:1px solid var(--border);color:var(--muted);font:10px ui-monospace,Consolas,monospace}.axis-label{padding:8px 12px;border-right:1px solid var(--border)}.axis-ticks{display:flex;justify-content:space-between;padding:8px 10px}
 .footer{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:11px;padding:13px 2px 0}.record-indicator{color:var(--red);font-weight:700}.record-indicator:before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:currentColor;margin-right:6px}
 .empty{padding:32px;text-align:center;color:var(--muted)}.add-signal{padding:12px;border-bottom:1px solid var(--border);display:grid;gap:8px}.add-signal input{width:100%;min-width:0;background:#0b131e;border:1px solid #34465d;border-radius:7px;padding:8px;color:var(--text);font:inherit}.signal-item button{margin-left:auto;padding:3px 7px;color:#ff9ca3;border-color:#75404b;font-size:11px}.signal-list{max-height:65vh;overflow:auto}.help-text{font-size:11px;color:var(--muted);line-height:1.5}.form-error{color:#ff9ca3;font-size:11px;min-height:14px}
-@media(max-width:800px){header{padding:0 14px}.brand small{display:none}main{padding:12px}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.layout{grid-template-columns:1fr}.sidebar{order:2}.trace-row,.time-axis{grid-template-columns:112px minmax(380px,1fr)}.trace-head{padding:12px}}
+@media(max-width:800px){header{padding:0 14px}.brand small{display:none}main{padding:12px}.layout{grid-template-columns:1fr}.sidebar{order:2}.trace-row,.time-axis{grid-template-columns:112px minmax(380px,1fr)}.trace-head{padding:12px}}
 </style>
 </head>
 <body>
@@ -120,22 +120,11 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   });
   document.getElementById("signalCount").textContent=signals.length+" signal"+(signals.length===1?"":"s");
  }
- function renderMetrics(){
-  const metrics=document.getElementById("metrics");metrics.replaceChildren();
-  signals.forEach(function(s){
-   const card=document.createElement("div");card.className="metric";
-   const top=document.createElement("div");top.className="metric-top";top.textContent=s.label.toUpperCase();
-   const swatch=document.createElement("span");swatch.className="swatch";swatch.style.background=s.color;top.appendChild(swatch);
-   const value=document.createElement("div");value.className="metric-value";value.id="metric-"+safeId(s.key);value.textContent="—";
-   const foot=document.createElement("div");foot.className="metric-foot";foot.textContent=s.address||("WebSocket key: "+s.key);
-   card.append(top,value,foot);metrics.appendChild(card);
-  });
- }
  function renderLegend(){
   const legend=document.getElementById("legend");legend.replaceChildren();
   signals.forEach(function(s){const item=document.createElement("span");const line=document.createElement("i");line.style.background=s.color;item.append(line,document.createTextNode(s.label));legend.appendChild(item);});
  }
- function renderAllControls(){renderSignalList();renderMetrics();renderLegend();}
+ function renderAllControls(){renderSignalList();renderLegend();}
  function addSignal(config){
   if(signals.some(function(s){return s.key===config.key;}))return false;
   const s={key:config.key,label:config.label,address:config.address||("WebSocket key: "+config.key),type:config.type||"B",color:palette[signals.length%palette.length],builtin:false,visible:true};
@@ -162,8 +151,8 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
  }
  function updateSignalValue(s,value){
   const shown=value===null||value===undefined?"—":String(value);
-  const listValue=document.getElementById("list-"+safeId(s.key));const metric=document.getElementById("metric-"+safeId(s.key));const traceValue=document.getElementById("value-"+safeId(s.key));
-  if(listValue)listValue.textContent=shown;if(metric)metric.textContent=shown;if(traceValue)traceValue.textContent=shown;
+  const listValue=document.getElementById("list-"+safeId(s.key));const traceValue=document.getElementById("value-"+safeId(s.key));
+  if(listValue)listValue.textContent=shown;if(traceValue)traceValue.textContent=shown;
  }
  function setConnection(ok,text){document.getElementById("connectionDot").className="dot "+(ok?"online":"offline");document.getElementById("connectionText").textContent=text;}
  function connect(){
