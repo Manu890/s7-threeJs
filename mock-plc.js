@@ -63,7 +63,8 @@ wss.on('connection', (socket) => {
             if (/^[a-zA-Z_][a-zA-Z0-9_-]{0,39}$/.test(key) && !RESERVED_KEYS.has(key)) {
                 const allowedTypes = new Set(['X', 'B', 'C', 'S', 'I', 'DI', 'W', 'DW', 'R', 'RI', 'RDI', 'RW', 'RDW', 'RR', 'LR', 'DT', 'DTZ', 'DTL', 'DTLZ']);
                 const plcType = allowedTypes.has(String(message.plcType || '').toUpperCase()) ? String(message.plcType).toUpperCase() : 'B';
-                if (!customSignals.has(key)) customSignals.set(key, { index: customSignals.size, type: plcType });
+                const existing = customSignals.get(key);
+                customSignals.set(key, { index: existing ? existing.index : customSignals.size, type: plcType });
                 socket.send(JSON.stringify({ type: 'signalAdded', key, success: true }));
                 console.log(`➕ Mock signal enabled: ${key}`);
             } else {
