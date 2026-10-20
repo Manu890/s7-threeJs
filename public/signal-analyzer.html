@@ -43,9 +43,15 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
    <form class="add-signal" id="addSignalForm">
     <input id="signalNameInput" maxlength="40" placeholder="Signal name (optional; e.g. Motor speed)" aria-label="Signal name">
     <input id="signalKeyInput" maxlength="40" placeholder="Data key (e.g. motorSpeed or DB2000,BYTE4)" aria-label="WebSocket data key">
-    <input id="signalAddressInput" maxlength="64" placeholder="PLC address (e.g. DB1001,WORD4)" aria-label="PLC address (optional)">
+    <select id="signalTypeInput" aria-label="PLC data type">
+     <option value="X">BOOL / X · bit</option><option value="B">BYTE / B · 8-bit unsigned</option><option value="C">CHAR / C · character</option><option value="S">STRING / S · string</option>
+     <option value="I" selected>INT / I · 16-bit signed</option><option value="DI">DINT / DI · 32-bit signed</option><option value="W">WORD / W · 16-bit unsigned</option><option value="DW">DWORD / DW · 32-bit unsigned</option><option value="R">REAL / R · float</option>
+     <option value="RI">RINT / RI</option><option value="RDI">RDINT / RDI</option><option value="RW">RWORD / RW</option><option value="RDW">RDWORD / RDW</option><option value="RR">RREAL / RR</option>
+     <option value="LR">LREAL / LR · 64-bit float</option><option value="DT">DT · date/time</option><option value="DTZ">DTZ · UTC date/time</option><option value="DTL">DTL · long date/time</option><option value="DTLZ">DTLZ · UTC long date/time</option>
+    </select>
+    <input id="signalAddressInput" maxlength="64" placeholder="nodes7 address (e.g. DB1,REAL4 or M32.2)" aria-label="PLC address (optional)">
     <button class="primary" type="submit">＋ Add signal</button>
-    <div class="help-text">You can enter an address such as DB2000,BYTE4 in either the data-key or PLC-address field; the analyzer will make a WebSocket key from it. For the mock PLC, new keys receive simulated values. For a real PLC, the server must also be configured to read the variable at this address.</div>
+    <div class="help-text">Choose a nodes7 type and enter a complete nodes7 address such as DB1,INT6, DB1,X14.0, DB1,S20.30, DB1,DT0, M32.2, or PIW30. The real PLC backend must register and decode this address. The selected type is also used by the mock simulator.</div>
     <div class="form-error" id="signalFormError" role="status"></div>
    </form>
    <div id="signalList" class="signal-list"></div>
@@ -66,7 +72,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
  const SIGNAL_STORAGE_KEY="s7-threejs-signal-analyzer-signals-v1";
  function saveCustomSignals(){
   try{
-   localStorage.setItem(SIGNAL_STORAGE_KEY,JSON.stringify(signals.filter(function(s){return !s.builtin;}).map(function(s){return {key:s.key,label:s.label,address:s.address,visible:s.visible};})));
+   localStorage.setItem(SIGNAL_STORAGE_KEY,JSON.stringify(signals.filter(function(s){return !s.builtin;}).map(function(s){return {key:s.key,label:s.label,address:s.address,type:s.type||"B",visible:s.visible};})));
   }catch(e){console.warn("Could not save signal configuration in this browser.",e);}
  }
  function restoreCustomSignals(){
@@ -76,7 +82,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
    saved.forEach(function(s){
     if(!s||typeof s.key!=="string"||typeof s.label!=="string"||signals.some(function(existing){return existing.key.toLowerCase()===s.key.toLowerCase();}))return;
     if(!/^[a-zA-Z_][a-zA-Z0-9_-]{0,39}$/.test(s.key))return;
-    signals.push({key:s.key,label:s.label,address:typeof s.address==="string"?s.address:"WebSocket key: "+s.key,color:palette[signals.length%palette.length],builtin:false,visible:s.visible!==false});
+    signals.push({key:s.key,label:s.label,address:typeof s.address==="string"?s.address:"WebSocket key: "+s.key,type:typeof s.type==="string"?s.type:"B",color:palette[signals.length%palette.length],builtin:false,visible:s.visible!==false});
    });
   }catch(e){console.warn("Could not restore saved signal configuration.",e);}
  }
@@ -89,7 +95,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   const label=document.createElement("div");label.className="trace-label";
   const title=document.createElement("strong");title.style.color=s.color;title.textContent=s.label;
   const address=document.createElement("small");address.textContent=s.address||("key: "+s.key);
-  const value=document.createElement("em");value.id="value-"+safeId(s.key);value.textContent="— / 255";
+  const value=document.createElement("em");value.id="value-"+safeId(s.key);value.textContent="—";
   label.append(title,address,value);
   const wrap=document.createElement("div");wrap.className="canvas-wrap";
   const canvas=document.createElement("canvas");canvas.className="trace-canvas";canvas.id="canvas-"+safeId(s.key);canvas.setAttribute("aria-label",s.label+" signal trace");
@@ -132,9 +138,9 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
  function renderAllControls(){renderSignalList();renderMetrics();renderLegend();}
  function addSignal(config){
   if(signals.some(function(s){return s.key===config.key;}))return false;
-  const s={key:config.key,label:config.label,address:config.address||("WebSocket key: "+config.key),color:palette[signals.length%palette.length],builtin:false,visible:true};
+  const s={key:config.key,label:config.label,address:config.address||("WebSocket key: "+config.key),type:config.type||"B",color:palette[signals.length%palette.length],builtin:false,visible:true};
   signals.push(s);addTrace(s);saveCustomSignals();renderAllControls();
-  if(socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify({type:"addSignal",key:s.key}));
+  if(socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify({type:"addSignal",key:s.key,plcType:s.type,address:s.address}));
   const last=history.length?history[history.length-1]:null;
   if(last&&last[s.key]!==undefined)updateSignalValue(s,last[s.key]);
   drawAll();return true;
@@ -157,7 +163,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
  function updateSignalValue(s,value){
   const shown=value===null||value===undefined?"—":String(value);
   const listValue=document.getElementById("list-"+safeId(s.key));const metric=document.getElementById("metric-"+safeId(s.key));const traceValue=document.getElementById("value-"+safeId(s.key));
-  if(listValue)listValue.textContent=shown;if(metric)metric.textContent=shown;if(traceValue)traceValue.textContent=shown+" / 255";
+  if(listValue)listValue.textContent=shown;if(metric)metric.textContent=shown;if(traceValue)traceValue.textContent=shown;
  }
  function setConnection(ok,text){document.getElementById("connectionDot").className="dot "+(ok?"online":"offline");document.getElementById("connectionText").textContent=text;}
  function connect(){
@@ -169,7 +175,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
    if(!msg.data||typeof msg.data!=="object")return;
    const timestamp=Number(msg.timestamp)||Date.now();lastTimestamp=timestamp;
    const sample={timestamp:timestamp};
-   signals.forEach(function(s){const raw=msg.data[s.key];const v=raw===null||raw===undefined||raw===""?null:Number(raw);sample[s.key]=Number.isFinite(v)?Math.max(0,Math.min(255,v)):null;updateSignalValue(s,sample[s.key]===null?"—":Math.round(sample[s.key]));});
+   signals.forEach(function(s){const raw=msg.data[s.key];let value=null;if(raw!==null&&raw!==undefined&&raw!==""){if(typeof raw==="number")value=Number.isFinite(raw)?raw:null;else if(typeof raw==="boolean")value=raw?1:0;else if(typeof raw==="string"){const numeric=Number(raw);value=raw.trim()!==""&&Number.isFinite(numeric)?numeric:raw;}}sample[s.key]=value;updateSignalValue(s,value===null?"—":value);});
    history.push(sample);if(history.length>maxSamples)history.shift();
    if(recording){recorded.push(Object.assign({},sample));if(recorded.length>200000)recorded.shift();}
    document.getElementById("sampleStatus").textContent="Samples buffered: "+history.length+" · Last update: "+new Date(timestamp).toLocaleTimeString();
@@ -190,12 +196,13 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
    for(let y=0;y<=4;y++){const yy=8+(ch-16)*y/4;ctx.beginPath();ctx.moveTo(0,yy);ctx.lineTo(cw,yy);ctx.stroke();}
    for(let x=0;x<=6;x++){const xx=cw*x/6;ctx.beginPath();ctx.moveTo(xx,0);ctx.lineTo(xx,ch);ctx.stroke();}
    if(!s.visible)return;
-   const points=history.filter(function(p){return p.timestamp>=from&&p.timestamp<=now&&p[s.key]!==null&&p[s.key]!==undefined;});
+   const points=history.filter(function(p){return p.timestamp>=from&&p.timestamp<=now&&typeof p[s.key]==="number"&&Number.isFinite(p[s.key]);});
    if(!points.length)return;
+   const values=points.map(function(p){return p[s.key];}),min=Math.min.apply(null,values),max=Math.max.apply(null,values),range=max-min||1;
    ctx.strokeStyle=s.color;ctx.lineWidth=1.7;ctx.lineJoin="round";ctx.beginPath();
-   points.forEach(function(p,i){const x=((p.timestamp-from)/span)*cw,y=ch-8-(p[s.key]/255)*(ch-16);if(i===0)ctx.moveTo(x,y);else{const prev=points[i-1],prevY=ch-8-(prev[s.key]/255)*(ch-16);ctx.lineTo(x,prevY);ctx.lineTo(x,y);}});
+   points.forEach(function(p,i){const x=((p.timestamp-from)/span)*cw,y=ch-8-((p[s.key]-min)/range)*(ch-16);if(i===0)ctx.moveTo(x,y);else{const prev=points[i-1],prevY=ch-8-((prev[s.key]-min)/range)*(ch-16);ctx.lineTo(x,prevY);ctx.lineTo(x,y);}});
    ctx.stroke();
-   if(hoverTime!==null&&hoverTime>=from&&hoverTime<=now){const x=(hoverTime-from)/span*cw;ctx.strokeStyle="#d5dfebaa";ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,ch);ctx.stroke();ctx.setLineDash([]);let nearest=points[0];points.forEach(function(p){if(Math.abs(p.timestamp-hoverTime)<Math.abs(nearest.timestamp-hoverTime))nearest=p;});ctx.fillStyle=s.color;ctx.font="11px ui-monospace,Consolas,monospace";ctx.fillText(String(Math.round(nearest[s.key])),Math.min(cw-28,Math.max(4,x+5)),14);}
+   if(hoverTime!==null&&hoverTime>=from&&hoverTime<=now){const x=(hoverTime-from)/span*cw;ctx.strokeStyle="#d5dfebaa";ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,ch);ctx.stroke();ctx.setLineDash([]);let nearest=points[0];points.forEach(function(p){if(Math.abs(p.timestamp-hoverTime)<Math.abs(nearest.timestamp-hoverTime))nearest=p;});ctx.fillStyle=s.color;ctx.font="11px ui-monospace,Consolas,monospace";ctx.fillText(String(nearest[s.key]),Math.min(cw-90,Math.max(4,x+5)),14);}
   });
   const ticks=document.getElementById("axisTicks"),seconds=Number(document.getElementById("windowSelect").value);ticks.replaceChildren();
   for(let i=0;i<=4;i++){const spanEl=document.createElement("span");spanEl.textContent=i===4?"now":"-"+(seconds*(4-i)/4)+"s";ticks.appendChild(spanEl);}
