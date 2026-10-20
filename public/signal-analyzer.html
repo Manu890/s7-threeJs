@@ -45,8 +45,8 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
     <input id="signalKeyInput" maxlength="40" placeholder="Data key (e.g. motorSpeed or DB2000,BYTE4)" aria-label="WebSocket data key">
     <select id="signalTypeInput" aria-label="PLC data type">
      <option value="X">BOOL / X · bit</option><option value="B">BYTE / B · 8-bit unsigned</option><option value="C">CHAR / C · character</option><option value="S">STRING / S · string</option>
-     <option value="I" selected>INT / I · 16-bit signed</option><option value="DI">DINT / DI · 32-bit signed</option><option value="W">WORD / W · 16-bit unsigned</option><option value="DW">DWORD / DW · 32-bit unsigned</option><option value="R">REAL / R · float</option>
-     <option value="RI">RINT / RI</option><option value="RDI">RDINT / RDI</option><option value="RW">RWORD / RW</option><option value="RDW">RDWORD / RDW</option><option value="RR">RREAL / RR</option>
+     <option value="I" selected>INT / I · 16-bit signed</option><option value="DI">DINT / DI · 32-bit signed</option><option value="W">WORD / W · 16-bit unsigned</option><option value="D">DWORD / D · legacy alias</option><option value="DW">DWORD / DW · 32-bit unsigned</option><option value="R">REAL / R · float</option>
+     <option value="RI">RINT / RI</option><option value="RDI">RDINT / RDI</option><option value="RW">RWORD / RW</option><option value="RD">RDWORD / RD legacy alias</option><option value="RDW">RDWORD / RDW</option><option value="RR">RREAL / RR</option><option value="TMR">TIMER / T area</option><option value="CTR">COUNTER / C area</option>
      <option value="LR">LREAL / LR · 64-bit float</option><option value="DT">DT · date/time</option><option value="DTZ">DTZ · UTC date/time</option><option value="DTL">DTL · long date/time</option><option value="DTLZ">DTLZ · UTC long date/time</option>
     </select>
     <input id="signalAddressInput" maxlength="64" placeholder="nodes7 address (e.g. DB1,REAL4 or M32.2)" aria-label="PLC address (optional)">
@@ -58,7 +58,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
    <div style="padding:12px 14px;color:var(--muted);font-size:11px;line-height:1.6">Uncheck a signal to hide its trace. Use Remove to delete any signal, or Remove all to clear the entire list. Hover over a trace to inspect nearby values.</div>
   </aside>
   <section class="trace-panel">
-   <div class="trace-head"><div><strong>Signal traces · y(t)</strong><small>Values scaled 0–255 · shared time axis</small></div><div class="legend" id="legend"></div></div>
+   <div class="trace-head"><div><strong>Signal traces · y(t)</strong><small>Numeric traces auto-scaled per signal · shared time axis</small></div><div class="legend" id="legend"></div></div>
    <div id="traces" class="trace-scroll"></div>
    <div class="time-axis"><div class="axis-label">Time from now</div><div id="axisTicks" class="axis-ticks"><span>-30s</span><span>-22.5s</span><span>-15s</span><span>-7.5s</span><span>now</span></div></div>
   </section>
@@ -229,9 +229,11 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   if(address){
    const dbType=address.match(/^DB\d+\s*[,.:/]\s*([A-Z]+)\s*\d+/i);
    if(dbType){
-    const aliases={BOOL:"X",X:"X",BYTE:"B",B:"B",CHAR:"C",C:"C",STRING:"S",S:"S",INT:"I",I:"I",DINT:"DI",DI:"DI",WORD:"W",W:"W",DWORD:"DW",DW:"DW",REAL:"R",R:"R",RINT:"RI",RI:"RI",RDINT:"RDI",RDI:"RDI",RWORD:"RW",RW:"RW",RDWORD:"RDW",RDW:"RDW",RREAL:"RR",RR:"RR",LREAL:"LR",LR:"LR",DT:"DT",DTZ:"DTZ",DTL:"DTL",DTLZ:"DTLZ"};
+    const aliases={BOOL:"X",X:"X",BYTE:"B",B:"B",CHAR:"C",C:"C",STRING:"S",S:"S",INT:"I",I:"I",DINT:"DI",DI:"DI",WORD:"W",W:"W",DWORD:"DW",DW:"DW",REAL:"R",R:"R",RINT:"RI",RI:"RI",RDINT:"RDI",RDI:"RDI",RWORD:"RW",RW:"RW",RDWORD:"RDW",RDW:"RDW",RD:"RD",D:"D",RREAL:"RR",RR:"RR",LREAL:"LR",LR:"LR",DT:"DT",DTZ:"DTZ",DTL:"DTL",DTLZ:"DTLZ"};
     if(aliases[dbType[1].toUpperCase()])selectedType=aliases[dbType[1].toUpperCase()];
    }else if(/^[A-Z]+\d+\.\d+$/i.test(address))selectedType="X";
+   else if(/^T\d+/i.test(address))selectedType="TMR";
+   else if(/^C\d+/i.test(address))selectedType="CTR";
    else if(/^PI[WB]/i.test(address))selectedType=/^PIB/i.test(address)?"B":"I";
    else if(/^PID/i.test(address))selectedType="DI";
   }
