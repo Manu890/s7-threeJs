@@ -12,12 +12,12 @@ header{height:68px;display:flex;align-items:center;justify-content:space-between
 .connection{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px}.dot{width:8px;height:8px;border-radius:50%;background:#68788b}.dot.online{background:var(--green);box-shadow:0 0 12px #56d69a55}.dot.offline{background:var(--red)}
 main{padding:20px 24px 32px;max-width:1800px;margin:auto}.toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:12px;background:var(--panel);border:1px solid var(--border);border-radius:12px;margin-bottom:16px}
 button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);border-radius:7px;padding:8px 12px;font:inherit;cursor:pointer}button:hover,select:hover{border-color:#6d8bab}button.primary{background:#16483b;border-color:#2b8068}button.danger{background:#3a2028;border-color:#75404b}button:disabled{opacity:.45;cursor:not-allowed}.spacer{flex:1}.label{color:var(--muted);font-size:12px}.statusline{font-size:12px;color:var(--muted);padding:0 4px}
-.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}.metric{padding:14px 16px;background:var(--panel);border:1px solid var(--border);border-radius:11px;min-width:0}.metric-top{display:flex;justify-content:space-between;gap:8px;color:var(--muted);font-size:12px}.swatch{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}.metric-value{font:600 26px/1.3 ui-monospace,SFMono-Regular,Consolas,monospace;margin-top:7px}.metric-unit{font-size:12px;color:var(--muted);font-weight:400}.metric-foot{font-size:11px;color:var(--muted);margin-top:4px}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px}.metric{padding:14px 16px;background:var(--panel);border:1px solid var(--border);border-radius:11px;min-width:0}.metric-top{display:flex;justify-content:space-between;gap:8px;color:var(--muted);font-size:12px}.swatch{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}.metric-value{font:600 26px/1.3 ui-monospace,SFMono-Regular,Consolas,monospace;margin-top:7px}.metric-unit{font-size:12px;color:var(--muted);font-weight:400}.metric-foot{font-size:11px;color:var(--muted);margin-top:4px}
 .layout{display:grid;grid-template-columns:230px minmax(0,1fr);gap:16px;align-items:start}.sidebar,.trace-panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden}.section-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border);font-weight:650}.section-head small{color:var(--muted);font-weight:400}.signal-item{padding:12px 14px;border-bottom:1px solid #202d3d;display:flex;gap:10px;align-items:flex-start}.signal-item:last-child{border-bottom:0}.signal-item input{margin-top:4px;accent-color:var(--green)}.signal-name{font-weight:600;font-size:12px}.signal-address{font:11px ui-monospace,Consolas,monospace;color:var(--muted);margin-top:3px}.signal-current{margin-left:auto;font:12px ui-monospace,Consolas,monospace;white-space:nowrap}
 .trace-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:13px 16px;border-bottom:1px solid var(--border)}.trace-head strong{font-size:13px}.trace-head small{display:block;color:var(--muted);font-size:11px;margin-top:2px}.legend{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:11px}.legend span{display:flex;align-items:center;gap:6px}.legend i{width:15px;height:3px;border-radius:3px;display:inline-block}
 .trace-scroll{overflow-x:auto}.trace-row{display:grid;grid-template-columns:145px minmax(380px,1fr);min-height:112px;border-bottom:1px solid #202d3d}.trace-row:last-child{border-bottom:0}.trace-label{padding:14px 12px;border-right:1px solid var(--border);display:flex;flex-direction:column;justify-content:center;gap:4px}.trace-label strong{font-size:12px}.trace-label small{font:11px ui-monospace,Consolas,monospace;color:var(--muted)}.trace-label em{font-style:normal;font:12px ui-monospace,Consolas,monospace}.canvas-wrap{position:relative;min-width:0;background-color:var(--panel2);background-image:linear-gradient(#23304380 1px,transparent 1px),linear-gradient(90deg,#23304380 1px,transparent 1px);background-size:100% 28px,80px 100%}.trace-canvas{display:block;width:100%;height:112px}.time-axis{display:grid;grid-template-columns:145px minmax(380px,1fr);background:#0e1621;border-top:1px solid var(--border);color:var(--muted);font:10px ui-monospace,Consolas,monospace}.axis-label{padding:8px 12px;border-right:1px solid var(--border)}.axis-ticks{display:flex;justify-content:space-between;padding:8px 10px}
 .footer{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:11px;padding:13px 2px 0}.record-indicator{color:var(--red);font-weight:700}.record-indicator:before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:currentColor;margin-right:6px}
-.empty{padding:32px;text-align:center;color:var(--muted)}
+.empty{padding:32px;text-align:center;color:var(--muted)}.add-signal{padding:12px;border-bottom:1px solid var(--border);display:grid;gap:8px}.add-signal input{width:100%;min-width:0;background:#0b131e;border:1px solid #34465d;border-radius:7px;padding:8px;color:var(--text);font:inherit}.signal-item button{margin-left:auto;padding:3px 7px;color:#ff9ca3;border-color:#75404b;font-size:11px}.signal-list{max-height:65vh;overflow:auto}.help-text{font-size:11px;color:var(--muted);line-height:1.5}.form-error{color:#ff9ca3;font-size:11px;min-height:14px}
 @media(max-width:800px){header{padding:0 14px}.brand small{display:none}main{padding:12px}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.layout{grid-template-columns:1fr}.sidebar{order:2}.trace-row,.time-axis{grid-template-columns:112px minmax(380px,1fr)}.trace-head{padding:12px}}
 </style>
 </head>
@@ -36,23 +36,23 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   <label class="label" for="windowSelect">Time window</label>
   <select id="windowSelect"><option value="10">10 seconds</option><option value="30" selected>30 seconds</option><option value="60">60 seconds</option></select>
  </div>
- <section class="metrics" id="metrics">
-  <div class="metric"><div class="metric-top">STATUS <span class="swatch" style="background:#56d69a"></span></div><div class="metric-value" id="metric-status">—</div><div class="metric-foot">DB1001 · BYTE 0</div></div>
-  <div class="metric"><div class="metric-top">CLOCK <span class="swatch" style="background:#62b6ff"></span></div><div class="metric-value" id="metric-clock">—</div><div class="metric-foot">DB1001 · BYTE 1</div></div>
-  <div class="metric"><div class="metric-top">POSITION <span class="swatch" style="background:#f5c66a"></span></div><div class="metric-value" id="metric-pos">—</div><div class="metric-foot">DB1001 · BYTE 2</div></div>
-  <div class="metric"><div class="metric-top">READ / WRITE <span class="swatch" style="background:#e58bff"></span></div><div class="metric-value" id="metric-read">—</div><div class="metric-foot">DB1002 · BYTE 0</div></div>
- </section>
+ <section class="metrics" id="metrics" aria-label="Current signal values"></section>
  <div class="layout">
   <aside class="sidebar">
    <div class="section-head">Signal list <small id="signalCount">4 signals</small></div>
-   <label class="signal-item"><input type="checkbox" data-signal="status" checked><span><div class="signal-name">Status</div><div class="signal-address">DB1001,BYTE0 · BYTE</div></span><span class="signal-current" id="list-status">—</span></label>
-   <label class="signal-item"><input type="checkbox" data-signal="clock" checked><span><div class="signal-name">Clock</div><div class="signal-address">DB1001,BYTE1 · BYTE</div></span><span class="signal-current" id="list-clock">—</span></label>
-   <label class="signal-item"><input type="checkbox" data-signal="pos" checked><span><div class="signal-name">Position</div><div class="signal-address">DB1001,BYTE2 · BYTE</div></span><span class="signal-current" id="list-pos">—</span></label>
-   <label class="signal-item"><input type="checkbox" data-signal="read" checked><span><div class="signal-name">Read / Write</div><div class="signal-address">DB1002,BYTE0 · BYTE</div></span><span class="signal-current" id="list-read">—</span></label>
-   <div style="padding:12px 14px;color:var(--muted);font-size:11px;line-height:1.6">Select signals to show or hide their traces. Hover a trace to inspect values near a point in time.</div>
+   <form class="add-signal" id="addSignalForm">
+    <input id="signalNameInput" maxlength="40" placeholder="Signal name (e.g. Motor speed)" aria-label="Signal name" required>
+    <input id="signalKeyInput" maxlength="40" placeholder="Data key (e.g. motorSpeed)" aria-label="WebSocket data key" required>
+    <input id="signalAddressInput" maxlength="64" placeholder="PLC address (e.g. DB1001,WORD4)" aria-label="PLC address (optional)">
+    <button class="primary" type="submit">＋ Add signal</button>
+    <div class="help-text">For the mock PLC, new keys receive simulated values. For a real PLC, the server must also be configured to read the variable at this address.</div>
+    <div class="form-error" id="signalFormError" role="status"></div>
+   </form>
+   <div id="signalList" class="signal-list"></div>
+   <div style="padding:12px 14px;color:var(--muted);font-size:11px;line-height:1.6">Uncheck a signal to hide its trace. Use Remove to delete it from this view. Hover over a trace to inspect nearby values.</div>
   </aside>
   <section class="trace-panel">
-   <div class="trace-head"><div><strong>Signal traces · y(t)</strong><small>Values scaled 0–255 · shared time axis</small></div><div class="legend"><span><i style="background:#56d69a"></i>Status</span><span><i style="background:#62b6ff"></i>Clock</span><span><i style="background:#f5c66a"></i>Position</span><span><i style="background:#e58bff"></i>Read</span></div></div>
+   <div class="trace-head"><div><strong>Signal traces · y(t)</strong><small>Values scaled 0–255 · shared time axis</small></div><div class="legend" id="legend"></div></div>
    <div id="traces" class="trace-scroll"></div>
    <div class="time-axis"><div class="axis-label">Time from now</div><div id="axisTicks" class="axis-ticks"><span>-30s</span><span>-22.5s</span><span>-15s</span><span>-7.5s</span><span>now</span></div></div>
   </section>
@@ -61,84 +61,153 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
 </main>
 <script>
 (function(){
+ const palette=["#56d69a","#62b6ff","#f5c66a","#e58bff","#ff8a65","#a6a1ff","#f06b9a","#8bd3c7","#c3d86d","#f5a9d5"];
  const signals=[
-  {key:"status",label:"Status",address:"DB1001,BYTE0",color:"#56d69a"},
-  {key:"clock",label:"Clock",address:"DB1001,BYTE1",color:"#62b6ff"},
-  {key:"pos",label:"Position",address:"DB1001,BYTE2",color:"#f5c66a"},
-  {key:"read",label:"Read / Write",address:"DB1002,BYTE0",color:"#e58bff"}
+  {key:"status",label:"Status",address:"DB1001,BYTE0",color:palette[0],builtin:true,visible:true},
+  {key:"clock",label:"Clock",address:"DB1001,BYTE1",color:palette[1],builtin:true,visible:true},
+  {key:"pos",label:"Position",address:"DB1001,BYTE2",color:palette[2],builtin:true,visible:true},
+  {key:"read",label:"Read / Write",address:"DB1002,BYTE0",color:palette[3],builtin:true,visible:true}
  ];
- const history=[]; const maxSamples=5000; let latest={}; let paused=false; let recording=false; let recorded=[]; let lastTimestamp=0; let socket=null; let reconnectTimer=null; let hoverTime=null;
+ const history=[]; const maxSamples=5000; let paused=false; let recording=false; let recorded=[]; let lastTimestamp=0; let socket=null; let hoverTime=null;
  const traces=document.getElementById("traces");
- signals.forEach(function(s){
-  const row=document.createElement("div"); row.className="trace-row"; row.dataset.signal=s.key;
-  row.innerHTML='<div class="trace-label"><strong style="color:'+s.color+'">'+s.label+'</strong><small>'+s.address+'</small><em id="value-'+s.key+'">— / 255</em></div><div class="canvas-wrap"><canvas class="trace-canvas" id="canvas-'+s.key+'" aria-label="'+s.label+' signal trace"></canvas></div>';
-  traces.appendChild(row);
-  const canvas=row.querySelector("canvas");
+ function safeId(key){return key.replace(/[^a-zA-Z0-9_-]/g,"_");}
+ function addTrace(s){
+  const row=document.createElement("div");row.className="trace-row";row.dataset.signal=s.key;
+  const label=document.createElement("div");label.className="trace-label";
+  const title=document.createElement("strong");title.style.color=s.color;title.textContent=s.label;
+  const address=document.createElement("small");address.textContent=s.address||("key: "+s.key);
+  const value=document.createElement("em");value.id="value-"+safeId(s.key);value.textContent="— / 255";
+  label.append(title,address,value);
+  const wrap=document.createElement("div");wrap.className="canvas-wrap";
+  const canvas=document.createElement("canvas");canvas.className="trace-canvas";canvas.id="canvas-"+safeId(s.key);canvas.setAttribute("aria-label",s.label+" signal trace");
+  wrap.appendChild(canvas);row.append(label,wrap);traces.appendChild(row);
   canvas.addEventListener("mousemove",function(e){const rect=canvas.getBoundingClientRect();const t=Number(document.getElementById("windowSelect").value);hoverTime=Date.now()-(1-(e.clientX-rect.left)/rect.width)*t*1000;drawAll();});
   canvas.addEventListener("mouseleave",function(){hoverTime=null;drawAll();});
- });
+ }
+ function renderSignalList(){
+  const list=document.getElementById("signalList");list.replaceChildren();
+  signals.forEach(function(s){
+   const row=document.createElement("div");row.className="signal-item";
+   const checkbox=document.createElement("input");checkbox.type="checkbox";checkbox.checked=s.visible;checkbox.setAttribute("aria-label","Show "+s.label);
+   checkbox.addEventListener("change",function(){s.visible=checkbox.checked;drawAll();});
+   const details=document.createElement("span");details.style.minWidth="0";details.style.flex="1";
+   const name=document.createElement("div");name.className="signal-name";name.textContent=s.label;
+   const address=document.createElement("div");address.className="signal-address";address.textContent=s.address||("key: "+s.key);
+   details.append(name,address);
+   const current=document.createElement("span");current.className="signal-current";current.id="list-"+safeId(s.key);current.textContent="—";
+   row.append(checkbox,details,current);
+   if(!s.builtin){const remove=document.createElement("button");remove.type="button";remove.textContent="Remove";remove.setAttribute("aria-label","Remove "+s.label);remove.addEventListener("click",function(){removeSignal(s.key);});row.appendChild(remove);}
+   list.appendChild(row);
+  });
+  document.getElementById("signalCount").textContent=signals.length+" signal"+(signals.length===1?"":"s");
+ }
+ function renderMetrics(){
+  const metrics=document.getElementById("metrics");metrics.replaceChildren();
+  signals.forEach(function(s){
+   const card=document.createElement("div");card.className="metric";
+   const top=document.createElement("div");top.className="metric-top";top.textContent=s.label.toUpperCase();
+   const swatch=document.createElement("span");swatch.className="swatch";swatch.style.background=s.color;top.appendChild(swatch);
+   const value=document.createElement("div");value.className="metric-value";value.id="metric-"+safeId(s.key);value.textContent="—";
+   const foot=document.createElement("div");foot.className="metric-foot";foot.textContent=s.address||("WebSocket key: "+s.key);
+   card.append(top,value,foot);metrics.appendChild(card);
+  });
+ }
+ function renderLegend(){
+  const legend=document.getElementById("legend");legend.replaceChildren();
+  signals.forEach(function(s){const item=document.createElement("span");const line=document.createElement("i");line.style.background=s.color;item.append(line,document.createTextNode(s.label));legend.appendChild(item);});
+ }
+ function renderAllControls(){renderSignalList();renderMetrics();renderLegend();}
+ function addSignal(config){
+  if(signals.some(function(s){return s.key===config.key;}))return false;
+  const s={key:config.key,label:config.label,address:config.address||("WebSocket key: "+config.key),color:palette[signals.length%palette.length],builtin:false,visible:true};
+  signals.push(s);addTrace(s);renderAllControls();
+  if(socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify({type:"addSignal",key:s.key}));
+  const last=history.length?history[history.length-1]:null;
+  if(last&&last[s.key]!==undefined)updateSignalValue(s,last[s.key]);
+  drawAll();return true;
+ }
+ function removeSignal(key){
+  const idx=signals.findIndex(function(s){return s.key===key&&!s.builtin;});if(idx<0)return;
+  signals.splice(idx,1);
+  const row=traces.querySelector('[data-signal="'+CSS.escape(key)+'"]');if(row)row.remove();
+  history.forEach(function(sample){delete sample[key];});recorded.forEach(function(sample){delete sample[key];});
+  renderAllControls();drawAll();
+ }
+ function updateSignalValue(s,value){
+  const shown=value===null||value===undefined?"—":String(value);
+  const listValue=document.getElementById("list-"+safeId(s.key));const metric=document.getElementById("metric-"+safeId(s.key));const traceValue=document.getElementById("value-"+safeId(s.key));
+  if(listValue)listValue.textContent=shown;if(metric)metric.textContent=shown;if(traceValue)traceValue.textContent=shown+" / 255";
+ }
  function setConnection(ok,text){document.getElementById("connectionDot").className="dot "+(ok?"online":"offline");document.getElementById("connectionText").textContent=text;}
  function connect(){
   const protocol=location.protocol==="https:"?"wss:":"ws:";
   socket=new WebSocket(protocol+"//"+(location.hostname||"localhost")+":8080");
-  socket.onopen=function(){setConnection(true,"Connected · "+socket.url);};
+  socket.onopen=function(){setConnection(true,"Connected · "+socket.url);signals.filter(function(s){return !s.builtin;}).forEach(function(s){socket.send(JSON.stringify({type:"addSignal",key:s.key}));});};
   socket.onmessage=function(event){
    let msg;try{msg=JSON.parse(event.data);}catch(e){return;}
    if(!msg.data||typeof msg.data!=="object")return;
-   const timestamp=Number(msg.timestamp)||Date.now(); lastTimestamp=timestamp;
+   const timestamp=Number(msg.timestamp)||Date.now();lastTimestamp=timestamp;
    const sample={timestamp:timestamp};
-   signals.forEach(function(s){const v=Number(msg.data[s.key]);sample[s.key]=Number.isFinite(v)?Math.max(0,Math.min(255,v)):null;});
-   latest=sample;history.push(sample);if(history.length>maxSamples)history.shift();
-   if(recording){recorded.push(sample);if(recorded.length>200000)recorded.shift();}
-   signals.forEach(function(s){const v=sample[s.key];const text=v===null?"—":String(Math.round(v));document.getElementById("metric-"+s.key).textContent=text;document.getElementById("list-"+s.key).textContent=text;document.getElementById("value-"+s.key).textContent=(v===null?"—":Math.round(v))+" / 255";});
+   signals.forEach(function(s){const raw=msg.data[s.key];const v=raw===null||raw===undefined||raw===""?null:Number(raw);sample[s.key]=Number.isFinite(v)?Math.max(0,Math.min(255,v)):null;updateSignalValue(s,sample[s.key]===null?"—":Math.round(sample[s.key]));});
+   history.push(sample);if(history.length>maxSamples)history.shift();
+   if(recording){recorded.push(Object.assign({},sample));if(recorded.length>200000)recorded.shift();}
    document.getElementById("sampleStatus").textContent="Samples buffered: "+history.length+" · Last update: "+new Date(timestamp).toLocaleTimeString();
    if(!paused)drawAll();
   };
-  socket.onclose=function(){setConnection(false,"Disconnected · reconnecting…");reconnectTimer=setTimeout(connect,2000);};
+  socket.onclose=function(){setConnection(false,"Disconnected · reconnecting…");setTimeout(connect,2000);};
   socket.onerror=function(){setConnection(false,"WebSocket connection error");};
  }
- function visibleSignals(){return signals.filter(function(s){const cb=document.querySelector('input[data-signal="'+s.key+'"]');return cb&&cb.checked;});}
  function drawAll(){
-  const now=lastTimestamp||Date.now();const span=Number(document.getElementById("windowSelect").value)*1000;const from=now-span;
-  const visible=visibleSignals();
+  const now=lastTimestamp||Date.now(),span=Number(document.getElementById("windowSelect").value)*1000,from=now-span;
   signals.forEach(function(s){
-   const row=traces.querySelector('[data-signal="'+s.key+'"]');row.style.display=visible.indexOf(s)>=0?"grid":"none";
-   const canvas=document.getElementById("canvas-"+s.key);const rect=canvas.getBoundingClientRect();const dpr=window.devicePixelRatio||1;const w=Math.max(1,Math.floor(rect.width*dpr));const h=Math.max(1,Math.floor(rect.height*dpr));
+   const row=traces.querySelector('[data-signal="'+CSS.escape(s.key)+'"]');if(!row)return;row.style.display=s.visible?"grid":"none";
+   const canvas=document.getElementById("canvas-"+safeId(s.key));if(!canvas)return;
+   const rect=canvas.getBoundingClientRect(),dpr=window.devicePixelRatio||1,w=Math.max(1,Math.floor(rect.width*dpr)),h=Math.max(1,Math.floor(rect.height*dpr));
    if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}
    const ctx=canvas.getContext("2d");ctx.setTransform(dpr,0,0,dpr,0,0);const cw=rect.width,ch=rect.height;ctx.clearRect(0,0,cw,ch);
    ctx.strokeStyle="#263447";ctx.lineWidth=1;
    for(let y=0;y<=4;y++){const yy=8+(ch-16)*y/4;ctx.beginPath();ctx.moveTo(0,yy);ctx.lineTo(cw,yy);ctx.stroke();}
    for(let x=0;x<=6;x++){const xx=cw*x/6;ctx.beginPath();ctx.moveTo(xx,0);ctx.lineTo(xx,ch);ctx.stroke();}
-   if(visible.indexOf(s)<0)return;
-   const points=history.filter(function(p){return p.timestamp>=from&&p.timestamp<=now&&p[s.key]!==null;});
-   if(points.length<1)return;
+   if(!s.visible)return;
+   const points=history.filter(function(p){return p.timestamp>=from&&p.timestamp<=now&&p[s.key]!==null&&p[s.key]!==undefined;});
+   if(!points.length)return;
    ctx.strokeStyle=s.color;ctx.lineWidth=1.7;ctx.lineJoin="round";ctx.beginPath();
-   points.forEach(function(p,i){const x=((p.timestamp-from)/span)*cw;const y=ch-8-(p[s.key]/255)*(ch-16);if(i===0)ctx.moveTo(x,y);else{const prev=points[i-1];const prevY=ch-8-(prev[s.key]/255)*(ch-16);ctx.lineTo(x,prevY);ctx.lineTo(x,y);}});
+   points.forEach(function(p,i){const x=((p.timestamp-from)/span)*cw,y=ch-8-(p[s.key]/255)*(ch-16);if(i===0)ctx.moveTo(x,y);else{const prev=points[i-1],prevY=ch-8-(prev[s.key]/255)*(ch-16);ctx.lineTo(x,prevY);ctx.lineTo(x,y);}});
    ctx.stroke();
    if(hoverTime!==null&&hoverTime>=from&&hoverTime<=now){const x=(hoverTime-from)/span*cw;ctx.strokeStyle="#d5dfebaa";ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,ch);ctx.stroke();ctx.setLineDash([]);let nearest=points[0];points.forEach(function(p){if(Math.abs(p.timestamp-hoverTime)<Math.abs(nearest.timestamp-hoverTime))nearest=p;});ctx.fillStyle=s.color;ctx.font="11px ui-monospace,Consolas,monospace";ctx.fillText(String(Math.round(nearest[s.key])),Math.min(cw-28,Math.max(4,x+5)),14);}
   });
-  const ticks=document.getElementById("axisTicks");const seconds=Number(document.getElementById("windowSelect").value);ticks.innerHTML="";
+  const ticks=document.getElementById("axisTicks"),seconds=Number(document.getElementById("windowSelect").value);ticks.replaceChildren();
   for(let i=0;i<=4;i++){const spanEl=document.createElement("span");spanEl.textContent=i===4?"now":"-"+(seconds*(4-i)/4)+"s";ticks.appendChild(spanEl);}
  }
- document.querySelectorAll("input[data-signal]").forEach(function(cb){cb.addEventListener("change",drawAll);});
+ document.getElementById("addSignalForm").addEventListener("submit",function(e){
+  e.preventDefault();const error=document.getElementById("signalFormError");
+  const label=document.getElementById("signalNameInput").value.trim();
+  const key=document.getElementById("signalKeyInput").value.trim();
+  const address=document.getElementById("signalAddressInput").value.trim();
+  if(!label||!key){error.textContent="Enter a name and a data key.";return;}
+  if(!/^[a-zA-Z_][a-zA-Z0-9_-]{0,39}$/.test(key)){error.textContent="Key must start with a letter or underscore and use only letters, numbers, _ or -.";return;}
+  if(signals.some(function(s){return s.key.toLowerCase()===key.toLowerCase();})){error.textContent="That data key is already in the signal list.";return;}
+  const ok=addSignal({key:key,label:label,address:address});
+  if(ok){document.getElementById("signalNameInput").value="";document.getElementById("signalKeyInput").value="";document.getElementById("signalAddressInput").value="";error.textContent="Signal added."; }
+ });
  document.getElementById("windowSelect").addEventListener("change",drawAll);
  document.getElementById("pauseBtn").addEventListener("click",function(){paused=!paused;this.textContent=paused?"▶ Resume display":"Ⅱ Pause display";if(!paused)drawAll();});
  document.getElementById("recordBtn").addEventListener("click",function(){
   recording=!recording;
-  if(recording){recorded=[];this.textContent="■ Stop & export";this.classList.add("danger");document.getElementById("recordStatus").innerHTML='<span class="record-indicator">RECORDING</span> · '+recorded.length+" samples";}
+  if(recording){recorded=[];this.textContent="■ Stop & export";this.classList.add("danger");document.getElementById("recordStatus").innerHTML='<span class="record-indicator">RECORDING</span> · 0 samples';}
   else{this.textContent="● Start recording";this.classList.remove("danger");document.getElementById("recordStatus").textContent="Recording stopped · "+recorded.length+" samples captured";if(recorded.length)exportCSV(recorded,"plc-recording.csv");}
  });
  document.getElementById("exportBtn").addEventListener("click",function(){exportCSV(recording?recorded:history,recording?"plc-recording.csv":"plc-history.csv");});
  document.getElementById("clearBtn").addEventListener("click",function(){history.length=0;if(recording)recorded=[];drawAll();document.getElementById("sampleStatus").textContent="History cleared";});
  function exportCSV(rows,filename){
   if(!rows.length){document.getElementById("sampleStatus").textContent="No samples available to export yet.";return;}
-  const lines=["timestamp,datetime,status,clock,pos,read"];
-  rows.forEach(function(p){lines.push([p.timestamp,new Date(p.timestamp).toISOString(),p.status,p.clock,p.pos,p.read].join(","));});
+  const keys=signals.map(function(s){return s.key;});const lines=[["timestamp","datetime"].concat(keys).join(",")];
+  rows.forEach(function(p){lines.push([p.timestamp,new Date(p.timestamp).toISOString()].concat(keys.map(function(key){return p[key]===undefined||p[key]===null?"":p[key];})).join(","));});
   const blob=new Blob([lines.join("\r\n")],{type:"text/csv;charset=utf-8;"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
  }
  window.addEventListener("resize",drawAll);
  setInterval(function(){if(recording)document.getElementById("recordStatus").innerHTML='<span class="record-indicator">RECORDING</span> · '+recorded.length+" samples";},500);
- connect();drawAll();
+ renderAllControls();signals.forEach(addTrace);connect();drawAll();
 })();
 </script>
 </body>
