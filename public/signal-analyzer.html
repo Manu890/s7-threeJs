@@ -41,11 +41,11 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   <aside class="sidebar">
    <div class="section-head"><span>Signal list <small id="signalCount">4 signals</small></span><button id="removeAllSignalsBtn" class="danger" type="button">Remove all</button></div>
    <form class="add-signal" id="addSignalForm">
-    <input id="signalNameInput" maxlength="40" placeholder="Signal name (e.g. Motor speed)" aria-label="Signal name" required>
-    <input id="signalKeyInput" maxlength="40" placeholder="Data key (e.g. motorSpeed)" aria-label="WebSocket data key" required>
+    <input id="signalNameInput" maxlength="40" placeholder="Signal name (optional; e.g. Motor speed)" aria-label="Signal name">
+    <input id="signalKeyInput" maxlength="40" placeholder="Data key (e.g. motorSpeed or DB2000,BYTE4)" aria-label="WebSocket data key">
     <input id="signalAddressInput" maxlength="64" placeholder="PLC address (e.g. DB1001,WORD4)" aria-label="PLC address (optional)">
     <button class="primary" type="submit">＋ Add signal</button>
-    <div class="help-text">For the mock PLC, new keys receive simulated values. For a real PLC, the server must also be configured to read the variable at this address.</div>
+    <div class="help-text">You can enter an address such as DB2000,BYTE4 in either the data-key or PLC-address field; the analyzer will make a WebSocket key from it. For the mock PLC, new keys receive simulated values. For a real PLC, the server must also be configured to read the variable at this address.</div>
     <div class="form-error" id="signalFormError" role="status"></div>
    </form>
    <div id="signalList" class="signal-list"></div>
@@ -189,11 +189,21 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
  }
  document.getElementById("addSignalForm").addEventListener("submit",function(e){
   e.preventDefault();const error=document.getElementById("signalFormError");
-  const label=document.getElementById("signalNameInput").value.trim();
-  const key=document.getElementById("signalKeyInput").value.trim();
-  const address=document.getElementById("signalAddressInput").value.trim();
-  if(!label||!key){error.textContent="Enter a name and a data key.";return;}
-  if(!/^[a-zA-Z_][a-zA-Z0-9_-]{0,39}$/.test(key)){error.textContent="Key must start with a letter or underscore and use only letters, numbers, _ or -.";return;}
+  let label=document.getElementById("signalNameInput").value.trim();
+  let key=document.getElementById("signalKeyInput").value.trim();
+  let address=document.getElementById("signalAddressInput").value.trim();
+  const plcAddressPattern=/^DB\\d+\\s*[,.:/]\\s*(?:BYTE|B|WORD|W|DWORD|D|INT|DINT|REAL)\\s*\\d+$/i;
+  if(plcAddressPattern.test(key)){
+   if(address&&!plcAddressPattern.test(address)){error.textContent="The PLC address field should contain an address like DB2000,BYTE4.";return;}
+   address=key;key=key.toUpperCase().replace(/\\s+/g,"").replace(/[,.:/]/g,"_");
+   if(!label)label=address;
+  }else if(!key&&plcAddressPattern.test(address)){
+   key=address.toUpperCase().replace(/\\s+/g,"").replace(/[,.:/]/g,"_");
+   if(!label)label=address;
+  }
+  if(!key){error.textContent="Enter a WebSocket data key or a PLC address such as DB2000,BYTE4.";return;}
+  if(!label)label=key;
+  if(!/^[a-zA-Z_][a-zA-Z0-9_-]{0,39}$/.test(key)){error.textContent="Data key must start with a letter or underscore and use only letters, numbers, _ or -.";return;}
   if(signals.some(function(s){return s.key.toLowerCase()===key.toLowerCase();})){error.textContent="That data key is already in the signal list.";return;}
   const ok=addSignal({key:key,label:label,address:address});
   if(ok){document.getElementById("signalNameInput").value="";document.getElementById("signalKeyInput").value="";document.getElementById("signalAddressInput").value="";error.textContent="Signal added."; }
