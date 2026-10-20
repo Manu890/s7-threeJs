@@ -6,15 +6,22 @@ const wss = new WebSocketServer({ host: '0.0.0.0', port: PORT });
 
 let tick = 0;
 let writeValue = 0;
+const customSignals = new Map();
+const RESERVED_KEYS = new Set(['status', 'clock', 'pos', 'read']);
 
 function getPLCData() {
     const phase = tick / 40;
-    return {
+    const data = {
         status: Math.round((Math.sin(phase) + 1) * 127.5),
         clock: tick % 256,
         pos: Math.round((Math.sin(phase * 0.55) + 1) * 127.5),
         read: writeValue
     };
+    // Custom analyzer signals are simulated as 0-255 BYTE values.
+    for (const [key, index] of customSignals) {
+        data[key] = Math.round((Math.sin(phase * (0.25 + (index % 7) * 0.09) + index) + 1) * 127.5);
+    }
+    return data;
 }
 
 wss.on('connection', (socket) => {
@@ -30,6 +37,15 @@ wss.on('connection', (socket) => {
                 type: 'stats', timestamp: Date.now(),
                 data: { plc: { connected: true, config: { host: 'mock-plc', port: 102 } } }
             }));
+        } else if (message.type === 'addSignal') {
+            const key = String(message.key || '');
+            if (/^[a-zA-Z_][a-zA-Z0-9_-]{0,39}$/.test(key) && !RESERVED_KEYS.has(key)) {
+                if (!customSignals.has(key)) customSignals.set(key, customSignals.size);
+                socket.send(JSON.stringify({ type: 'signalAdded', key, success: true }));
+                console.log(`➕ Mock signal enabled: ${key}`);
+            } else {
+                socket.send(JSON.stringify({ type: 'signalAdded', key, success: false, error: 'Invalid or reserved signal key' }));
+            }
         } else if (message.type === 'write') {
             const value = Number(message.value);
             if (message.variable === 'read' && Number.isInteger(value) && value >= 0 && value <= 255) {
