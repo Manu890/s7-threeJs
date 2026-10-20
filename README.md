@@ -343,3 +343,39 @@ With the mock PLC and HTTP server running, open [http://localhost:3001/public/si
 ### Add and remove analyzer signals
 
 The signal analyzer includes an **Add signal** form with a display name, WebSocket data key, nodes7 PLC data type, and PLC address. The type picker includes the nodes7 address/type families and aliases: BOOL/X, BYTE/B, CHAR/C, STRING/S, INT/I, DINT/DI, WORD/W, DWORD/D/DW, REAL/R, RINT/RI, RDINT/RDI, RWORD/RW, RDWORD/RD/RDW, RREAL/RR, LREAL/LR, DT, DTZ, DTL, DTLZ, plus timer (T) and counter (C) areas. Supported address examples include `DB1,INT6`, `DB1,X14.0`, `DB1,S20.30`, `DB1,DT0`, `M32.2`, and `PIW30`; see the [nodes7 README](https://github.com/plcpeople/nodes7) for the exact address conventions and PLC-family limitations. Address types in data-block addresses are detected automatically when possible. Any signal can be removed individually, and **Remove all** clears the list. Signal definitions, types, and visibility persist in browser local storage. Numeric traces are auto-scaled to the values in the visible time window; strings and date/time values are displayed in the signal cards and included in CSV data but do not form numeric traces. The mock PLC simulates values appropriate to the selected type for demonstration only. For a physical PLC, adding a row in the browser does not configure acquisition: the backend must register the nodes7 address, decode the actual type, and publish the value using the corresponding WebSocket key.
+
+
+## 🗄️ Continuous MongoDB PLC recording
+
+The signal analyzer can persist every incoming WebSocket sample to a local MongoDB database independently of whether the browser's **Start recording** button is enabled. Run MongoDB, the PLC data source, and the persistence worker in separate terminals.
+
+### Windows setup
+
+1. Install MongoDB Community Server for Windows and start the MongoDB service. The default local URI is `mongodb://127.0.0.1:27017`.
+2. From the project folder, install project dependencies:
+   ```powershell
+   npm install
+   ```
+3. Start the PLC source in Terminal 1 (use your real PLC server instead if it is already providing WebSocket data on port 8080):
+   ```powershell
+   npm run mock:plc
+   ```
+4. Start MongoDB persistence in Terminal 2:
+   ```powershell
+   npm run persist:plc
+   ```
+5. Start the static web server in Terminal 3:
+   ```powershell
+   npm run serve
+   ```
+6. Open `http://localhost:3001/public/signal-analyzer.html`. The footer reports MongoDB and PLC stream health. Use **Load stored history** to load up to 5,000 recent persisted samples into the chart buffer.
+
+The worker reads directly from the WebSocket source and writes batches to the `plc_signal_analyzer.samples` collection. It keeps recording while the browser is closed, provided MongoDB, the worker, and the PLC/WebSocket source remain running. MongoDB stores the source timestamp in `timestampMs`/`timestamp` and the complete signal payload in `data`.
+
+### Persistence API
+
+- `GET http://127.0.0.1:3002/api/health` — database/PLC connection status, buffered sample count, and write status.
+- `GET http://127.0.0.1:3002/api/samples?limit=1000` — recent stored samples (maximum 10,000 per request).
+- Filter by Unix milliseconds with `from` and `to`, for example `/api/samples?from=1760000000000&to=1760003600000&limit=5000`.
+
+Environment variables: `MONGODB_URI`, `MONGODB_DATABASE`, `MONGODB_COLLECTION`, `PLC_WS_URL`, `PLC_PERSIST_HOST`, `PLC_PERSIST_PORT`, `PLC_PERSIST_BATCH_SIZE`, `PLC_PERSIST_FLUSH_MS`, and `PLC_PERSIST_MAX_BUFFERED`. The HTTP API binds to loopback by default. During a MongoDB outage, the worker buffers samples in memory up to the configured maximum (100,000 by default); if that limit is reached, the oldest pending sample is dropped and the health endpoint reports an error. For unattended industrial deployment, monitor that endpoint and configure backups/retention appropriate to your storage capacity.
