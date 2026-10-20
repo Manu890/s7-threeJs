@@ -39,7 +39,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
  <section class="metrics" id="metrics" aria-label="Current signal values"></section>
  <div class="layout">
   <aside class="sidebar">
-   <div class="section-head"><span>Signal list <small id="signalCount">4 signals</small></span><button id="removeAllSignalsBtn" class="danger" type="button">Remove all</button></div>
+   <div class="section-head"><span>Signal list <small id="signalCount">0 signals</small></span><button id="removeAllSignalsBtn" class="danger" type="button">Remove all</button></div>
    <form class="add-signal" id="addSignalForm">
     <input id="signalNameInput" maxlength="40" placeholder="Signal name (optional; e.g. Motor speed)" aria-label="Signal name">
     <input id="signalKeyInput" maxlength="40" placeholder="Data key (e.g. motorSpeed or DB2000,BYTE4)" aria-label="WebSocket data key">
@@ -62,12 +62,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
 <script>
 (function(){
  const palette=["#56d69a","#62b6ff","#f5c66a","#e58bff","#ff8a65","#a6a1ff","#f06b9a","#8bd3c7","#c3d86d","#f5a9d5"];
- const signals=[
-  {key:"status",label:"Status",address:"DB1001,BYTE0",color:palette[0],builtin:true,visible:true},
-  {key:"clock",label:"Clock",address:"DB1001,BYTE1",color:palette[1],builtin:true,visible:true},
-  {key:"pos",label:"Position",address:"DB1001,BYTE2",color:palette[2],builtin:true,visible:true},
-  {key:"read",label:"Read / Write",address:"DB1002,BYTE0",color:palette[3],builtin:true,visible:true}
- ];
+ const signals=[];
  const SIGNAL_STORAGE_KEY="s7-threejs-signal-analyzer-signals-v1";
  function saveCustomSignals(){
   try{
