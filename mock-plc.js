@@ -34,8 +34,12 @@ function getPLCData() {
             case 'RDI': data[key] = Math.round(wave * 4294967295 - 2147483648); break;
             case 'W':
             case 'RW': data[key] = Math.round(wave * 65535); break;
+            case 'D':
             case 'DW':
+            case 'RD':
             case 'RDW': data[key] = Math.round(wave * 4294967295); break;
+            case 'TMR':
+            case 'CTR': data[key] = Math.round(wave * 9999); break;
             case 'R':
             case 'RR':
             case 'LR': data[key] = Math.round((wave * 200 - 100) * 1000) / 1000; break;
@@ -61,7 +65,7 @@ wss.on('connection', (socket) => {
         } else if (message.type === 'addSignal') {
             const key = String(message.key || '');
             if (/^[a-zA-Z_][a-zA-Z0-9_-]{0,39}$/.test(key) && !RESERVED_KEYS.has(key)) {
-                const allowedTypes = new Set(['X', 'B', 'C', 'S', 'I', 'DI', 'W', 'DW', 'R', 'RI', 'RDI', 'RW', 'RDW', 'RR', 'LR', 'DT', 'DTZ', 'DTL', 'DTLZ']);
+                const allowedTypes = new Set(['X', 'B', 'C', 'S', 'I', 'DI', 'W', 'D', 'DW', 'R', 'RI', 'RDI', 'RW', 'RD', 'RDW', 'RR', 'LR', 'DT', 'DTZ', 'DTL', 'DTLZ', 'TMR', 'CTR']);
                 const plcType = allowedTypes.has(String(message.plcType || '').toUpperCase()) ? String(message.plcType).toUpperCase() : 'B';
                 const existing = customSignals.get(key);
                 customSignals.set(key, { index: existing ? existing.index : customSignals.size, type: plcType });
