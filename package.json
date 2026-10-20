@@ -11,7 +11,8 @@
     "serve": "npx http-server . -p 3001 -c-1",
     "serve:python": "python3 -m http.server 3001",
     "test:plc": "node test-plc.js",
-    "test:write": "node test-write.js"
+    "test:write": "node test-write.js",
+    "persist:plc": "node plc-persistence.js"
   },
   "keywords": [
     "siemens",
@@ -27,6 +28,7 @@
   "license": "MIT",
   "dependencies": {
     "nodes7": "^0.3.13",
-    "ws": "^8.18.0"
+    "ws": "^8.18.0",
+    "mongodb": "^6.12.0"
   }
 }
