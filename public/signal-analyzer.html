@@ -192,13 +192,13 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   let label=document.getElementById("signalNameInput").value.trim();
   let key=document.getElementById("signalKeyInput").value.trim();
   let address=document.getElementById("signalAddressInput").value.trim();
-  const plcAddressPattern=/^DB\\d+\\s*[,.:/]\\s*(?:BYTE|B|WORD|W|DWORD|D|INT|DINT|REAL)\\s*\\d+$/i;
+  const plcAddressPattern=/^DB\d+\s*[,.:/]\s*(?:BYTE|B|WORD|W|DWORD|D|INT|DINT|REAL)\s*\d+$/i;
   if(plcAddressPattern.test(key)){
    if(address&&!plcAddressPattern.test(address)){error.textContent="The PLC address field should contain an address like DB2000,BYTE4.";return;}
-   address=key;key=key.toUpperCase().replace(/\\s+/g,"").replace(/[,.:/]/g,"_");
+   address=key;key=key.toUpperCase().replace(/\s+/g,"").replace(/[,.:/]/g,"_");
    if(!label)label=address;
   }else if(!key&&plcAddressPattern.test(address)){
-   key=address.toUpperCase().replace(/\\s+/g,"").replace(/[,.:/]/g,"_");
+   key=address.toUpperCase().replace(/\s+/g,"").replace(/[,.:/]/g,"_");
    if(!label)label=address;
   }
   if(!key){error.textContent="Enter a WebSocket data key or a PLC address such as DB2000,BYTE4.";return;}
