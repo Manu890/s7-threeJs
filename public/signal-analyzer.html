@@ -39,7 +39,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
  <section class="metrics" id="metrics" aria-label="Current signal values"></section>
  <div class="layout">
   <aside class="sidebar">
-   <div class="section-head">Signal list <small id="signalCount">4 signals</small></div>
+   <div class="section-head"><span>Signal list <small id="signalCount">4 signals</small></span><button id="removeAllSignalsBtn" class="danger" type="button">Remove all</button></div>
    <form class="add-signal" id="addSignalForm">
     <input id="signalNameInput" maxlength="40" placeholder="Signal name (e.g. Motor speed)" aria-label="Signal name" required>
     <input id="signalKeyInput" maxlength="40" placeholder="Data key (e.g. motorSpeed)" aria-label="WebSocket data key" required>
@@ -49,7 +49,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
     <div class="form-error" id="signalFormError" role="status"></div>
    </form>
    <div id="signalList" class="signal-list"></div>
-   <div style="padding:12px 14px;color:var(--muted);font-size:11px;line-height:1.6">Uncheck a signal to hide its trace. Use Remove to delete it from this view. Hover over a trace to inspect nearby values.</div>
+   <div style="padding:12px 14px;color:var(--muted);font-size:11px;line-height:1.6">Uncheck a signal to hide its trace. Use Remove to delete any signal, or Remove all to clear the entire list. Hover over a trace to inspect nearby values.</div>
   </aside>
   <section class="trace-panel">
    <div class="trace-head"><div><strong>Signal traces · y(t)</strong><small>Values scaled 0–255 · shared time axis</small></div><div class="legend" id="legend"></div></div>
@@ -96,7 +96,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
    details.append(name,address);
    const current=document.createElement("span");current.className="signal-current";current.id="list-"+safeId(s.key);current.textContent="—";
    row.append(checkbox,details,current);
-   if(!s.builtin){const remove=document.createElement("button");remove.type="button";remove.textContent="Remove";remove.setAttribute("aria-label","Remove "+s.label);remove.addEventListener("click",function(){removeSignal(s.key);});row.appendChild(remove);}
+   const remove=document.createElement("button");remove.type="button";remove.textContent="Remove";remove.setAttribute("aria-label","Remove "+s.label);remove.addEventListener("click",function(){removeSignal(s.key);});row.appendChild(remove);
    list.appendChild(row);
   });
   document.getElementById("signalCount").textContent=signals.length+" signal"+(signals.length===1?"":"s");
@@ -127,11 +127,19 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   drawAll();return true;
  }
  function removeSignal(key){
-  const idx=signals.findIndex(function(s){return s.key===key&&!s.builtin;});if(idx<0)return;
+  const idx=signals.findIndex(function(s){return s.key===key;});if(idx<0)return;
   signals.splice(idx,1);
   const row=traces.querySelector('[data-signal="'+CSS.escape(key)+'"]');if(row)row.remove();
   history.forEach(function(sample){delete sample[key];});recorded.forEach(function(sample){delete sample[key];});
   renderAllControls();drawAll();
+ }
+ function removeAllSignals(){
+  signals.splice(0,signals.length);
+  traces.replaceChildren();
+  history.forEach(function(sample){Object.keys(sample).forEach(function(key){if(key!=="timestamp")delete sample[key];});});
+  recorded.forEach(function(sample){Object.keys(sample).forEach(function(key){if(key!=="timestamp")delete sample[key];});});
+  renderAllControls();drawAll();
+  document.getElementById("sampleStatus").textContent="All signals removed. Add signals using the form.";
  }
  function updateSignalValue(s,value){
   const shown=value===null||value===undefined?"—":String(value);
@@ -189,6 +197,10 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   if(signals.some(function(s){return s.key.toLowerCase()===key.toLowerCase();})){error.textContent="That data key is already in the signal list.";return;}
   const ok=addSignal({key:key,label:label,address:address});
   if(ok){document.getElementById("signalNameInput").value="";document.getElementById("signalKeyInput").value="";document.getElementById("signalAddressInput").value="";error.textContent="Signal added."; }
+ });
+ document.getElementById("removeAllSignalsBtn").addEventListener("click",function(){
+  if(!signals.length)return;
+  removeAllSignals();
  });
  document.getElementById("windowSelect").addEventListener("change",drawAll);
  document.getElementById("pauseBtn").addEventListener("click",function(){paused=!paused;this.textContent=paused?"▶ Resume display":"Ⅱ Pause display";if(!paused)drawAll();});
