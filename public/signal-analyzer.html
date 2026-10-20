@@ -32,6 +32,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   <button id="recordBtn" class="primary">● Start recording</button>
   <button id="exportBtn">↓ Export CSV</button>
   <button id="clearBtn">Clear history</button>
+  <button id="loadStoredBtn">Load stored history</button>
   <span class="spacer"></span>
   <label class="label" for="windowSelect">Time window</label>
   <select id="windowSelect"><option value="1">1 second</option><option value="2">2 seconds</option><option value="5">5 seconds</option><option value="10">10 seconds</option><option value="15">15 seconds</option><option value="30" selected>30 seconds</option><option value="60">60 seconds</option><option value="120">2 minutes</option><option value="300">5 minutes</option></select>
@@ -62,7 +63,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
    <div class="time-axis"><div class="axis-label">Local clock (HH:mm:ss.SSS)</div><div id="axisTicks" class="axis-ticks"><span>--:--:--.---</span><span>--:--:--.---</span><span>--:--:--.---</span><span>--:--:--.---</span><span>--:--:--.---</span></div></div>
   </section>
  </div>
- <div class="footer"><span id="sampleStatus">Waiting for first sample…</span><span id="recordStatus">Recording is off</span><span>Source: WebSocket · ws://localhost:8080</span></div>
+ <div class="footer"><span id="sampleStatus">Waiting for first sample…</span><span id="recordStatus">Recording is off</span><span id="persistenceStatus">MongoDB persistence: checking…</span><span>Source: WebSocket · ws://localhost:8080</span></div>
 </main>
 <script>
 (function(){
@@ -250,7 +251,53 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   rows.forEach(function(p){lines.push([p.timestamp,new Date(p.timestamp).toISOString()].concat(keys.map(function(key){return p[key]===undefined||p[key]===null?"":p[key];})).join(","));});
   const blob=new Blob([lines.join("\r\n")],{type:"text/csv;charset=utf-8;"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
  }
+ async function checkPersistence(){
+  const status=document.getElementById("persistenceStatus");
+  try{
+   const response=await fetch("http://127.0.0.1:3002/api/health",{cache:"no-store"});
+   const health=await response.json();
+   if(health.mongoConnected&&health.plcConnected){
+    status.textContent="MongoDB: saving · buffered "+health.bufferedSamples;
+    status.style.color="var(--green)";
+   }else{
+    status.textContent="MongoDB: "+(health.mongoConnected?"connected":"offline")+" · PLC stream: "+(health.plcConnected?"connected":"offline");
+    status.style.color="var(--amber)";
+   }
+   status.title=health.lastError||("Stored samples since service start: "+health.totalStored);
+  }catch(e){
+   status.textContent="MongoDB persistence: service not running";
+   status.style.color="var(--red)";
+   status.title="Start the backend with npm run persist:plc. "+e.message;
+  }
+ }
+ document.getElementById("loadStoredBtn").addEventListener("click",async function(){
+  const button=this;button.disabled=true;button.textContent="Loading stored…";
+  try{
+   const response=await fetch("http://127.0.0.1:3002/api/samples?limit=5000",{cache:"no-store"});
+   const result=await response.json();
+   if(!response.ok)throw new Error(result.error||"History query failed");
+   const stored=(result.samples||[]).map(function(s){
+    const sample={timestamp:Number(s.timestamp)||Date.now()};
+    signals.forEach(function(signal){
+     const raw=s.data? s.data[signal.key]:undefined;
+     if(raw===undefined||raw===null||raw==="")sample[signal.key]=null;
+     else if(typeof raw==="number")sample[signal.key]=Number.isFinite(raw)?raw:null;
+     else if(typeof raw==="boolean")sample[signal.key]=raw?1:0;
+     else if(typeof raw==="string"){const n=Number(raw);sample[signal.key]=raw.trim()!==""&&Number.isFinite(n)?n:raw;}
+     else sample[signal.key]=String(raw);
+    });
+    return sample;
+   });
+   const byTimestamp=new Map();
+   history.concat(stored).forEach(function(sample){byTimestamp.set(sample.timestamp,sample);});
+   history.splice(0,history.length,...Array.from(byTimestamp.values()).sort(function(a,b){return a.timestamp-b.timestamp;}).slice(-maxSamples));
+   drawAll();
+   document.getElementById("sampleStatus").textContent="Loaded "+stored.length+" stored samples from MongoDB.";
+  }catch(error){document.getElementById("sampleStatus").textContent="Could not load stored history: "+error.message;}
+  finally{button.disabled=false;button.textContent="Load stored history";checkPersistence();}
+ });
  window.addEventListener("resize",drawAll);
+ setInterval(checkPersistence,3000);checkPersistence();
  setInterval(function(){if(recording)document.getElementById("recordStatus").innerHTML='<span class="record-indicator">RECORDING</span> · '+recorded.length+" samples";},500);
  renderAllControls();signals.forEach(addTrace);connect();drawAll();
 })();
