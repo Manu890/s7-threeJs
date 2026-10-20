@@ -17,9 +17,30 @@ function getPLCData() {
         pos: Math.round((Math.sin(phase * 0.55) + 1) * 127.5),
         read: writeValue
     };
-    // Custom analyzer signals are simulated as 0-255 BYTE values.
-    for (const [key, index] of customSignals) {
-        data[key] = Math.round((Math.sin(phase * (0.25 + (index % 7) * 0.09) + index) + 1) * 127.5);
+    // Simulate values according to the selected nodes7 data type.
+    for (const [key, signal] of customSignals) {
+        const wave = (Math.sin(phase * (0.25 + (signal.index % 7) * 0.09) + signal.index) + 1) / 2;
+        switch (signal.type) {
+            case 'X': data[key] = wave >= 0.5; break;
+            case 'C': data[key] = String.fromCharCode(65 + Math.floor(wave * 26) % 26); break;
+            case 'S': data[key] = 'SIM-' + String(Math.round(wave * 999)).padStart(3, '0'); break;
+            case 'DT':
+            case 'DTZ':
+            case 'DTL':
+            case 'DTLZ': data[key] = new Date(Date.now() + Math.round(wave * 60000)).toISOString(); break;
+            case 'I':
+            case 'RI': data[key] = Math.round(wave * 65535 - 32768); break;
+            case 'DI':
+            case 'RDI': data[key] = Math.round(wave * 4294967295 - 2147483648); break;
+            case 'W':
+            case 'RW': data[key] = Math.round(wave * 65535); break;
+            case 'DW':
+            case 'RDW': data[key] = Math.round(wave * 4294967295); break;
+            case 'R':
+            case 'RR':
+            case 'LR': data[key] = Math.round((wave * 200 - 100) * 1000) / 1000; break;
+            default: data[key] = Math.round(wave * 255);
+        }
     }
     return data;
 }
@@ -40,7 +61,9 @@ wss.on('connection', (socket) => {
         } else if (message.type === 'addSignal') {
             const key = String(message.key || '');
             if (/^[a-zA-Z_][a-zA-Z0-9_-]{0,39}$/.test(key) && !RESERVED_KEYS.has(key)) {
-                if (!customSignals.has(key)) customSignals.set(key, customSignals.size);
+                const allowedTypes = new Set(['X', 'B', 'C', 'S', 'I', 'DI', 'W', 'DW', 'R', 'RI', 'RDI', 'RW', 'RDW', 'RR', 'LR', 'DT', 'DTZ', 'DTL', 'DTLZ']);
+                const plcType = allowedTypes.has(String(message.plcType || '').toUpperCase()) ? String(message.plcType).toUpperCase() : 'B';
+                if (!customSignals.has(key)) customSignals.set(key, { index: customSignals.size, type: plcType });
                 socket.send(JSON.stringify({ type: 'signalAdded', key, success: true }));
                 console.log(`➕ Mock signal enabled: ${key}`);
             } else {
