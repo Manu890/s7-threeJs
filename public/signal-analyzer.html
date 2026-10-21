@@ -265,7 +265,18 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
  signalTypeInput.addEventListener("change",updateSignalKeyPlaceholder);
  updateSignalKeyPlaceholder();
  const windowSelect=document.getElementById("windowSelect"),timeZoom=document.getElementById("timeZoom"),timeZoomValue=document.getElementById("timeZoomValue");
- function setTimeWindow(value){windowSelect.value=String(value);timeZoom.value=String(value);timeZoomValue.textContent=value>=60?(value/60)+" min":value+" s";drawAll();}
+ function setTimeWindow(value){
+  value=Math.max(1,Math.min(300,Number(value)||30));
+  const valueText=value>=60?(value/60)+" min":value+" second"+(value===1?"":"s");
+  let option=Array.from(windowSelect.options).find(function(item){return Number(item.value)===value;});
+  const customOption=windowSelect.querySelector("option[data-zoom-custom]");
+  if(customOption)customOption.remove();
+  if(!option){option=document.createElement("option");option.value=String(value);option.dataset.zoomCustom="true";option.textContent=valueText;windowSelect.appendChild(option);}
+  windowSelect.value=String(value);
+  timeZoom.value=String(value);
+  timeZoomValue.textContent=value>=60?(value/60)+" min":value+" s";
+  drawAll();
+ }
  windowSelect.addEventListener("change",function(){setTimeWindow(Number(this.value));});
  timeZoom.addEventListener("input",function(){setTimeWindow(Number(this.value));});
  document.getElementById("recordBtn").addEventListener("click",async function(){
