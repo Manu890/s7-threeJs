@@ -302,6 +302,19 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   const type=cells.find((v,i)=>i!==addressIndex&&/^(BOOL|BYTE|CHAR|STRING|INT|DINT|WORD|DWORD|REAL|RINT|RDINT|RWORD|RDWORD|RREAL|LREAL|TIMER|COUNTER|DT|DTZ|DTL|DTLZ|X|B|C|S|I|DI|W|DW|R|RI|RDI|RW|RDW|RR|LR)$/i.test(v))||"";
   return {name:name,address:cells[addressIndex],type:type,comment:cells.slice(addressIndex+1).filter(Boolean).join(" ")};
  }
+ function normalizeStep7Address(value){
+  let address=String(value||"").trim().toUpperCase().replace(/\\s+/g," ");
+  address=address.replace(/^DB\\s*(\\d+)\\s*[.,/]\\s*(DBX|DBB|DBW|DBD)\\s*(.*)$/,"DB$1,$2$3");
+  address=address.replace(/^(DB\\s*\\d+)\\s+(DBX|DBB|DBW|DBD)\\s*(.*)$/,"$1,$2$3");
+  address=address.replace(/^(PI|PQ|PE|PA|M|I|E|Q|A|T|C)([A-Z]*)\\s+(\\d+(?:\\.\\d+){0,2})$/,"$1$2$3");
+  address=address.replace(/^(DB\\d+[,.:/](?:DBX|DBB|DBW|DBD))\\s*(\\d+(?:\\.\\d+){0,2})$/,"$1$2");
+  return address.replace(/\\s+/g,"");
+ }
+ function step7DbfType(value){
+  const raw=String(value||"").trim().toUpperCase();
+  const numeric={1:"BOOL",2:"BYTE",3:"WORD",4:"INT",5:"DWORD",6:"REAL",7:"STRING",8:"DINT",9:"CHAR",10:"ARRAY",11:"STRUCT",12:"DATE_AND_TIME",13:"S5TIME",14:"TIME",15:"COUNTER",16:"TIMER"};
+  return numeric[raw]||raw;
+ }
  async function parseDbfSymbolFile(file){
   const buffer=await file.arrayBuffer(),view=new DataView(buffer),bytes=new Uint8Array(buffer);
   if(bytes.length<33)return [];
@@ -310,7 +323,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   const fields=[];let pos=32;
   while(pos<headerLength-1&&bytes[pos]!==0x0D){
    if(pos+32>bytes.length)break;
-   let end=pos;while(end<pos+11&&bytes[end]!==0)end++;
+   let end=pos;while(end<pos+11&&bytes[end]!==0&&bytes[end]!==0x20)end++;
    const name=new TextDecoder("latin1").decode(bytes.slice(pos,end)).trim().toUpperCase();
    const length=bytes[pos+16];
    if(!name||!length)break;
@@ -318,22 +331,22 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   }
   if(!fields.length)return [];
   let offset=1;fields.forEach(f=>{f.offset=offset;offset+=f.length;});
-  const findField=(terms)=>fields.find(f=>terms.some(t=>f.name.includes(t)));
-  const nameField=findField(["SYMBOL","SYMNAME","SYM_NAME","NAME","MNEMONIC","IDENT"]);
-  const addressField=findField(["ADDRESS","OPERAND","ADDR","OPND","ABSADR"]);
-  const typeField=findField(["DATATYPE","DATA_TYPE","TYPE","VAR_TYPE"]);
-  const commentField=findField(["COMMENT","COMM","REMARK","NOTE"]);
+  const findField=(exact,terms=[])=>fields.find(f=>exact.includes(f.name))||fields.find(f=>terms.some(t=>f.name.includes(t)));
+  // STEP 7 V5's native SYMLIST.DBF schema uses these exact field names.
+  const nameField=findField(["_SKZ"],["SYMBOL","SYMNAME","SYM_NAME","NAME","MNEMONIC","IDENT"]);
+  const addressField=findField(["_OPHIST"],["ADDRESS","OPERAND","ADDR","OPND","ABSADR"]);
+  const typeField=findField(["_TYP"],["DATATYPE","DATA_TYPE","TYPE","VAR_TYPE"]);
+  const commentField=findField(["_COMMENT"],["COMMENT","COMM","REMARK","NOTE"]);
   if(!nameField||!addressField)return [];
-  const rows=[],count=Math.min(recordCount,100000);
+  const rows=[],count=Math.min(recordCount,100000),decoder=new TextDecoder("windows-1252");
   for(let i=0;i<count;i++){
    const base=headerLength+i*recordLength;if(base+recordLength>bytes.length)break;
    if(bytes[base]===0x2A)continue;
-   const get=f=>f?new TextDecoder("latin1").decode(bytes.slice(base+f.offset,base+f.offset+f.length)).replace(/\0/g,"").trim():"";
-   const name=get(nameField),address=get(addressField);
+   const get=f=>f?decoder.decode(bytes.slice(base+f.offset,base+f.offset+f.length)).replace(/\\0/g,"").trim():"";
+   const name=get(nameField),address=normalizeStep7Address(get(addressField));
    if(!name||!address)continue;
-   const parsed=splitSymbolRecord(name+", "+address+" "+get(typeField));
-   const type=get(typeField);
-   rows.push({name:name,address:address,type:type|| (parsed&&parsed.type)||"",comment:get(commentField)});
+   const type=step7DbfType(get(typeField));
+   rows.push({name:name.replace(/\\0/g,"").trim(),address:address,type:type,comment:get(commentField)});
   }
   return rows;
  }
@@ -388,7 +401,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
    info.append(name,meta);row.appendChild(info);
    const add=document.createElement("button");add.type="button";add.textContent="Add";add.style.cssText="padding:4px 8px;flex-shrink:0";
    add.addEventListener("click",function(){
-    const address=s.address.trim(),key=address.toUpperCase().replace(/\s+/g,"").replace(/[,.:/]/g,"_");
+    const address=normalizeStep7Address(s.address),key=address.toUpperCase().replace(/\s+/g,"").replace(/[,.:/]/g,"_");
     if(!/^[a-zA-Z_][a-zA-Z0-9_-]{0,39}$/.test(key)){symbolProjectStatus.textContent="Cannot create a WebSocket key from address "+address+". This address format needs backend support.";return;}
     if(isDuplicateSignal(key,address)){symbolProjectStatus.textContent="Already monitored: "+s.name+" ("+address+").";return;}
     const ok=addSignal({key:key,label:s.name,address:address,type:normalizeSymbolType(s.type)});
@@ -408,8 +421,8 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
    const result=await walkStep7Folder(root);projectSymbols=result.symbols;
    symbolSearchInput.disabled=false;renderProjectSymbols();
    let status="Project: "+root.name+" · "+projectSymbols.length+" unique symbols parsed · "+result.files+" candidate text/DBF files scanned.";
-   if(result.binaryCandidates.length)status+=" Binary symbol databases detected but not decoded: "+result.binaryCandidates.slice(0,4).join(", ")+(result.binaryCandidates.length>4?"…":"")+". Export the symbol table from STEP 7 as .ASC for full import.";
-   if(!projectSymbols.length)status+=" No supported symbol records were readable. STEP 7 V5 may store symbols in a proprietary database; export the Symbol Table as ASCII (.ASC) from STEP 7 to import it reliably.";
+   if(result.binaryCandidates.length)status+=" Some DBF files were not recognized: "+result.binaryCandidates.slice(0,4).join(", ")+(result.binaryCandidates.length>4?"…":"")+".";
+   if(!projectSymbols.length)status+=" No supported symbol records were readable. Check that the selected folder contains the extracted project and its hrs\\YDBs folders.";
    symbolProjectStatus.textContent=status;
   }catch(err){
    if(err&&err.name==="AbortError"){symbolProjectStatus.textContent="Folder selection cancelled.";return;}
