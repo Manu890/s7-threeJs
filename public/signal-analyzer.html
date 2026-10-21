@@ -86,7 +86,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   }catch(e){console.warn("Could not restore saved signal configuration.",e);}
  }
  restoreCustomSignals();
- const history=[]; const maxSamples=5000; let recording=false; let chartFrozen=false; let frozenTimestamp=0; let recorded=[]; let lastTimestamp=0; let socket=null; let hoverTime=null; let inspectionViewTime=null; let inspectionScrollDirection=0;
+ const history=[]; const maxSamples=5000; let recording=false; let chartFrozen=false; let frozenTimestamp=0; let recorded=[]; let lastTimestamp=0; let socket=null; let hoverTime=null; let inspectionViewTime=null; let inspectionScrollDirection=0; let inspectionDragging=false; let inspectionDragStartX=0; let inspectionDragStartViewTime=0;
  const traces=document.getElementById("traces");
  function safeId(key){return key.replace(/[^a-zA-Z0-9_-]/g,"_");}
  function addTrace(s){
@@ -99,28 +99,45 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   const wrap=document.createElement("div");wrap.className="canvas-wrap";
   const canvas=document.createElement("canvas");canvas.className="trace-canvas";canvas.id="canvas-"+safeId(s.key);canvas.setAttribute("aria-label",s.label+" signal trace");
   wrap.appendChild(canvas);row.append(label,wrap);traces.appendChild(row);
+  canvas.addEventListener("mousedown",function(e){
+   if(recording)return;
+   e.preventDefault();
+   if(inspectionViewTime===null)inspectionViewTime=chartFrozen?(frozenTimestamp||lastTimestamp||Date.now()):(lastTimestamp||Date.now());
+   inspectionDragging=true;
+   inspectionDragStartX=e.clientX;
+   inspectionDragStartViewTime=inspectionViewTime;
+   inspectionScrollDirection=0;
+   canvas.style.cursor="grabbing";
+  });
   canvas.addEventListener("mousemove",function(e){
-   const rect=canvas.getBoundingClientRect(),x=e.clientX-rect.left,edge=Math.max(8,rect.width*0.015);
-   const t=Number(document.getElementById("windowSelect").value);
+   const rect=canvas.getBoundingClientRect(),x=e.clientX-rect.left;
+   const span=Number(document.getElementById("windowSelect").value)*1000;
    if(recording){
     inspectionScrollDirection=0;
     inspectionViewTime=null;
     const displayNow=lastTimestamp||Date.now();
-    hoverTime=displayNow-(1-x/rect.width)*t*1000;
+    hoverTime=displayNow-(1-x/rect.width)*span;
    }else{
-    if(x<=edge||x>=rect.width-edge){
+    if(inspectionDragging){
+     const available=history.concat(recorded).map(function(p){return p.timestamp;}).filter(Number.isFinite);
+     const earliest=available.length?Math.min.apply(null,available):0;
+     const latest=lastTimestamp||Date.now();
+     inspectionViewTime=inspectionDragStartViewTime-((e.clientX-inspectionDragStartX)/Math.max(1,rect.width))*span;
+     inspectionViewTime=Math.max(earliest+span,Math.min(latest,inspectionViewTime));
+     inspectionScrollDirection=0;
+    }else if(x<=Math.max(8,rect.width*0.015)||x>=rect.width-Math.max(8,rect.width*0.015)){
      if(inspectionViewTime===null)inspectionViewTime=chartFrozen?(frozenTimestamp||lastTimestamp||Date.now()):(lastTimestamp||Date.now());
-     inspectionScrollDirection=x<=edge?-1:1;
+     inspectionScrollDirection=x<=Math.max(8,rect.width*0.015)?-1:1;
     }else{
      inspectionScrollDirection=0;
      if(inspectionViewTime===null)inspectionViewTime=chartFrozen?(frozenTimestamp||lastTimestamp||Date.now()):(lastTimestamp||Date.now());
     }
     const displayNow=inspectionViewTime===null?(chartFrozen?(frozenTimestamp||lastTimestamp||Date.now()):(lastTimestamp||Date.now())):inspectionViewTime;
-    hoverTime=displayNow-(1-x/rect.width)*t*1000;
+    hoverTime=displayNow-(1-x/rect.width)*span;
    }
    drawAll();
   });
-  canvas.addEventListener("mouseleave",function(){inspectionScrollDirection=0;hoverTime=null;drawAll();});
+  canvas.addEventListener("mouseleave",function(){if(!inspectionDragging){inspectionScrollDirection=0;hoverTime=null;drawAll();}});
  }
  function renderSignalList(){
   const list=document.getElementById("signalList");list.replaceChildren();
@@ -372,9 +389,10 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   }catch(error){document.getElementById("sampleStatus").textContent="Could not load stored history: "+error.message;}
   finally{button.disabled=false;button.textContent="Load stored history";checkPersistence();}
  });
+ window.addEventListener("mouseup",function(){inspectionDragging=false;inspectionScrollDirection=0;document.querySelectorAll(".trace-canvas").forEach(function(canvas){canvas.style.cursor="";});});
  window.addEventListener("resize",drawAll);
  setInterval(function(){
-  if(recording||inspectionScrollDirection===0||inspectionViewTime===null)return;
+  if(recording||inspectionDragging||inspectionScrollDirection===0||inspectionViewTime===null)return;
   const span=Number(document.getElementById("windowSelect").value)*1000;
   const available=history.concat(recorded).map(function(p){return p.timestamp;}).filter(Number.isFinite);
   const earliest=available.length?Math.min.apply(null,available):0;
