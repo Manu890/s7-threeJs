@@ -102,15 +102,22 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   canvas.addEventListener("mousemove",function(e){
    const rect=canvas.getBoundingClientRect(),x=e.clientX-rect.left,edge=Math.max(8,rect.width*0.015);
    const t=Number(document.getElementById("windowSelect").value);
-   if(x<=edge||x>=rect.width-edge){
-    if(inspectionViewTime===null)inspectionViewTime=chartFrozen?(frozenTimestamp||lastTimestamp||Date.now()):(lastTimestamp||Date.now());
-    inspectionScrollDirection=x<=edge?-1:1;
-   }else{
+   if(recording){
     inspectionScrollDirection=0;
-    if(inspectionViewTime===null)inspectionViewTime=chartFrozen?(frozenTimestamp||lastTimestamp||Date.now()):(lastTimestamp||Date.now());
+    inspectionViewTime=null;
+    const displayNow=lastTimestamp||Date.now();
+    hoverTime=displayNow-(1-x/rect.width)*t*1000;
+   }else{
+    if(x<=edge||x>=rect.width-edge){
+     if(inspectionViewTime===null)inspectionViewTime=chartFrozen?(frozenTimestamp||lastTimestamp||Date.now()):(lastTimestamp||Date.now());
+     inspectionScrollDirection=x<=edge?-1:1;
+    }else{
+     inspectionScrollDirection=0;
+     if(inspectionViewTime===null)inspectionViewTime=chartFrozen?(frozenTimestamp||lastTimestamp||Date.now()):(lastTimestamp||Date.now());
+    }
+    const displayNow=inspectionViewTime===null?(chartFrozen?(frozenTimestamp||lastTimestamp||Date.now()):(lastTimestamp||Date.now())):inspectionViewTime;
+    hoverTime=displayNow-(1-x/rect.width)*t*1000;
    }
-   const displayNow=inspectionViewTime===null?(chartFrozen?(frozenTimestamp||lastTimestamp||Date.now()):(lastTimestamp||Date.now())):inspectionViewTime;
-   hoverTime=displayNow-(1-x/rect.width)*t*1000;
    drawAll();
   });
   canvas.addEventListener("mouseleave",function(){inspectionScrollDirection=0;hoverTime=null;drawAll();});
@@ -371,7 +378,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
  });
  window.addEventListener("resize",drawAll);
  setInterval(function(){
-  if(inspectionScrollDirection===0||inspectionViewTime===null)return;
+  if(recording||inspectionScrollDirection===0||inspectionViewTime===null)return;
   const span=Number(document.getElementById("windowSelect").value)*1000;
   const available=history.concat(recorded).map(function(p){return p.timestamp;}).filter(Number.isFinite);
   const earliest=available.length?Math.min.apply(null,available):0;
