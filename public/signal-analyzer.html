@@ -334,8 +334,8 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   const findField=(exact,terms=[])=>fields.find(f=>exact.includes(f.name))||fields.find(f=>terms.some(t=>f.name.includes(t)));
   // STEP 7 V5's native SYMLIST.DBF schema uses these exact field names.
   const nameField=findField(["_SKZ"],["SYMBOL","SYMNAME","SYM_NAME","NAME","MNEMONIC","IDENT"]);
-  const addressField=findField(["_OPHIST"],["ADDRESS","OPERAND","ADDR","OPND","ABSADR"]);
-  const typeField=findField(["_TYP"],["DATATYPE","DATA_TYPE","TYPE","VAR_TYPE"]);
+  const addressField=findField(["_OPIEC","_OPHIST"],["ADDRESS","OPERAND","ADDR","OPND","OPIEC","OPHIST","ABSADR"]);
+  const typeField=findField(["_DATATYP","_TYP"],["DATATYP","DATATYPE","DATA_TYPE","TYPE","VAR_TYPE"]);
   const commentField=findField(["_COMMENT"],["COMMENT","COMM","REMARK","NOTE"]);
   if(!nameField||!addressField)return [];
   const rows=[],count=Math.min(recordCount,100000),decoder=new TextDecoder("windows-1252");
