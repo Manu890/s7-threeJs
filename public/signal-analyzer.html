@@ -303,12 +303,13 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   return {name:name,address:cells[addressIndex],type:type,comment:cells.slice(addressIndex+1).filter(Boolean).join(" "),symbolName:name,operand:cells[addressIndex],dataType:type};
  }
  function normalizeStep7Address(value){
-  let address=String(value||"").trim().toUpperCase().replace(/\\s+/g," ");
-  address=address.replace(/^DB\\s*(\\d+)\\s*[.,/]\\s*(DBX|DBB|DBW|DBD)\\s*(.*)$/,"DB$1,$2$3");
-  address=address.replace(/^(DB\\s*\\d+)\\s+(DBX|DBB|DBW|DBD)\\s*(.*)$/,"$1,$2$3");
-  address=address.replace(/^(PI|PQ|PE|PA|M|I|E|Q|A|T|C)([A-Z]*)\\s+(\\d+(?:\\.\\d+){0,2})$/,"$1$2$3");
-  address=address.replace(/^(DB\\d+[,.:/](?:DBX|DBB|DBW|DBD))\\s*(\\d+(?:\\.\\d+){0,2})$/,"$1$2");
-  return address.replace(/\\s+/g,"");
+  let address=String(value||"").trim().toUpperCase().replace(/\s+/g," ");
+  address=address.replace(/^DB\s*(\d+)\s*[.,/]\s*(DBX|DBB|DBW|DBD)\s*(.*)$/,"DB$1,$2$3");
+  address=address.replace(/^(DB\s*\d+)\s+(DBX|DBB|DBW|DBD)\s*(.*)$/,"$1,$2$3");
+  address=address.replace(/^(PI|PQ|PE|PA|M|I|E|Q|A|T|C)([A-Z]*)\s+(\d+(?:\.\d+){0,2})$/,"$1$2 $3");
+  address=address.replace(/^(DB\d+[,.:/](?:DBX|DBB|DBW|DBD))\s*(\d+(?:\.\d+){0,2})$/,"$1$2");
+  address=address.replace(/^(PI|PQ|PE|PA|M|I|E|Q|A|T|C)([A-Z]*)(\d+(?:\.\d+){0,2})$/,"$1$2 $3");
+  return address.replace(/\s+/g," ").trim();
  }
  function step7DbfType(value){
   const raw=String(value||"").trim().toUpperCase();
@@ -436,10 +437,10 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   let key=document.getElementById("signalKeyInput").value.trim();
   let address="";
   let selectedType=document.getElementById("signalTypeInput").value;
-  const plcAddressPattern=/^(?:DB\d+\s*[,.:/]\s*[A-Z]+\s*\d+(?:\.\d+){0,2}|(?:PI|PQ|PE|PA|M|I|E|Q|A|T|C)[A-Z]*\d+(?:\.\d+){0,2})$/i;
+  const plcAddressPattern=/^(?:DB\d+\s*[,.:/]\s*[A-Z]+\s*\d+(?:\.\d+){0,2}|(?:PI|PQ|PE|PA|M|I|E|Q|A|T|C)[A-Z]*\s*\d+(?:\.\d+){0,2})$/i;
   if(plcAddressPattern.test(key)){
-   address=key;
-   key=key.toUpperCase().replace(/\s+/g,"").replace(/[,.:/]/g,"_");
+   address=normalizeStep7Address(key);
+   key=address.toUpperCase().replace(/\s+/g,"").replace(/[,.:/]/g,"_");
    if(!label)label=address;
   }
   if(!key){error.textContent="Enter a WebSocket data key (such as motorSpeed) or a PLC address (such as DB1,INT6).";return;}
@@ -451,7 +452,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
    if(dbType){
     const aliases={BOOL:"X",X:"X",BYTE:"B",B:"B",CHAR:"C",C:"C",STRING:"S",S:"S",INT:"I",I:"I",DINT:"DI",DI:"DI",WORD:"W",W:"W",DWORD:"DW",DW:"DW",REAL:"R",R:"R",RINT:"RI",RI:"RI",RDINT:"RDI",RDI:"RDI",RWORD:"RW",RW:"RW",RDWORD:"RDW",RDW:"RDW",RD:"RD",D:"D",RREAL:"RR",RR:"RR",LREAL:"LR",LR:"LR",DT:"DT",DTZ:"DTZ",DTL:"DTL",DTLZ:"DTLZ"};
     if(aliases[dbType[1].toUpperCase()])selectedType=aliases[dbType[1].toUpperCase()];
-   }else if(/^[A-Z]+\d+\.\d+$/i.test(address))selectedType="X";
+   }else if(/^[A-Z]+\s*\d+\.\d+$/i.test(address))selectedType="X";
    else if(/^T\d+/i.test(address))selectedType="TMR";
    else if(/^C\d+/i.test(address))selectedType="CTR";
    else if(/^PI[WB]/i.test(address))selectedType=/^PIB/i.test(address)?"B":"I";
