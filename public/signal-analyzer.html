@@ -139,11 +139,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   });
   document.getElementById("signalCount").textContent=signals.length+" signal"+(signals.length===1?"":"s");
  }
- function renderLegend(){
-  const legend=document.getElementById("legend");legend.replaceChildren();
-  signals.forEach(function(s){const item=document.createElement("span");const line=document.createElement("i");line.style.background=s.color;item.append(line,document.createTextNode(s.label));legend.appendChild(item);});
- }
- function renderAllControls(){renderSignalList();renderLegend();}
+ function renderAllControls(){renderSignalList();}
  function addSignal(config){
   if(signals.some(function(s){return s.key===config.key;}))return false;
   const s={key:config.key,label:config.label,address:config.address||("WebSocket key: "+config.key),type:config.type||"B",color:palette[signals.length%palette.length],builtin:false,visible:true};
