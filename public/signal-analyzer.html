@@ -41,16 +41,15 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
    <div class="section-head"><span>Signal list <small id="signalCount">0 signals</small></span><button id="removeAllSignalsBtn" class="danger" type="button">Remove all</button></div>
    <form class="add-signal" id="addSignalForm">
     <input id="signalNameInput" maxlength="40" placeholder="Signal name (optional; e.g. Motor speed)" aria-label="Signal name">
-    <input id="signalKeyInput" maxlength="40" placeholder="Data key (e.g. motorSpeed or DB2000,BYTE4)" aria-label="WebSocket data key">
+    <input id="signalKeyInput" maxlength="64" placeholder="WebSocket key or PLC address (e.g. motorSpeed or DB1,INT6)" aria-label="WebSocket key or PLC address">
     <select id="signalTypeInput" aria-label="PLC data type">
      <option value="X">BOOL / X · bit</option><option value="B">BYTE / B · 8-bit unsigned</option><option value="C">CHAR / C · character</option><option value="S">STRING / S · string</option>
      <option value="I" selected>INT / I · 16-bit signed</option><option value="DI">DINT / DI · 32-bit signed</option><option value="W">WORD / W · 16-bit unsigned</option><option value="D">DWORD / D · legacy alias</option><option value="DW">DWORD / DW · 32-bit unsigned</option><option value="R">REAL / R · float</option>
      <option value="RI">RINT / RI</option><option value="RDI">RDINT / RDI</option><option value="RW">RWORD / RW</option><option value="RD">RDWORD / RD legacy alias</option><option value="RDW">RDWORD / RDW</option><option value="RR">RREAL / RR</option><option value="TMR">TIMER / T area</option><option value="CTR">COUNTER / C area</option>
      <option value="LR">LREAL / LR · 64-bit float</option><option value="DT">DT · date/time</option><option value="DTZ">DTZ · UTC date/time</option><option value="DTL">DTL · long date/time</option><option value="DTLZ">DTLZ · UTC long date/time</option>
     </select>
-    <input id="signalAddressInput" maxlength="64" placeholder="nodes7 address (e.g. DB1,REAL4 or M32.2)" aria-label="PLC address (optional)">
     <button class="primary" type="submit">＋ Add signal</button>
-    <div class="help-text">Choose a nodes7 type and enter a complete nodes7 address such as DB1,INT6, DB1,X14.0, DB1,S20.30, DB1,DT0, M32.2, or PIW30. The real PLC backend must register and decode this address. The selected type is also used by the mock simulator.</div>
+    <div class="help-text">Use one field: enter a WebSocket data key (for example motorSpeed) or a PLC address such as DB1,INT6, DB1,X14.0, DB1,S20.30, DB1,DT0, M32.2, or PIW30. PLC addresses are converted into internal data keys automatically. The real PLC backend must register and decode the address. The selected type is also used by the mock simulator.</div>
     <div class="form-error" id="signalFormError" role="status"></div>
    </form>
    <div id="signalList" class="signal-list"></div>
@@ -81,7 +80,8 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
    saved.forEach(function(s){
     if(!s||typeof s.key!=="string"||typeof s.label!=="string"||signals.some(function(existing){return existing.key.toLowerCase()===s.key.toLowerCase();}))return;
     if(!/^[a-zA-Z_][a-zA-Z0-9_-]{0,39}$/.test(s.key))return;
-    signals.push({key:s.key,label:s.label,address:typeof s.address==="string"?s.address:"WebSocket key: "+s.key,type:typeof s.type==="string"?s.type:"B",color:palette[signals.length%palette.length],builtin:false,visible:s.visible!==false});
+    const savedAddress=typeof s.address==="string"?s.address:"";
+    signals.push({key:s.key,label:s.label,address:savedAddress.indexOf("WebSocket key: ")===0?"":savedAddress,type:typeof s.type==="string"?s.type:"B",color:palette[signals.length%palette.length],builtin:false,visible:s.visible!==false});
    });
   }catch(e){console.warn("Could not restore saved signal configuration.",e);}
  }
@@ -181,7 +181,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
  function renderAllControls(){renderSignalList();}
  function addSignal(config){
   if(signals.some(function(s){return s.key===config.key;}))return false;
-  const s={key:config.key,label:config.label,address:config.address||("WebSocket key: "+config.key),type:config.type||"B",color:palette[signals.length%palette.length],builtin:false,visible:true};
+  const s={key:config.key,label:config.label,address:config.address||"",type:config.type||"B",color:palette[signals.length%palette.length],builtin:false,visible:true};
   signals.push(s);addTrace(s);saveCustomSignals();renderAllControls();
   if(socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify({type:"addSignal",key:s.key,plcType:s.type,address:s.address}));
   const last=history.length?history[history.length-1]:null;
@@ -255,18 +255,15 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   e.preventDefault();const error=document.getElementById("signalFormError");
   let label=document.getElementById("signalNameInput").value.trim();
   let key=document.getElementById("signalKeyInput").value.trim();
-  let address=document.getElementById("signalAddressInput").value.trim();
+  let address="";
   let selectedType=document.getElementById("signalTypeInput").value;
   const plcAddressPattern=/^(?:DB\d+\s*[,.:/]\s*[A-Z]+\s*\d+(?:\.\d+){0,2}|(?:PI|PQ|PE|PA|M|I|E|Q|A|T|C)[A-Z]*\d+(?:\.\d+){0,2})$/i;
   if(plcAddressPattern.test(key)){
-   if(address&&!plcAddressPattern.test(address)){error.textContent="The PLC address field should contain an address like DB2000,BYTE4.";return;}
-   address=key;key=key.toUpperCase().replace(/\s+/g,"").replace(/[,.:/]/g,"_");
-   if(!label)label=address;
-  }else if(!key&&plcAddressPattern.test(address)){
-   key=address.toUpperCase().replace(/\s+/g,"").replace(/[,.:/]/g,"_");
+   address=key;
+   key=key.toUpperCase().replace(/\s+/g,"").replace(/[,.:/]/g,"_");
    if(!label)label=address;
   }
-  if(!key){error.textContent="Enter a WebSocket data key or a PLC address such as DB2000,BYTE4.";return;}
+  if(!key){error.textContent="Enter a WebSocket data key (such as motorSpeed) or a PLC address (such as DB1,INT6).";return;}
   if(!label)label=key;
   if(!/^[a-zA-Z_][a-zA-Z0-9_-]{0,39}$/.test(key)){error.textContent="Data key must start with a letter or underscore and use only letters, numbers, _ or -.";return;}
   if(signals.some(function(s){return s.key.toLowerCase()===key.toLowerCase();})){error.textContent="That data key is already in the signal list.";return;}
@@ -282,7 +279,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
    else if(/^PID/i.test(address))selectedType="DI";
   }
   const ok=addSignal({key:key,label:label,address:address,type:selectedType});
-  if(ok){document.getElementById("signalNameInput").value="";document.getElementById("signalKeyInput").value="";document.getElementById("signalAddressInput").value="";error.textContent="Signal added."; }
+  if(ok){document.getElementById("signalNameInput").value="";document.getElementById("signalKeyInput").value="";error.textContent="Signal added."; }
  });
  document.getElementById("removeAllSignalsBtn").addEventListener("click",function(){
   if(!signals.length)return;
@@ -290,33 +287,8 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
  });
  const signalKeyInput=document.getElementById("signalKeyInput");
  const signalTypeInput=document.getElementById("signalTypeInput");
- const signalKeyPlaceholders={
-  X:"DB1,X14.0",
-  B:"DB1,BYTE4",
-  C:"DB1,CHAR4",
-  S:"DB1,STRING20.30",
-  I:"DB1,INT6",
-  DI:"DB1,DINT6",
-  W:"DB1,WORD6",
-  D:"DB1,DWORD6",
-  DW:"DB1,DWORD6",
-  R:"DB1,REAL4",
-  RI:"DB1,RINT6",
-  RDI:"DB1,RDINT6",
-  RW:"DB1,RWORD6",
-  RD:"DB1,RDWORD6",
-  RDW:"DB1,RDWORD6",
-  RR:"DB1,RREAL4",
-  TMR:"T1",
-  CTR:"C1",
-  LR:"DB1,LREAL4",
-  DT:"DB1,DT0",
-  DTZ:"DB1,DTZ0",
-  DTL:"DB1,DTL0",
-  DTLZ:"DB1,DTLZ0"
- };
  function updateSignalKeyPlaceholder(){
-  signalKeyInput.placeholder=signalKeyPlaceholders[signalTypeInput.value]||"Data key (e.g. motorSpeed)";
+  signalKeyInput.placeholder="WebSocket key or PLC address (e.g. motorSpeed or DB1,INT6)";
  }
  signalTypeInput.addEventListener("change",updateSignalKeyPlaceholder);
  updateSignalKeyPlaceholder();
