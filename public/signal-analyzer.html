@@ -253,7 +253,6 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
     chartFrozen=true;frozenTimestamp=lastTimestamp||Date.now();hoverTime=null;
     button.textContent="● Start recording";button.classList.remove("danger");
     document.getElementById("recordStatus").textContent="Recording stopped · "+recorded.length+" samples captured · chart frozen";
-    if(recorded.length)exportCSV(recorded,"plc-recording.csv");
    }
    drawAll();
   }catch(error){
