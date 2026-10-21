@@ -87,7 +87,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   }catch(e){console.warn("Could not restore saved signal configuration.",e);}
  }
  restoreCustomSignals();
- const history=[]; const maxSamples=5000; let paused=false; let recording=false; let recorded=[]; let lastTimestamp=0; let socket=null; let hoverTime=null;
+ const history=[]; const maxSamples=5000; let paused=false; let recording=false; let chartFrozen=false; let frozenTimestamp=0; let recorded=[]; let lastTimestamp=0; let socket=null; let hoverTime=null;
  const traces=document.getElementById("traces");
  function safeId(key){return key.replace(/[^a-zA-Z0-9_-]/g,"_");}
  function addTrace(s){
@@ -100,7 +100,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   const wrap=document.createElement("div");wrap.className="canvas-wrap";
   const canvas=document.createElement("canvas");canvas.className="trace-canvas";canvas.id="canvas-"+safeId(s.key);canvas.setAttribute("aria-label",s.label+" signal trace");
   wrap.appendChild(canvas);row.append(label,wrap);traces.appendChild(row);
-  canvas.addEventListener("mousemove",function(e){const rect=canvas.getBoundingClientRect();const t=Number(document.getElementById("windowSelect").value);hoverTime=(lastTimestamp||Date.now())-(1-(e.clientX-rect.left)/rect.width)*t*1000;drawAll();});
+  canvas.addEventListener("mousemove",function(e){const rect=canvas.getBoundingClientRect();const t=Number(document.getElementById("windowSelect").value);const displayNow=chartFrozen?(frozenTimestamp||lastTimestamp||Date.now()):(lastTimestamp||Date.now());hoverTime=displayNow-(1-(e.clientX-rect.left)/rect.width)*t*1000;drawAll();});
   canvas.addEventListener("mouseleave",function(){hoverTime=null;drawAll();});
  }
  function renderSignalList(){
@@ -174,7 +174,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   socket.onerror=function(){setConnection(false,"WebSocket connection error");};
  }
  function drawAll(){
-  const now=lastTimestamp||Date.now(),span=Number(document.getElementById("windowSelect").value)*1000,from=now-span;
+  const now=chartFrozen?(frozenTimestamp||lastTimestamp||Date.now()):(lastTimestamp||Date.now()),span=Number(document.getElementById("windowSelect").value)*1000,from=now-span;
   signals.forEach(function(s){
    const row=traces.querySelector('[data-signal="'+CSS.escape(s.key)+'"]');if(!row)return;row.style.display=s.visible?"grid":"none";
    const canvas=document.getElementById("canvas-"+safeId(s.key));if(!canvas)return;
@@ -238,10 +238,29 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
  windowSelect.addEventListener("change",function(){setTimeWindow(Number(this.value));});
  timeZoom.addEventListener("input",function(){setTimeWindow(Number(this.value));});
  document.getElementById("pauseBtn").addEventListener("click",function(){paused=!paused;this.textContent=paused?"▶ Resume display":"Ⅱ Pause display";if(!paused)drawAll();});
- document.getElementById("recordBtn").addEventListener("click",function(){
-  recording=!recording;
-  if(recording){recorded=[];this.textContent="■ Stop & export";this.classList.add("danger");document.getElementById("recordStatus").innerHTML='<span class="record-indicator">RECORDING</span> · 0 samples';}
-  else{this.textContent="● Start recording";this.classList.remove("danger");document.getElementById("recordStatus").textContent="Recording stopped · "+recorded.length+" samples captured";if(recorded.length)exportCSV(recorded,"plc-recording.csv");}
+ document.getElementById("recordBtn").addEventListener("click",async function(){
+  const button=this;
+  button.disabled=true;
+  const nextRecording=!recording;
+  try{
+   const response=await fetch("http://127.0.0.1:3002/api/recording",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({enabled:nextRecording})});
+   const result=await response.json();
+   if(!response.ok)throw new Error(result.error||"Could not change MongoDB recording state.");
+   recording=nextRecording;
+   if(recording){
+    chartFrozen=false;frozenTimestamp=0;hoverTime=null;recorded=[];
+    button.textContent="■ Stop recording";button.classList.add("danger");
+    document.getElementById("recordStatus").innerHTML='<span class="record-indicator">RECORDING</span> · 0 samples';
+   }else{
+    chartFrozen=true;frozenTimestamp=lastTimestamp||Date.now();hoverTime=null;
+    button.textContent="● Start recording";button.classList.remove("danger");
+    document.getElementById("recordStatus").textContent="Recording stopped · "+recorded.length+" samples captured · chart frozen";
+    if(recorded.length)exportCSV(recorded,"plc-recording.csv");
+   }
+   drawAll();
+  }catch(error){
+   document.getElementById("recordStatus").textContent="Could not change recording state: "+error.message;
+  }finally{button.disabled=false;}
  });
  document.getElementById("exportBtn").addEventListener("click",function(){exportCSV(recording?recorded:history,recording?"plc-recording.csv":"plc-history.csv");});
  document.getElementById("clearBtn").addEventListener("click",function(){history.length=0;if(recording)recorded=[];drawAll();document.getElementById("sampleStatus").textContent="History cleared";});
@@ -257,7 +276,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
    const response=await fetch("http://127.0.0.1:3002/api/health",{cache:"no-store"});
    const health=await response.json();
    if(health.mongoConnected&&health.plcConnected){
-    status.textContent="MongoDB: saving · buffered "+health.bufferedSamples;
+    status.textContent=health.recordingEnabled?"MongoDB: recording · buffered "+health.bufferedSamples:"MongoDB: recording stopped";
     status.style.color="var(--green)";
    }else{
     status.textContent="MongoDB: "+(health.mongoConnected?"connected":"offline")+" · PLC stream: "+(health.plcConnected?"connected":"offline");
