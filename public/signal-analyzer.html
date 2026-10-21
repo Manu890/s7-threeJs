@@ -394,8 +394,8 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   return {symbols:Array.from(dedup.values()),files:files.length,binaryCandidates:binaryCandidates,visited:visited};
  }
  function renderProjectSymbols(){
-  const query=symbolSearchInput.value.trim().toLowerCase();symbolResults.replaceChildren();
-  const matches=projectSymbols.filter(s=>!query||(s.name+" "+s.address+" "+s.type+" "+s.comment).toLowerCase().includes(query)).slice(0,150);
+  const query=symbolSearchInput.value.trim().toLowerCase(),addressQuery=query.toUpperCase().replace(/\s+/g,"");symbolResults.replaceChildren();
+  const matches=projectSymbols.filter(s=>!query||(s.name+" "+s.address+" "+s.type+" "+s.comment).toLowerCase().includes(query)||normalizeStep7Address(s.address).replace(/\s+/g,"").includes(addressQuery)).slice(0,150);
   matches.forEach(s=>{
    const row=document.createElement("div");row.style.cssText="display:flex;gap:6px;align-items:center;padding:6px;background:#0b131e;border:1px solid #263447;border-radius:6px";
    const info=document.createElement("span");info.style.cssText="min-width:0;flex:1;overflow-wrap:anywhere";
