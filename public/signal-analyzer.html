@@ -39,6 +39,13 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
  <div class="layout">
   <aside class="sidebar">
    <div class="section-head"><span>Signal list <small id="signalCount">0 signals</small></span><button id="removeAllSignalsBtn" class="danger" type="button">Remove all</button></div>
+   <div class="add-signal" style="border-bottom:1px solid var(--border)">
+    <button id="openStep7FolderBtn" type="button">📂 Open STEP 7 V5 project folder</button>
+    <div class="help-text">Choose the extracted project folder. The browser scans it locally for exported symbol tables and common STEP 7 symbol database files; files are not uploaded.</div>
+    <input id="symbolSearchInput" maxlength="100" placeholder="Search project symbols…" aria-label="Search project symbols" disabled>
+    <div id="symbolProjectStatus" class="help-text" role="status">No STEP 7 project folder selected.</div>
+    <div id="symbolResults" style="max-height:220px;overflow:auto;display:grid;gap:5px"></div>
+   </div>
    <form class="add-signal" id="addSignalForm">
     <input id="signalNameInput" maxlength="40" placeholder="Signal name (optional; e.g. Motor speed)" aria-label="Signal name">
     <input id="signalKeyInput" maxlength="64" placeholder="WebSocket key or PLC address (e.g. motorSpeed or DB1,INT6)" aria-label="WebSocket key or PLC address">
@@ -262,6 +269,154 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   const ticks=document.getElementById("axisTicks"),seconds=Number(document.getElementById("windowSelect").value);ticks.replaceChildren();
   for(let i=0;i<=4;i++){const spanEl=document.createElement("span");const tickTime=new Date(now-seconds*1000+(seconds*1000*i/4));const hh=String(tickTime.getHours()).padStart(2,"0"),mm=String(tickTime.getMinutes()).padStart(2,"0"),ss=String(tickTime.getSeconds()).padStart(2,"0"),ms=String(tickTime.getMilliseconds()).padStart(3,"0");spanEl.textContent=hh+":"+mm+":"+ss+"."+ms;ticks.appendChild(spanEl);}
  }
+ // STEP 7 V5 project symbol discovery. Folder access stays in this browser tab.
+ const symbolSearchInput=document.getElementById("symbolSearchInput");
+ const symbolProjectStatus=document.getElementById("symbolProjectStatus");
+ const symbolResults=document.getElementById("symbolResults");
+ let projectSymbols=[];
+ function normalizeSymbolType(value){
+  const t=String(value||"").trim().toUpperCase().replace(/[^A-Z]/g,"");
+  const aliases={BOOL:"X",BIT:"X",X:"X",BYTE:"B",CHAR:"C",STRING:"S",INT:"I",DINT:"DI",WORD:"W",DWORD:"DW",REAL:"R",RINT:"RI",RDINT:"RDI",RWORD:"RW",RDWORD:"RDW",RREAL:"RR",LREAL:"LR",TIMER:"TMR",COUNTER:"CTR",DATEANDTIME:"DT",DT:"DT",DTZ:"DTZ",DTL:"DTL",DTLZ:"DTLZ"};
+  return aliases[t]||"I";
+ }
+ function splitSymbolRecord(line){
+  const text=String(line||"").replace(/^\uFEFF/,"").trim();
+  if(!text||/^(symbol|name)[,;\t]/i.test(text)||/^\s*#/.test(text))return null;
+  // STEP 7 ASC: length,symbol. address datatype comment
+  const asc=text.match(/^\s*\d+\s*,\s*([^,]+?)\s+((?:DB\d+\s*[,.:/]\s*)?[A-Z]+\s*\d+(?:\.\d+){0,2}|(?:PI|PQ|PE|PA|M|I|E|Q|A|T|C)[A-Z]*\s*\d+(?:\.\d+){0,2})\s+([A-Z][A-Z0-9_]*)?(?:\s+(.*))?$/i);
+  if(asc)return {name:asc[1].replace(/[.\s]+$/,"").trim(),address:asc[2].trim(),type:asc[3]||"",comment:asc[4]||""};
+  // CSV/TSV exports: symbol, address, data type, comment (quoted or unquoted)
+  let cells=[];
+  if(text.includes("\t"))cells=text.split("\t");
+  else if(text.includes(",")){
+   let current="",quoted=false;
+   for(let i=0;i<text.length;i++){const ch=text[i];if(ch==='"'){if(quoted&&text[i+1]==='"'){current+='"';i++;}else quoted=!quoted;}else if(ch===","&&!quoted){cells.push(current.trim());current="";}else current+=ch;}
+   cells.push(current.trim());
+  }else return null;
+  cells=cells.map(v=>v.trim().replace(/^"(.*)"$/,"$1").trim());
+  if(cells.length<2)return null;
+  const addressIndex=cells.findIndex((v)=>/^(?:DB\d+\s*[,.:/]\s*[A-Z]+\s*\d+(?:\.\d+){0,2}|(?:PI|PQ|PE|PA|M|I|E|Q|A|T|C)[A-Z]*\s*\d+(?:\.\d+){0,2})$/i.test(v));
+  if(addressIndex<0)return null;
+  const name=cells.find((v,i)=>i!==addressIndex&&v&& !/^(BOOL|BYTE|CHAR|STRING|INT|DINT|WORD|DWORD|REAL|RINT|RDINT|RWORD|RDWORD|RREAL|LREAL|TIMER|COUNTER|DT|DTZ|DTL|DTLZ)$/i.test(v));
+  if(!name)return null;
+  const type=cells.find((v,i)=>i!==addressIndex&&/^(BOOL|BYTE|CHAR|STRING|INT|DINT|WORD|DWORD|REAL|RINT|RDINT|RWORD|RDWORD|RREAL|LREAL|TIMER|COUNTER|DT|DTZ|DTL|DTLZ|X|B|C|S|I|DI|W|DW|R|RI|RDI|RW|RDW|RR|LR)$/i.test(v))||"";
+  return {name:name,address:cells[addressIndex],type:type,comment:cells.slice(addressIndex+1).filter(Boolean).join(" ")};
+ }
+ async function parseDbfSymbolFile(file){
+  const buffer=await file.arrayBuffer(),view=new DataView(buffer),bytes=new Uint8Array(buffer);
+  if(bytes.length<33)return [];
+  const recordCount=view.getUint32(4,true),headerLength=view.getUint16(8,true),recordLength=view.getUint16(10,true);
+  if(headerLength<33||recordLength<2||headerLength>bytes.length)return [];
+  const fields=[];let pos=32;
+  while(pos<headerLength-1&&bytes[pos]!==0x0D){
+   if(pos+32>bytes.length)break;
+   let end=pos;while(end<pos+11&&bytes[end]!==0)end++;
+   const name=new TextDecoder("latin1").decode(bytes.slice(pos,end)).trim().toUpperCase();
+   const length=bytes[pos+16];
+   if(!name||!length)break;
+   fields.push({name:name,length:length});pos+=32;
+  }
+  if(!fields.length)return [];
+  let offset=1;fields.forEach(f=>{f.offset=offset;offset+=f.length;});
+  const findField=(terms)=>fields.find(f=>terms.some(t=>f.name.includes(t)));
+  const nameField=findField(["SYMBOL","SYMNAME","SYM_NAME","NAME","MNEMONIC","IDENT"]);
+  const addressField=findField(["ADDRESS","OPERAND","ADDR","OPND","ABSADR"]);
+  const typeField=findField(["DATATYPE","DATA_TYPE","TYPE","VAR_TYPE"]);
+  const commentField=findField(["COMMENT","COMM","REMARK","NOTE"]);
+  if(!nameField||!addressField)return [];
+  const rows=[],count=Math.min(recordCount,100000);
+  for(let i=0;i<count;i++){
+   const base=headerLength+i*recordLength;if(base+recordLength>bytes.length)break;
+   if(bytes[base]===0x2A)continue;
+   const get=f=>f?new TextDecoder("latin1").decode(bytes.slice(base+f.offset,base+f.offset+f.length)).replace(/\0/g,"").trim():"";
+   const name=get(nameField),address=get(addressField);
+   if(!name||!address)continue;
+   const parsed=splitSymbolRecord(name+", "+address+" "+get(typeField));
+   const type=get(typeField);
+   rows.push({name:name,address:address,type:type|| (parsed&&parsed.type)||"",comment:get(commentField)});
+  }
+  return rows;
+ }
+ async function walkStep7Folder(root){
+  const found=[],files=[],maxFiles=12000;let visited=0;
+  async function walk(dir,depth){
+   if(depth>12||visited>=maxFiles)return;
+   for await(const entry of dir.values()){
+    if(visited>=maxFiles)break;
+    if(entry.name.startsWith(".")||/^(node_modules|cache|temp|tmp)$/i.test(entry.name))continue;
+    if(entry.kind==="directory"){await walk(entry,depth+1);continue;}
+    visited++;const ext=entry.name.split(".").pop().toLowerCase();
+    if(["asc","sdf","seq","dif","csv","txt","dbf"].includes(ext))files.push(entry);
+   }
+  }
+  await walk(root,0);
+  const binaryCandidates=[];
+  for(const entry of files){
+   const upper=entry.name.toUpperCase(),ext=upper.split(".").pop();
+   const likelySymbol=ext==="ASC"||ext==="SDF"||ext==="SEQ"||ext==="DIF"||/SYM_TAB\.DBF$/.test(upper)||/^SYM[_-]?\d*\.DBF$/.test(upper)||/SYMBOL.*\.DBF$/.test(upper)||/SYMLIST\.DBF$/.test(upper);
+   if(!likelySymbol)continue;
+   try{
+    const file=await entry.getFile();
+    if(ext==="DBF"){
+     const rows=await parseDbfSymbolFile(file);
+     if(rows.length)found.push(...rows);
+     else binaryCandidates.push(entry.name+" (DBF found, layout not recognized)");
+    }else{
+     if(file.size>15*1024*1024)continue;
+     const content=await file.text();
+     content.split(/\r?\n/).forEach(line=>{const row=splitSymbolRecord(line);if(row&&row.name&&row.address)found.push(row);});
+    }
+   }catch(err){console.warn("Could not inspect STEP 7 symbol file",entry.name,err);}
+  }
+  const dedup=new Map();
+  found.forEach(s=>{
+   s.name=String(s.name||"").trim();s.address=String(s.address||"").trim();
+   if(!s.name||!s.address)return;
+   const id=normalizeSignalAddress(s.address);
+   if(!dedup.has(id))dedup.set(id,s);
+  });
+  return {symbols:Array.from(dedup.values()),files:files.length,binaryCandidates:binaryCandidates,visited:visited};
+ }
+ function renderProjectSymbols(){
+  const query=symbolSearchInput.value.trim().toLowerCase();symbolResults.replaceChildren();
+  const matches=projectSymbols.filter(s=>!query||(s.name+" "+s.address+" "+s.type+" "+s.comment).toLowerCase().includes(query)).slice(0,150);
+  matches.forEach(s=>{
+   const row=document.createElement("div");row.style.cssText="display:flex;gap:6px;align-items:center;padding:6px;background:#0b131e;border:1px solid #263447;border-radius:6px";
+   const info=document.createElement("span");info.style.cssText="min-width:0;flex:1;overflow-wrap:anywhere";
+   const name=document.createElement("strong");name.style.cssText="display:block;font-size:12px";name.textContent=s.name;
+   const meta=document.createElement("small");meta.style.cssText="display:block;color:var(--muted);font:10px ui-monospace,Consolas,monospace";meta.textContent=s.address+(s.type?" · "+s.type:"");
+   info.append(name,meta);row.appendChild(info);
+   const add=document.createElement("button");add.type="button";add.textContent="Add";add.style.cssText="padding:4px 8px;flex-shrink:0";
+   add.addEventListener("click",function(){
+    const address=s.address.trim(),key=address.toUpperCase().replace(/\s+/g,"").replace(/[,.:/]/g,"_");
+    if(!/^[a-zA-Z_][a-zA-Z0-9_-]{0,39}$/.test(key)){symbolProjectStatus.textContent="Cannot create a WebSocket key from address "+address+". This address format needs backend support.";return;}
+    if(isDuplicateSignal(key,address)){symbolProjectStatus.textContent="Already monitored: "+s.name+" ("+address+").";return;}
+    const ok=addSignal({key:key,label:s.name,address:address,type:normalizeSymbolType(s.type)});
+    symbolProjectStatus.textContent=ok?"Added "+s.name+" ("+address+").":"This signal is already in the chart.";
+   });
+   row.appendChild(add);symbolResults.appendChild(row);
+  });
+  if(!matches.length){const empty=document.createElement("div");empty.className="help-text";empty.textContent=query?"No matching symbols.":"No readable symbols found in this project.";symbolResults.appendChild(empty);}
+  if(matches.length>0&&matches.length>=150){const note=document.createElement("div");note.className="help-text";note.textContent="Showing first 150 matches. Search to narrow the list.";symbolResults.appendChild(note);}
+ }
+ document.getElementById("openStep7FolderBtn").addEventListener("click",async function(){
+  if(!window.showDirectoryPicker){symbolProjectStatus.textContent="Folder access is supported in current Chrome or Edge. Open this page in a recent Chrome/Edge browser and use localhost.";return;}
+  const button=this;button.disabled=true;button.textContent="Scanning project…";symbolProjectStatus.textContent="Select the root folder of the extracted STEP 7 V5 project.";
+  try{
+   const root=await window.showDirectoryPicker({mode:"read"});
+   symbolProjectStatus.textContent="Scanning "+root.name+" for symbol tables…";
+   const result=await walkStep7Folder(root);projectSymbols=result.symbols;
+   symbolSearchInput.disabled=false;renderProjectSymbols();
+   let status="Project: "+root.name+" · "+projectSymbols.length+" unique symbols parsed · "+result.files+" candidate text/DBF files scanned.";
+   if(result.binaryCandidates.length)status+=" Binary symbol databases detected but not decoded: "+result.binaryCandidates.slice(0,4).join(", ")+(result.binaryCandidates.length>4?"…":"")+". Export the symbol table from STEP 7 as .ASC for full import.";
+   if(!projectSymbols.length)status+=" No supported symbol records were readable. STEP 7 V5 may store symbols in a proprietary database; export the Symbol Table as ASCII (.ASC) from STEP 7 to import it reliably.";
+   symbolProjectStatus.textContent=status;
+  }catch(err){
+   if(err&&err.name==="AbortError"){symbolProjectStatus.textContent="Folder selection cancelled.";return;}
+   symbolProjectStatus.textContent="Could not scan project folder: "+(err&&err.message?err.message:String(err));
+  }finally{button.disabled=false;button.textContent="📂 Open STEP 7 V5 project folder";}
+ });
+ symbolSearchInput.addEventListener("input",renderProjectSymbols);
  document.getElementById("addSignalForm").addEventListener("submit",function(e){
   e.preventDefault();const error=document.getElementById("signalFormError");
   let label=document.getElementById("signalNameInput").value.trim();
