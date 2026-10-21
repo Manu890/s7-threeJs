@@ -54,7 +54,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
     <div class="form-error" id="signalFormError" role="status"></div>
    </form>
    <div id="signalList" class="signal-list"></div>
-   <div style="padding:12px 14px;color:var(--muted);font-size:11px;line-height:1.6">Uncheck a signal to hide its trace. Use Remove to delete any signal, or Remove all to clear the entire list. Hover over a trace to inspect nearby values.</div>
+   <div style="padding:12px 14px;color:var(--muted);font-size:11px;line-height:1.6">Uncheck a signal to hide its trace. Use Remove to delete any signal, or Remove all to clear the entire list. Drag a trace up or down to change its vertical order. Hover over a trace to inspect nearby values.</div>
   </aside>
   <section class="trace-panel">
    <div class="trace-head"><div><strong>Signal traces · y(t)</strong><small>Numeric traces auto-scaled per signal · shared time axis</small></div><label class="zoom-control" for="timeZoom">Time scale <input id="timeZoom" type="range" min="1" max="300" step="1" value="30" aria-label="Time scale in seconds"><output id="timeZoomValue" for="timeZoom">30 s</output></label></div>
@@ -89,8 +89,30 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
  const history=[]; const maxSamples=5000; let recording=false; let chartFrozen=false; let frozenTimestamp=0; let recorded=[]; let lastTimestamp=0; let socket=null; let hoverTime=null; let inspectionViewTime=null; let inspectionScrollDirection=0; let inspectionDragging=false; let inspectionDragStartX=0; let inspectionDragStartViewTime=0;
  const traces=document.getElementById("traces");
  function safeId(key){return key.replace(/[^a-zA-Z0-9_-]/g,"_");}
+ function reorderSignals(draggedKey,targetKey){
+  if(!draggedKey||!targetKey||draggedKey===targetKey)return;
+  const from=signals.findIndex(function(s){return s.key===draggedKey;});
+  const to=signals.findIndex(function(s){return s.key===targetKey;});
+  if(from<0||to<0)return;
+  const moved=signals.splice(from,1)[0];
+  signals.splice(to,0,moved);
+  signals.forEach(function(signal){const row=traces.querySelector('[data-signal="'+CSS.escape(signal.key)+'"]');if(row)traces.appendChild(row);});
+  saveCustomSignals();renderAllControls();drawAll();
+ }
  function addTrace(s){
-  const row=document.createElement("div");row.className="trace-row";row.dataset.signal=s.key;
+  const row=document.createElement("div");row.className="trace-row";row.dataset.signal=s.key;row.draggable=true;
+  row.style.cursor="grab";
+  row.addEventListener("dragstart",function(e){
+   e.dataTransfer.setData("text/plain",s.key);
+   e.dataTransfer.effectAllowed="move";
+   row.style.opacity=".45";
+  });
+  row.addEventListener("dragend",function(){row.style.opacity="";});
+  row.addEventListener("dragover",function(e){e.preventDefault();e.dataTransfer.dropEffect="move";});
+  row.addEventListener("drop",function(e){
+   e.preventDefault();
+   reorderSignals(e.dataTransfer.getData("text/plain"),s.key);
+  });
   const label=document.createElement("div");label.className="trace-label";
   const title=document.createElement("strong");title.style.color=s.color;title.textContent=s.label;
   const address=document.createElement("small");address.textContent=s.address||("key: "+s.key);
