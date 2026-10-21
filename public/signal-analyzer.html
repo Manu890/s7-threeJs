@@ -232,6 +232,38 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   if(!signals.length)return;
   removeAllSignals();
  });
+ const signalKeyInput=document.getElementById("signalKeyInput");
+ const signalTypeInput=document.getElementById("signalTypeInput");
+ const signalKeyPlaceholders={
+  X:"Data key or address (e.g. motorRun or DB1,X14.0)",
+  B:"Data key or address (e.g. motorByte or DB1,BYTE4)",
+  C:"Data key or address (e.g. motorChar or DB1,CHAR4)",
+  S:"Data key or address (e.g. recipeName or DB1,STRING20.30)",
+  I:"Data key or address (e.g. motorSpeed or DB1,INT6)",
+  DI:"Data key or address (e.g. totalCount or DB1,DINT6)",
+  W:"Data key or address (e.g. statusWord or DB1,WORD6)",
+  D:"Data key or address (e.g. counterValue or DB1,DWORD6)",
+  DW:"Data key or address (e.g. counterValue or DB1,DWORD6)",
+  R:"Data key or address (e.g. temperature or DB1,REAL4)",
+  RI:"Data key or address (e.g. reducedInt or DB1,RINT6)",
+  RDI:"Data key or address (e.g. reducedDint or DB1,RDINT6)",
+  RW:"Data key or address (e.g. reducedWord or DB1,RWORD6)",
+  RD:"Data key or address (e.g. reducedDword or DB1,RDWORD6)",
+  RDW:"Data key or address (e.g. reducedDword or DB1,RDWORD6)",
+  RR:"Data key or address (e.g. reducedReal or DB1,RREAL4)",
+  TMR:"Data key or address (e.g. timerDone or T1)",
+  CTR:"Data key or address (e.g. partCounter or C1)",
+  LR:"Data key or address (e.g. preciseValue or DB1,LREAL4)",
+  DT:"Data key or address (e.g. eventTime or DB1,DT0)",
+  DTZ:"Data key or address (e.g. eventTimeUtc or DB1,DTZ0)",
+  DTL:"Data key or address (e.g. longEventTime or DB1,DTL0)",
+  DTLZ:"Data key or address (e.g. longEventTimeUtc or DB1,DTLZ0)"
+ };
+ function updateSignalKeyPlaceholder(){
+  signalKeyInput.placeholder=signalKeyPlaceholders[signalTypeInput.value]||"Data key (e.g. motorSpeed)";
+ }
+ signalTypeInput.addEventListener("change",updateSignalKeyPlaceholder);
+ updateSignalKeyPlaceholder();
  const windowSelect=document.getElementById("windowSelect"),timeZoom=document.getElementById("timeZoom"),timeZoomValue=document.getElementById("timeZoomValue");
  function setTimeWindow(value){windowSelect.value=String(value);timeZoom.value=String(value);timeZoomValue.textContent=value>=60?(value/60)+" min":value+" s";drawAll();}
  windowSelect.addEventListener("change",function(){setTimeWindow(Number(this.value));});
