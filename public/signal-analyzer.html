@@ -86,7 +86,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   }catch(e){console.warn("Could not restore saved signal configuration.",e);}
  }
  restoreCustomSignals();
- const history=[]; const maxSamples=5000; let recording=false; let chartFrozen=false; let frozenTimestamp=0; let recorded=[]; let lastTimestamp=0; let socket=null; let hoverTime=null;
+ const history=[]; const maxSamples=5000; let recording=false; let chartFrozen=false; let frozenTimestamp=0; let recorded=[]; let lastTimestamp=0; let socket=null; let hoverTime=null; let inspectionViewTime=null; let inspectionScrollDirection=0;
  const traces=document.getElementById("traces");
  function safeId(key){return key.replace(/[^a-zA-Z0-9_-]/g,"_");}
  function addTrace(s){
@@ -99,8 +99,21 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   const wrap=document.createElement("div");wrap.className="canvas-wrap";
   const canvas=document.createElement("canvas");canvas.className="trace-canvas";canvas.id="canvas-"+safeId(s.key);canvas.setAttribute("aria-label",s.label+" signal trace");
   wrap.appendChild(canvas);row.append(label,wrap);traces.appendChild(row);
-  canvas.addEventListener("mousemove",function(e){const rect=canvas.getBoundingClientRect();const t=Number(document.getElementById("windowSelect").value);const displayNow=chartFrozen?(frozenTimestamp||lastTimestamp||Date.now()):(lastTimestamp||Date.now());hoverTime=displayNow-(1-(e.clientX-rect.left)/rect.width)*t*1000;drawAll();});
-  canvas.addEventListener("mouseleave",function(){hoverTime=null;drawAll();});
+  canvas.addEventListener("mousemove",function(e){
+   const rect=canvas.getBoundingClientRect(),x=e.clientX-rect.left,edge=Math.max(8,rect.width*0.015);
+   const t=Number(document.getElementById("windowSelect").value);
+   if(x<=edge||x>=rect.width-edge){
+    if(inspectionViewTime===null)inspectionViewTime=chartFrozen?(frozenTimestamp||lastTimestamp||Date.now()):(lastTimestamp||Date.now());
+    inspectionScrollDirection=x<=edge?-1:1;
+   }else{
+    inspectionScrollDirection=0;
+    if(inspectionViewTime===null)inspectionViewTime=chartFrozen?(frozenTimestamp||lastTimestamp||Date.now()):(lastTimestamp||Date.now());
+   }
+   const displayNow=inspectionViewTime===null?(chartFrozen?(frozenTimestamp||lastTimestamp||Date.now()):(lastTimestamp||Date.now())):inspectionViewTime;
+   hoverTime=displayNow-(1-x/rect.width)*t*1000;
+   drawAll();
+  });
+  canvas.addEventListener("mouseleave",function(){inspectionScrollDirection=0;hoverTime=null;drawAll();});
  }
  function renderSignalList(){
   const list=document.getElementById("signalList");list.replaceChildren();
@@ -173,7 +186,8 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   socket.onerror=function(){setConnection(false,"WebSocket connection error");};
  }
  function drawAll(){
-  const now=chartFrozen?(frozenTimestamp||lastTimestamp||Date.now()):(lastTimestamp||Date.now()),span=Number(document.getElementById("windowSelect").value)*1000,from=now-span;
+  const liveNow=chartFrozen?(frozenTimestamp||lastTimestamp||Date.now()):(lastTimestamp||Date.now());
+  const now=inspectionViewTime===null?liveNow:inspectionViewTime,span=Number(document.getElementById("windowSelect").value)*1000,from=now-span;
   signals.forEach(function(s){
    const row=traces.querySelector('[data-signal="'+CSS.escape(s.key)+'"]');if(!row)return;row.style.display=s.visible?"grid":"none";
    const canvas=document.getElementById("canvas-"+safeId(s.key));if(!canvas)return;
@@ -303,7 +317,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   }finally{button.disabled=false;}
  });
  document.getElementById("exportBtn").addEventListener("click",function(){exportCSV(recording?recorded:history,recording?"plc-recording.csv":"plc-history.csv");});
- document.getElementById("clearBtn").addEventListener("click",function(){history.length=0;if(recording)recorded=[];drawAll();document.getElementById("sampleStatus").textContent="History cleared";});
+ document.getElementById("clearBtn").addEventListener("click",function(){history.length=0;if(recording)recorded=[];inspectionViewTime=null;inspectionScrollDirection=0;hoverTime=null;drawAll();document.getElementById("sampleStatus").textContent="History cleared";});
  function exportCSV(rows,filename){
   if(!rows.length){document.getElementById("sampleStatus").textContent="No samples available to export yet.";return;}
   const keys=signals.map(function(s){return s.key;});const lines=[["timestamp","datetime"].concat(keys).join(",")];
@@ -356,6 +370,17 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   finally{button.disabled=false;button.textContent="Load stored history";checkPersistence();}
  });
  window.addEventListener("resize",drawAll);
+ setInterval(function(){
+  if(inspectionScrollDirection===0||inspectionViewTime===null)return;
+  const span=Number(document.getElementById("windowSelect").value)*1000;
+  const available=history.concat(recorded).map(function(p){return p.timestamp;}).filter(Number.isFinite);
+  const earliest=available.length?Math.min.apply(null,available):0;
+  const latest=lastTimestamp||Date.now();
+  inspectionViewTime+=inspectionScrollDirection*50;
+  inspectionViewTime=Math.max(earliest+span,Math.min(latest,inspectionViewTime));
+  hoverTime=inspectionScrollDirection<0?inspectionViewTime-span:inspectionViewTime;
+  drawAll();
+ },50);
  setInterval(checkPersistence,3000);checkPersistence();
  setInterval(function(){if(recording)document.getElementById("recordStatus").innerHTML='<span class="record-indicator">RECORDING</span> · '+recorded.length+" samples";},500);
  renderAllControls();signals.forEach(addTrace);connect();drawAll();
