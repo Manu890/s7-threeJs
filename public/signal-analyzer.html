@@ -28,7 +28,6 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
 </header>
 <main>
  <div class="toolbar">
-  <button id="pauseBtn">Ⅱ Pause display</button>
   <button id="recordBtn" class="primary">● Start recording</button>
   <button id="exportBtn">↓ Export CSV</button>
   <button id="clearBtn">Clear history</button>
@@ -87,7 +86,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   }catch(e){console.warn("Could not restore saved signal configuration.",e);}
  }
  restoreCustomSignals();
- const history=[]; const maxSamples=5000; let paused=false; let recording=false; let chartFrozen=false; let frozenTimestamp=0; let recorded=[]; let lastTimestamp=0; let socket=null; let hoverTime=null;
+ const history=[]; const maxSamples=5000; let recording=false; let chartFrozen=false; let frozenTimestamp=0; let recorded=[]; let lastTimestamp=0; let socket=null; let hoverTime=null;
  const traces=document.getElementById("traces");
  function safeId(key){return key.replace(/[^a-zA-Z0-9_-]/g,"_");}
  function addTrace(s){
@@ -165,10 +164,10 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
    const timestamp=Number(msg.timestamp)||Date.now();lastTimestamp=timestamp;
    const sample={timestamp:timestamp};
    signals.forEach(function(s){const raw=msg.data[s.key];let value=null;if(raw!==null&&raw!==undefined&&raw!==""){if(typeof raw==="number")value=Number.isFinite(raw)?raw:null;else if(typeof raw==="boolean")value=raw?1:0;else if(typeof raw==="string"){const numeric=Number(raw);value=raw.trim()!==""&&Number.isFinite(numeric)?numeric:raw;}}sample[s.key]=value;updateSignalValue(s,value===null?"—":value);});
-   if(!chartFrozen){history.push(sample);if(history.length>maxSamples)history.shift();}
+   if(recording&&!chartFrozen){history.push(sample);if(history.length>maxSamples)history.shift();}
    if(recording){recorded.push(Object.assign({},sample));}
    document.getElementById("sampleStatus").textContent="Samples buffered: "+history.length+" · Last update: "+new Date(timestamp).toLocaleTimeString();
-   if(!paused)drawAll();
+   drawAll();
   };
   socket.onclose=function(){setConnection(false,"Disconnected · reconnecting…");setTimeout(connect,2000);};
   socket.onerror=function(){setConnection(false,"WebSocket connection error");};
@@ -237,7 +236,6 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
  function setTimeWindow(value){windowSelect.value=String(value);timeZoom.value=String(value);timeZoomValue.textContent=value>=60?(value/60)+" min":value+" s";drawAll();}
  windowSelect.addEventListener("change",function(){setTimeWindow(Number(this.value));});
  timeZoom.addEventListener("input",function(){setTimeWindow(Number(this.value));});
- document.getElementById("pauseBtn").addEventListener("click",function(){paused=!paused;this.textContent=paused?"▶ Resume display":"Ⅱ Pause display";if(!paused)drawAll();});
  document.getElementById("recordBtn").addEventListener("click",async function(){
   const button=this;
   button.disabled=true;
@@ -248,7 +246,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
    if(!response.ok)throw new Error(result.error||"Could not change MongoDB recording state.");
    recording=nextRecording;
    if(recording){
-    chartFrozen=false;frozenTimestamp=0;hoverTime=null;recorded=[];
+    chartFrozen=false;frozenTimestamp=0;hoverTime=null;recorded=[];history.length=0;
     button.textContent="■ Stop recording";button.classList.add("danger");
     document.getElementById("recordStatus").innerHTML='<span class="record-indicator">RECORDING</span> · 0 samples';
    }else{
