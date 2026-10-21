@@ -303,15 +303,15 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   return {name:name,address:cells[addressIndex],type:type,comment:cells.slice(addressIndex+1).filter(Boolean).join(" "),symbolName:name,operand:cells[addressIndex],dataType:type};
  }
  function normalizeStep7Address(value){
-  let address=String(value||"").toUpperCase().replace(/[\\t\\r\\n]+/g," ").trim();
-  address=address.replace(/^DB\\s*(\\d+)\\s*[,.:/]\\s*(DBX|DBB|DBW|DBD)\\s*(\\d+(?:\\.\\d+){0,2})$/,"DB$1,$2$3");
-  address=address.replace(/^DB\\s*(\\d+)\\s+(DBX|DBB|DBW|DBD)\\s*(\\d+(?:\\.\\d+){0,2})$/,"DB$1,$2$3");
-  // STEP 7 dBASE fields may pad the area prefix with multiple spaces (e.g. "I       8.7").
-  const area=address.match(/^(PI|PQ|PE|PA|M|I|E|Q|A|T|C)([A-Z]*)\\s*(\\d+(?:\\.\\d+){0,2})$/);
+  let address=String(value||"").toUpperCase().replace(/[\t\r\n]+/g," ").trim();
+  address=address.replace(/^DB\s*(\d+)\s*[,.:/]\s*(DBX|DBB|DBW|DBD)\s*(\d+(?:\.\d+){0,2})$/,"DB$1,$2$3");
+  address=address.replace(/^DB\s*(\d+)\s+(DBX|DBB|DBW|DBD)\s*(\d+(?:\.\d+){0,2})$/,"DB$1,$2$3");
+  // STEP 7 dBASE fields may pad the area prefix with spaces (e.g. "M       79.0").
+  const area=address.match(/^(PI|PQ|PE|PA|M|I|E|Q|A|T|C)([A-Z]*)\s*(\d+(?:\.\d+){0,2})$/);
   if(area)return area[1]+area[2]+" "+area[3];
-  const db=address.match(/^(DB\\s*\\d+)\\s*[,.:/]?\\s*(DBX|DBB|DBW|DBD)\\s*(\\d+(?:\\.\\d+){0,2})$/);
-  if(db)return db[1].replace(/\\s+/g,"")+","+db[2]+db[3];
-  return address.replace(/\\s+/g," ").trim();
+  const db=address.match(/^(DB\s*\d+)\s*[,.:/]?\s*(DBX|DBB|DBW|DBD)\s*(\d+(?:\.\d+){0,2})$/);
+  if(db)return db[1].replace(/\s+/g,"")+","+db[2]+db[3];
+  return address.replace(/\s+/g," ").trim();
  }
  function step7DbfType(value){
   const raw=String(value||"").trim().toUpperCase();
