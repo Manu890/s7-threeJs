@@ -77,7 +77,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
  const SIGNAL_STORAGE_KEY="s7-threejs-signal-analyzer-signals-v1";
  function saveCustomSignals(){
   try{
-   localStorage.setItem(SIGNAL_STORAGE_KEY,JSON.stringify(signals.filter(function(s){return !s.builtin;}).map(function(s){return {key:s.key,label:s.label,address:s.address,type:s.type||"B",visible:s.visible};})));
+   localStorage.setItem(SIGNAL_STORAGE_KEY,JSON.stringify(signals.filter(function(s){return !s.builtin;}).map(function(s){return {key:s.key,label:s.label,address:s.address,type:s.type||"B",visible:s.visible,symbolName:s.symbolName||"",operand:s.operand||s.address||"",dataType:s.dataType||s.type||"",comment:s.comment||""};})));
   }catch(e){console.warn("Could not save signal configuration in this browser.",e);}
  }
  function restoreCustomSignals(){
@@ -88,7 +88,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
     if(!s||typeof s.key!=="string"||typeof s.label!=="string"||signals.some(function(existing){return existing.key.toLowerCase()===s.key.toLowerCase();}))return;
     if(!/^[a-zA-Z_][a-zA-Z0-9_-]{0,39}$/.test(s.key))return;
     const savedAddress=typeof s.address==="string"?s.address:"";
-    signals.push({key:s.key,label:s.label,address:savedAddress.indexOf("WebSocket key: ")===0?"":savedAddress,type:typeof s.type==="string"?s.type:"B",color:palette[signals.length%palette.length],builtin:false,visible:s.visible!==false});
+    signals.push({key:s.key,label:s.label,address:savedAddress.indexOf("WebSocket key: ")===0?"":savedAddress,type:typeof s.type==="string"?s.type:"B",symbolName:typeof s.symbolName==="string"?s.symbolName:"",operand:typeof s.operand==="string"?s.operand:savedAddress,dataType:typeof s.dataType==="string"?s.dataType:"",comment:typeof s.comment==="string"?s.comment:"",color:palette[signals.length%palette.length],builtin:false,visible:s.visible!==false});
    });
   }catch(e){console.warn("Could not restore saved signal configuration.",e);}
  }
@@ -122,9 +122,9 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   });
   const label=document.createElement("div");label.className="trace-label";
   const title=document.createElement("strong");title.style.color=s.color;title.textContent=s.label;
-  const address=document.createElement("small");address.textContent=s.address||("key: "+s.key);
+  const address=document.createElement("small");address.textContent=s.operand||s.address||("key: "+s.key);
   const value=document.createElement("em");value.id="value-"+safeId(s.key);value.textContent="—";
-  label.append(title,address,value);
+  const details=document.createElement("small");details.className="trace-symbol-details";details.style.cssText="display:block;color:var(--muted);font-size:10px;line-height:1.35;white-space:normal;overflow-wrap:anywhere;max-width:260px";details.textContent="_SKZ: "+(s.symbolName||s.label||"—")+" · _OPIEC: "+(s.operand||s.address||"—")+" · _DATATYP: "+(s.dataType||"—")+" · _COMMENT: "+(s.comment||"—");label.append(title,address,details,value);
   const wrap=document.createElement("div");wrap.className="canvas-wrap";
   const canvas=document.createElement("canvas");canvas.className="trace-canvas";canvas.id="canvas-"+safeId(s.key);canvas.setAttribute("aria-label",s.label+" signal trace");
   wrap.appendChild(canvas);row.append(label,wrap);traces.appendChild(row);
@@ -199,7 +199,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
  }
  function addSignal(config){
   if(isDuplicateSignal(config.key,config.address))return false;
-  const s={key:config.key,label:config.label,address:config.address||"",type:config.type||"B",color:palette[signals.length%palette.length],builtin:false,visible:true};
+  const s={key:config.key,label:config.label,address:config.address||"",type:config.type||"B",symbolName:config.symbolName||config.label||"",operand:config.operand||config.address||"",dataType:config.dataType||config.type||"",comment:config.comment||"",color:palette[signals.length%palette.length],builtin:false,visible:true};
   signals.push(s);addTrace(s);saveCustomSignals();renderAllControls();
   if(socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify({type:"addSignal",key:s.key,plcType:s.type,address:s.address}));
   const last=history.length?history[history.length-1]:null;
@@ -284,7 +284,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   if(!text||/^(symbol|name)[,;\t]/i.test(text)||/^\s*#/.test(text))return null;
   // STEP 7 ASC: length,symbol. address datatype comment
   const asc=text.match(/^\s*\d+\s*,\s*([^,]+?)\s+((?:DB\d+\s*[,.:/]\s*)?[A-Z]+\s*\d+(?:\.\d+){0,2}|(?:PI|PQ|PE|PA|M|I|E|Q|A|T|C)[A-Z]*\s*\d+(?:\.\d+){0,2})\s+([A-Z][A-Z0-9_]*)?(?:\s+(.*))?$/i);
-  if(asc)return {name:asc[1].replace(/[.\s]+$/,"").trim(),address:asc[2].trim(),type:asc[3]||"",comment:asc[4]||""};
+  if(asc)return {name:asc[1].replace(/[.\s]+$/,"").trim(),address:asc[2].trim(),type:asc[3]||"",comment:asc[4]||"",symbolName:asc[1].replace(/[.\s]+$/,"").trim(),operand:asc[2].trim(),dataType:asc[3]||""};
   // CSV/TSV exports: symbol, address, data type, comment (quoted or unquoted)
   let cells=[];
   if(text.includes("\t"))cells=text.split("\t");
@@ -300,7 +300,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   const name=cells.find((v,i)=>i!==addressIndex&&v&& !/^(BOOL|BYTE|CHAR|STRING|INT|DINT|WORD|DWORD|REAL|RINT|RDINT|RWORD|RDWORD|RREAL|LREAL|TIMER|COUNTER|DT|DTZ|DTL|DTLZ)$/i.test(v));
   if(!name)return null;
   const type=cells.find((v,i)=>i!==addressIndex&&/^(BOOL|BYTE|CHAR|STRING|INT|DINT|WORD|DWORD|REAL|RINT|RDINT|RWORD|RDWORD|RREAL|LREAL|TIMER|COUNTER|DT|DTZ|DTL|DTLZ|X|B|C|S|I|DI|W|DW|R|RI|RDI|RW|RDW|RR|LR)$/i.test(v))||"";
-  return {name:name,address:cells[addressIndex],type:type,comment:cells.slice(addressIndex+1).filter(Boolean).join(" ")};
+  return {name:name,address:cells[addressIndex],type:type,comment:cells.slice(addressIndex+1).filter(Boolean).join(" "),symbolName:name,operand:cells[addressIndex],dataType:type};
  }
  function normalizeStep7Address(value){
   let address=String(value||"").trim().toUpperCase().replace(/\\s+/g," ");
@@ -346,7 +346,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
    const name=get(nameField),address=normalizeStep7Address(get(addressField));
    if(!name||!address)continue;
    const type=step7DbfType(get(typeField));
-   rows.push({name:name.replace(/\\0/g,"").trim(),address:address,type:type,comment:get(commentField)});
+   rows.push({name:name.replace(/\\0/g,"").trim(),address:address,type:type,comment:get(commentField),symbolName:name.replace(/\\0/g,"").trim(),operand:get(addressField),dataType:get(typeField)});
   }
   return rows;
  }
@@ -404,7 +404,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
     const address=normalizeStep7Address(s.address),key=address.toUpperCase().replace(/\s+/g,"").replace(/[,.:/]/g,"_");
     if(!/^[a-zA-Z_][a-zA-Z0-9_-]{0,39}$/.test(key)){symbolProjectStatus.textContent="Cannot create a WebSocket key from address "+address+". This address format needs backend support.";return;}
     if(isDuplicateSignal(key,address)){symbolProjectStatus.textContent="Already monitored: "+s.name+" ("+address+").";return;}
-    const ok=addSignal({key:key,label:s.name,address:address,type:normalizeSymbolType(s.type)});
+    const ok=addSignal({key:key,label:s.name,address:address,type:normalizeSymbolType(s.dataType||s.type),symbolName:s.symbolName||s.name,operand:s.operand||s.address||address,dataType:s.dataType||s.type||"",comment:s.comment||""});
     symbolProjectStatus.textContent=ok?"Added "+s.name+" ("+address+").":"This signal is already in the chart.";
    });
    row.appendChild(add);symbolResults.appendChild(row);
