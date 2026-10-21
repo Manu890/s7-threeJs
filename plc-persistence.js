@@ -19,6 +19,7 @@ let plcConnected = false;
 let lastPersistedAt = null;
 let lastError = null;
 let totalStored = 0;
+let recordingEnabled = false;
 let flushing = false;
 const pending = [];
 
@@ -26,7 +27,7 @@ function json(res, status, value) {
   res.writeHead(status, {
     'content-type': 'application/json; charset=utf-8',
     'access-control-allow-origin': 'http://localhost:3001',
-    'access-control-allow-methods': 'GET, OPTIONS',
+    'access-control-allow-methods': 'GET, POST, OPTIONS',
     'access-control-allow-headers': 'Content-Type',
     'cache-control': 'no-store'
   });
@@ -90,6 +91,7 @@ function connectPLCStream() {
     try {
       const message = JSON.parse(raw.toString());
       if (!message.data || typeof message.data !== 'object' || Array.isArray(message.data)) return;
+      if (!recordingEnabled) return;
       const timestampMs = Number(message.timestamp) || Date.now();
       pending.push({
         timestampMs,
@@ -122,7 +124,7 @@ const api = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') {
     res.writeHead(204, {
       'access-control-allow-origin': 'http://localhost:3001',
-      'access-control-allow-methods': 'GET, OPTIONS',
+      'access-control-allow-methods': 'GET, POST, OPTIONS',
       'access-control-allow-headers': 'Content-Type'
     });
     return res.end();
@@ -135,9 +137,34 @@ const api = http.createServer(async (req, res) => {
       plcConnected,
       bufferedSamples: pending.length,
       totalStored,
+      recordingEnabled,
       lastPersistedAt,
       lastError
     });
+  }
+  if (req.method === 'POST' && url.pathname === '/api/recording') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; if (body.length > 4096) req.destroy(); });
+    req.on('end', async () => {
+      try {
+        const input = JSON.parse(body || '{}');
+        if (typeof input.enabled !== 'boolean') return json(res, 400, { error: 'enabled must be a boolean.' });
+        if (input.enabled) {
+          recordingEnabled = true;
+          console.log('⏺ MongoDB sample recording enabled.');
+        } else {
+          recordingEnabled = false;
+          // Wait for any write already in progress, then discard samples queued before Stop.
+          while (flushing) await new Promise(resolve => setTimeout(resolve, 10));
+          pending.length = 0;
+          console.log('⏹ MongoDB sample recording stopped; pending samples discarded.');
+        }
+        return json(res, 200, { ok: true, recordingEnabled, bufferedSamples: pending.length });
+      } catch {
+        return json(res, 400, { error: 'Invalid JSON body.' });
+      }
+    });
+    return;
   }
   if (req.method === 'GET' && url.pathname === '/api/samples') {
     if (!mongoConnected || !collection) return json(res, 503, { error: 'MongoDB is not connected yet.' });
@@ -167,7 +194,7 @@ api.listen(HTTP_PORT, HTTP_HOST, () => {
   console.log(`🗄️ PLC MongoDB persistence API: http://${HTTP_HOST}:${HTTP_PORT}`);
   console.log(`   MongoDB: ${MONGO_URL}/${DB_NAME}`);
   console.log(`   Source: ${WS_URL}`);
-  console.log('   Stores every incoming WebSocket sample; Ctrl+C stops the service.');
+  console.log('   MongoDB recording starts OFF; use the analyzer Start/Stop Recording button.');
 });
 
 setInterval(() => { void flushBatch(); }, FLUSH_MS);
