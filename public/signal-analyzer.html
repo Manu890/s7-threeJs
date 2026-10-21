@@ -124,7 +124,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   const title=document.createElement("strong");title.style.color=s.color;title.textContent=s.label;
   const address=document.createElement("small");address.textContent=s.operand||s.address||("key: "+s.key);
   const value=document.createElement("em");value.id="value-"+safeId(s.key);value.textContent="—";
-  const details=document.createElement("small");details.className="trace-symbol-details";details.style.cssText="display:block;color:var(--muted);font-size:10px;line-height:1.35;white-space:normal;overflow-wrap:anywhere;max-width:260px";details.textContent="_SKZ: "+(s.symbolName||s.label||"—")+" · _OPIEC: "+(s.operand||s.address||"—")+" · _DATATYP: "+(s.dataType||"—")+" · _COMMENT: "+(s.comment||"—");label.append(title,address,details,value);
+  const details=document.createElement("small");details.className="trace-symbol-details";details.style.cssText="display:block;color:var(--muted);font-size:10px;line-height:1.35;white-space:normal;overflow-wrap:anywhere;max-width:260px";details.textContent="_SKZ: "+(s.symbolName||s.label||"—")+" · _OPIEC: "+(s.operand||s.address||"—")+" · _DATATYP: "+(s.dataType||"—")+" · _COMMENT: "+(s.comment||"—")+" · nodeS7 address: "+(s.address?normalizeStep7Address(s.address):"—");label.append(title,address,details,value);
   const wrap=document.createElement("div");wrap.className="canvas-wrap";
   const canvas=document.createElement("canvas");canvas.className="trace-canvas";canvas.id="canvas-"+safeId(s.key);canvas.setAttribute("aria-label",s.label+" signal trace");
   wrap.appendChild(canvas);row.append(label,wrap);traces.appendChild(row);
