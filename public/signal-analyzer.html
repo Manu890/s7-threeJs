@@ -123,7 +123,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
      const earliest=available.length?Math.min.apply(null,available):0;
      const latest=lastTimestamp||Date.now();
      inspectionViewTime=inspectionDragStartViewTime-((e.clientX-inspectionDragStartX)/Math.max(1,rect.width))*span;
-     inspectionViewTime=Math.max(earliest+span,Math.min(latest,inspectionViewTime));
+     inspectionViewTime=(latest-earliest>=span)?Math.max(earliest+span,Math.min(latest,inspectionViewTime)):latest;
      inspectionScrollDirection=0;
     }else if(x<=Math.max(8,rect.width*0.015)||x>=rect.width-Math.max(8,rect.width*0.015)){
      if(inspectionViewTime===null)inspectionViewTime=chartFrozen?(frozenTimestamp||lastTimestamp||Date.now()):(lastTimestamp||Date.now());
@@ -309,6 +309,11 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   windowSelect.value=String(value);
   timeZoom.value=String(value);
   timeZoomValue.textContent=value>=60?(value/60)+" min":value+" s";
+  if(inspectionViewTime!==null){
+   const span=value*1000,available=history.concat(recorded).map(function(p){return p.timestamp;}).filter(Number.isFinite);
+   if(available.length){const earliest=Math.min.apply(null,available),latest=Math.max.apply(null,available);inspectionViewTime=(latest-earliest>=span)?Math.max(earliest+span,Math.min(latest,inspectionViewTime)):latest;}
+   hoverTime=null;
+  }
   drawAll();
  }
  windowSelect.addEventListener("change",function(){setTimeWindow(Number(this.value));});
