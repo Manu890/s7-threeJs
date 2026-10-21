@@ -346,7 +346,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
     if(entry.name.startsWith(".")||/^(node_modules|cache|temp|tmp)$/i.test(entry.name))continue;
     if(entry.kind==="directory"){await walk(entry,depth+1);continue;}
     visited++;const ext=entry.name.split(".").pop().toLowerCase();
-    if(["asc","sdf","seq","dif","csv","txt","dbf"].includes(ext))files.push(entry);
+    if(["asc","sdf","seq","dif","csv","txt","dbf","ydb","cdb","idb"].includes(ext))files.push(entry);
    }
   }
   await walk(root,0);
