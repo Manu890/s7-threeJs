@@ -179,8 +179,19 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   document.getElementById("signalCount").textContent=signals.length+" signal"+(signals.length===1?"":"s");
  }
  function renderAllControls(){renderSignalList();}
+ function normalizeSignalAddress(address){
+  return String(address||"").toUpperCase().replace(/\s+/g,"").replace(/[,.:/]/g,"_");
+ }
+ function isDuplicateSignal(key,address){
+  const normalizedKey=String(key||"").toLowerCase();
+  const normalizedAddress=normalizeSignalAddress(address);
+  return signals.some(function(s){
+   return s.key.toLowerCase()===normalizedKey||
+    (normalizedAddress&&s.address&&normalizeSignalAddress(s.address)===normalizedAddress);
+  });
+ }
  function addSignal(config){
-  if(signals.some(function(s){return s.key===config.key;}))return false;
+  if(isDuplicateSignal(config.key,config.address))return false;
   const s={key:config.key,label:config.label,address:config.address||"",type:config.type||"B",color:palette[signals.length%palette.length],builtin:false,visible:true};
   signals.push(s);addTrace(s);saveCustomSignals();renderAllControls();
   if(socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify({type:"addSignal",key:s.key,plcType:s.type,address:s.address}));
@@ -266,7 +277,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   if(!key){error.textContent="Enter a WebSocket data key (such as motorSpeed) or a PLC address (such as DB1,INT6).";return;}
   if(!label)label=key;
   if(!/^[a-zA-Z_][a-zA-Z0-9_-]{0,39}$/.test(key)){error.textContent="Data key must start with a letter or underscore and use only letters, numbers, _ or -.";return;}
-  if(signals.some(function(s){return s.key.toLowerCase()===key.toLowerCase();})){error.textContent="That data key is already in the signal list.";return;}
+  if(isDuplicateSignal(key,address)){error.textContent="This signal is already in the chart. Each data key or PLC address can only be added once.";return;}
   if(address){
    const dbType=address.match(/^DB\d+\s*[,.:/]\s*([A-Z]+)\s*\d+/i);
    if(dbType){
@@ -280,6 +291,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   }
   const ok=addSignal({key:key,label:label,address:address,type:selectedType});
   if(ok){document.getElementById("signalNameInput").value="";document.getElementById("signalKeyInput").value="";error.textContent="Signal added."; }
+  else{error.textContent="This signal is already in the chart. Each data key or PLC address can only be added once.";}
  });
  document.getElementById("removeAllSignalsBtn").addEventListener("click",function(){
   if(!signals.length)return;
