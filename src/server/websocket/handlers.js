@@ -39,13 +39,28 @@ export class MessageHandlers {
      * Register a signal requested by the analyzer UI.
      */
     handleAddSignal(ws, wsServer, message) {
+        const address = typeof message.address === 'string' ? message.address.trim() : '';
+
+        // A key without a PLC address can still refer to data already present
+        // in the WebSocket stream; it does not need dynamic PLC registration.
+        if (!address) {
+            wsServer.send(ws, {
+                type: 'addSignalResponse',
+                success: true,
+                registered: false,
+                key: message.key,
+                message: 'No PLC address supplied; listening for this key in the existing stream.'
+            });
+            return;
+        }
+
         try {
-            this.plcConnection.addVariable(message.key, message.address);
+            this.plcConnection.addVariable(message.key, address);
             wsServer.send(ws, {
                 type: 'addSignalResponse',
                 success: true,
                 key: message.key,
-                address: message.address
+                address
             });
         } catch (error) {
             console.error('❌ Could not register PLC signal:', error.message);
