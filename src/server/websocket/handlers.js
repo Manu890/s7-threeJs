@@ -26,8 +26,35 @@ export class MessageHandlers {
                 await this.handleWrite(ws, wsServer, message);
                 break;
 
+            case 'addSignal':
+                this.handleAddSignal(ws, wsServer, message);
+                break;
+
             default:
                 console.warn('Unknown message type:', message.type);
+        }
+    }
+
+    /**
+     * Register a signal requested by the analyzer UI.
+     */
+    handleAddSignal(ws, wsServer, message) {
+        try {
+            this.plcConnection.addVariable(message.key, message.address);
+            wsServer.send(ws, {
+                type: 'addSignalResponse',
+                success: true,
+                key: message.key,
+                address: message.address
+            });
+        } catch (error) {
+            console.error('❌ Could not register PLC signal:', error.message);
+            wsServer.send(ws, {
+                type: 'addSignalResponse',
+                success: false,
+                key: message.key,
+                error: error.message
+            });
         }
     }
 
