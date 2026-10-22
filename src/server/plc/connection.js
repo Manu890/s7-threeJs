@@ -27,6 +27,31 @@ export class PLCConnection {
     }
 
     /**
+     * Register an additional PLC variable while the bridge is running.
+     * @param {string} name - WebSocket data key
+     * @param {string} address - nodes7 PLC address
+     */
+    addVariable(name, address) {
+        if (typeof name !== 'string' || !/^[a-zA-Z_][a-zA-Z0-9_-]{0,63}$/.test(name)) {
+            throw new Error('Invalid signal key');
+        }
+        if (typeof address !== 'string' || !address.trim()) {
+            throw new Error('A PLC address is required for real PLC signals');
+        }
+
+        const normalizedAddress = address.trim();
+        if (this.variables[name] && this.variables[name] !== normalizedAddress) {
+            throw new Error(`Signal key ${name} is already registered to ${this.variables[name]}`);
+        }
+        if (this.variables[name] === normalizedAddress) return;
+
+        this.variables[name] = normalizedAddress;
+        this.conn.setTranslationCB((itemName) => this.variables[itemName]);
+        this.conn.addItems([name]);
+        console.log(`➕ Registered PLC signal ${name} → ${normalizedAddress}`);
+    }
+
+    /**
      * Connect to PLC
      * @returns {Promise<void>}
      */
