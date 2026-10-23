@@ -50,3 +50,15 @@ button:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
 .sidebar .form-error{color:#b4232c}
 .sidebar .signal-item:last-child{border-bottom:0}
 @media(max-width:800px){.signal-list{max-height:45vh}}
+
+
+/* STEP 7 symbol results: compact, readable Windows-style list */
+#symbolResults{margin-top:2px;max-height:220px;overflow:auto;padding:1px;background:#eef1f4;border:1px solid #d4dbe2;border-radius:4px;gap:4px!important}
+#symbolResults>div:not(.help-text){display:flex!important;gap:8px!important;align-items:center!important;padding:7px 8px!important;background:#fff!important;border:1px solid #d6dde4!important;border-radius:3px!important;color:#263442}
+#symbolResults>div:not(.help-text):hover{background:#edf5fb!important;border-color:#9bbbd5!important}
+#symbolResults>div>span{min-width:0;flex:1;overflow-wrap:anywhere}
+#symbolResults strong{display:block;font-size:12px;font-weight:600;color:#263442}
+#symbolResults small{display:block;color:#657382!important;font:11px/1.4 Consolas,"Courier New",monospace!important;margin-top:2px}
+#symbolResults button{padding:4px 9px!important;flex-shrink:0;background:#f4f6f8;border:1px solid #b8c2cc;border-radius:4px;color:#273746;font-size:12px}
+#symbolResults button:hover{background:#e3eff8;border-color:#7ea7c8}
+#symbolResults .help-text{padding:8px;color:#64717d;font-size:11px}
