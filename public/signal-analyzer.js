@@ -752,17 +752,25 @@
       ctx.lineWidth = 1.7;
       ctx.lineJoin = "round";
       ctx.beginPath();
+      const firstX = ((points[0].timestamp - from) / span) * cw,
+        firstY = ch - 8 - ((points[0][s.key] - min) / range) * (ch - 16);
+      // Start at the left edge, holding the oldest visible sample until its timestamp.
+      ctx.moveTo(0, firstY);
+      ctx.lineTo(firstX, firstY);
       points.forEach(function (p, i) {
         const x = ((p.timestamp - from) / span) * cw,
           y = ch - 8 - ((p[s.key] - min) / range) * (ch - 16);
-        if (i === 0) ctx.moveTo(x, y);
-        else {
+        if (i > 0) {
           const prev = points[i - 1],
             prevY = ch - 8 - ((prev[s.key] - min) / range) * (ch - 16);
           ctx.lineTo(x, prevY);
           ctx.lineTo(x, y);
         }
       });
+      // Continue the latest sample to the right edge of the visible time window.
+      const last = points[points.length - 1],
+        lastY = ch - 8 - ((last[s.key] - min) / range) * (ch - 16);
+      ctx.lineTo(cw, lastY);
       ctx.stroke();
       if (hoverTime !== null && hoverTime >= from && hoverTime <= now) {
         const x = ((hoverTime - from) / span) * cw;
