@@ -695,8 +695,9 @@
       : lastTimestamp || Date.now();
     const now = inspectionViewTime === null ? liveNow : inspectionViewTime,
       span = Number(document.getElementById("windowSelect").value) * 1000,
-      from = now - span;
-    const plotData = historicalMode ? historicalSamples : history;
+      plotData = historicalMode ? historicalSamples : history,
+      firstLiveSample = !historicalMode && plotData.length ? plotData[0].timestamp : now,
+      from = historicalMode ? now - span : Math.max(firstLiveSample, now - span);
     signals.forEach(function (s) {
       const row = traces.querySelector('[data-signal="' + CSS.escape(s.key) + '"]');
       if (!row) return;
@@ -799,7 +800,7 @@
     ticks.replaceChildren();
     for (let i = 0; i <= 4; i++) {
       const spanEl = document.createElement("span");
-      const tickTime = new Date(now - seconds * 1000 + (seconds * 1000 * i) / 4);
+      const tickTime = new Date(from + (now - from) * (i / 4));
       const hh = String(tickTime.getHours()).padStart(2, "0"),
         mm = String(tickTime.getMinutes()).padStart(2, "0"),
         ss = String(tickTime.getSeconds()).padStart(2, "0"),
