@@ -217,7 +217,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   document.getElementById("sampleStatus").textContent="All signals removed. Add signals using the form.";
  }
  function isOptimizationWarningSignal(s){
-  const normalize=function(value){return String(value||"").toUpperCase().replace(/\\s+/g,"").replace(/[,.:/\\-]/g,"");};
+  const normalize=function(value){return String(value||"").toUpperCase().replace(/\\s+/g,"").replace(/[,.:/\\_-]/g,"");};
   return [s.key,s.address,s.operand].some(function(value){const normalized=normalize(value);return normalized.includes("DB601DBD22")||normalized.includes("DB601DWORD22");});
  }
  function setSignalReadStatus(s,readable,reason){
