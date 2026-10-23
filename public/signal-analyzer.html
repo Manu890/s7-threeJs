@@ -49,7 +49,6 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
    <form class="add-signal" id="addSignalForm">
     <input id="signalNameInput" maxlength="40" placeholder="Signal name (optional; e.g. Motor speed)" aria-label="Signal name">
     <input id="signalKeyInput" maxlength="64" placeholder="WebSocket key or PLC address (e.g. motorSpeed or DB1,INT6)" aria-label="WebSocket key or PLC address">
-    <input id="signalAddressInput" maxlength="64" placeholder="PLC address (optional, e.g. DB1001,BYTE0)" aria-label="PLC address for this WebSocket key">
     <select id="signalTypeInput" aria-label="PLC data type">
      <option value="X">BOOL / X · bit</option><option value="B">BYTE / B · 8-bit unsigned</option><option value="C">CHAR / C · character</option><option value="S">STRING / S · string</option>
      <option value="I" selected>INT / I · 16-bit signed</option><option value="DI">DINT / DI · 32-bit signed</option><option value="W">WORD / W · 16-bit unsigned</option><option value="D">DWORD / D · legacy alias</option><option value="DW">DWORD / DW · 32-bit unsigned</option><option value="R">REAL / R · float</option>
@@ -57,7 +56,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
      <option value="LR">LREAL / LR · 64-bit float</option><option value="DT">DT · date/time</option><option value="DTZ">DTZ · UTC date/time</option><option value="DTL">DTL · long date/time</option><option value="DTLZ">DTLZ · UTC long date/time</option>
     </select>
     <button class="primary" type="submit">＋ Add signal</button>
-    <div class="help-text">Enter a WebSocket key to listen to an existing stream value (for example status). To bind that key to a PLC address, enter the address in the optional second field (for example key status + address DB1001,BYTE0). Alternatively, enter a PLC address in the first field and its data key will be generated automatically. The real PLC backend must register and decode PLC addresses.</div>
+    <div class="help-text">Enter a WebSocket key to listen to an existing stream value (for example status), or enter a PLC address (for example DB1001,BYTE0) to generate its data key automatically. The real PLC backend must register and decode PLC addresses.</div>
     <div class="form-error" id="signalFormError" role="status"></div>
    </form>
    <div id="signalList" class="signal-list"></div>
@@ -562,32 +561,22 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
  function fillSignalNameFromProjectAddress(){
   const nameInput=document.getElementById("signalNameInput");
   const keyInput=document.getElementById("signalKeyInput");
-  const addressInput=document.getElementById("signalAddressInput");
-  const candidate=addressInput.value.trim()||keyInput.value.trim();
+  const candidate=keyInput.value.trim();
   if(!candidate)return;
   const resolved=resolveProjectAddress(candidate);
   if(resolved)nameInput.value=resolved.name||"";
  }
  document.getElementById("signalKeyInput").addEventListener("change",fillSignalNameFromProjectAddress);
  document.getElementById("signalKeyInput").addEventListener("blur",fillSignalNameFromProjectAddress);
- document.getElementById("signalAddressInput").addEventListener("change",fillSignalNameFromProjectAddress);
- document.getElementById("signalAddressInput").addEventListener("blur",fillSignalNameFromProjectAddress);
  symbolSearchInput.addEventListener("input",renderProjectSymbols);
  document.getElementById("addSignalForm").addEventListener("submit",function(e){
   e.preventDefault();const error=document.getElementById("signalFormError");
   let label=document.getElementById("signalNameInput").value.trim();
   let key=document.getElementById("signalKeyInput").value.trim();
-  const addressInput=document.getElementById("signalAddressInput").value.trim();
   let address="";
   let selectedType=document.getElementById("signalTypeInput").value;
   const plcAddressPattern=/^(?:DB\d+\s*[,.:/]\s*[A-Z]+\s*\d+(?:\.\d+){0,2}|(?:PI|PQ|PE|PA|M|I|E|Q|A|T|C)[A-Z]*\s*\d+(?:\.\d+){0,2})$/i;
-  if(addressInput){
-   if(!plcAddressPattern.test(addressInput)){error.textContent="Enter a valid PLC address in the second field (for example DB1001,BYTE0).";return;}
-   address=normalizeStep7Address(addressInput);
-   const resolved=resolveProjectAddress(address);
-   if(resolved){label=label||resolved.name;document.getElementById("signalNameInput").value=label;}
-   if(!label)label=address;
-  }else if(plcAddressPattern.test(key)){
+  if(plcAddressPattern.test(key)){
    address=normalizeStep7Address(key);
    const resolved=resolveProjectAddress(address);
    if(resolved){label=label||resolved.name;document.getElementById("signalNameInput").value=label;}
@@ -610,7 +599,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
    else if(/^PID/i.test(address))selectedType="DI";
   }
   const ok=addSignal({key:key,label:label,address:address,type:selectedType});
-  if(ok){document.getElementById("signalNameInput").value="";document.getElementById("signalKeyInput").value="";document.getElementById("signalAddressInput").value="";error.textContent="Signal added."; }
+  if(ok){document.getElementById("signalNameInput").value="";document.getElementById("signalKeyInput").value="";error.textContent="Signal added."; }
   else{error.textContent="This signal is already in the chart. Each data key or PLC address can only be added once.";}
  });
  document.getElementById("removeAllSignalsBtn").addEventListener("click",function(){
