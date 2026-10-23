@@ -178,8 +178,10 @@ const api = http.createServer(async (req, res) => {
     const from = Number(url.searchParams.get("from"));
     const to = Number(url.searchParams.get("to"));
     const filter = {};
-    if (Number.isFinite(from) && from > 0) filter.timestampMs = { ...(filter.timestampMs || {}), $gte: from };
-    if (Number.isFinite(to) && to > 0) filter.timestampMs = { ...(filter.timestampMs || {}), $lte: to };
+    if (Number.isFinite(from) && from > 0)
+      filter.timestampMs = { ...(filter.timestampMs || {}), $gte: from };
+    if (Number.isFinite(to) && to > 0)
+      filter.timestampMs = { ...(filter.timestampMs || {}), $lte: to };
     try {
       const first = await collection.find(filter).sort({ timestampMs: 1 }).limit(1).next();
       if (!first) {
@@ -189,12 +191,13 @@ const api = http.createServer(async (req, res) => {
           "access-control-allow-origin": "http://localhost:3001",
           "cache-control": "no-store",
         });
-        return res.end("timestampMs,datetime,data\\r\\n");
+        return res.end("timestampMs,datetime,data\r\n");
       }
-      const keys = Array.from(new Set([].concat(...(await collection.find(filter, { projection: { data: 1 } }).limit(1000).toArray()).map((sample) => Object.keys(sample.data || {}))));
+      const keyDocs = await collection.find(filter, { projection: { data: 1 } }).limit(1000).toArray();
+      const keys = Array.from(new Set(keyDocs.flatMap((sample) => Object.keys(sample.data || {}))));
       const csvCell = (value) => {
         const text = value === null || value === undefined ? "" : String(value);
-        return /[",\\r\\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
+        return /[",\r\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
       };
       res.writeHead(200, {
         "content-type": "text/csv; charset=utf-8",
@@ -202,11 +205,15 @@ const api = http.createServer(async (req, res) => {
         "access-control-allow-origin": "http://localhost:3001",
         "cache-control": "no-store",
       });
-      res.write(["timestampMs", "datetime", ...keys].map(csvCell).join(",") + "\\r\\n");
+      res.write(["timestampMs", "datetime", ...keys].map(csvCell).join(",") + "\r\n");
       const cursor = collection.find(filter).sort({ timestampMs: 1 });
       for await (const sample of cursor) {
-        const row = [sample.timestampMs, new Date(sample.timestampMs).toISOString(), ...keys.map((key) => sample.data?.[key])];
-        if (!res.write(row.map(csvCell).join(",") + "\\r\\n"))
+        const row = [
+          sample.timestampMs,
+          new Date(sample.timestampMs).toISOString(),
+          ...keys.map((key) => sample.data?.[key]),
+        ];
+        if (!res.write(row.map(csvCell).join(",") + "\r\n"))
           await new Promise((resolve) => res.once("drain", resolve));
       }
       res.end();
