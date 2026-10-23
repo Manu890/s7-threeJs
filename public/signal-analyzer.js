@@ -142,7 +142,8 @@
     if (requestId !== historyLoadRequest) return;
     historicalSamples = convertStoredSamples(result.samples);
     historicalMode = true;
-    if (result.to) inspectionViewTime = Number(result.to);
+    if (result.to && (latest || inspectionViewTime === null))
+      inspectionViewTime = Number(result.to);
     hoverTime = null;
     document.getElementById("loadStoredBtn").textContent = "Return to live";
     document.getElementById("sampleStatus").textContent =
@@ -256,21 +257,18 @@
         hoverTime = displayNow - (1 - x / rect.width) * span;
       } else {
         if (inspectionDragging) {
-          const available = history
-            .concat(recorded)
-            .map(function (p) {
-              return p.timestamp;
-            })
-            .filter(Number.isFinite);
+          const available = getAvailableSamples().map(function (p) { return p.timestamp; });
           const earliest = available.length ? Math.min.apply(null, available) : 0;
-          const latest = lastTimestamp || Date.now();
+          const latest = available.length ? Math.max.apply(null, available) : lastTimestamp || Date.now();
           inspectionViewTime =
             inspectionDragStartViewTime -
             ((e.clientX - inspectionDragStartX) / Math.max(1, rect.width)) * span;
-          inspectionViewTime =
-            latest - earliest >= span
-              ? Math.max(earliest + span, Math.min(latest, inspectionViewTime))
-              : latest;
+          if (!historicalMode) {
+            inspectionViewTime =
+              latest - earliest >= span
+                ? Math.max(earliest + span, Math.min(latest, inspectionViewTime))
+                : latest;
+          }
           inspectionScrollDirection = 0;
         } else if (
           x <= Math.max(8, rect.width * 0.015) ||
