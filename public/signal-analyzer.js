@@ -733,14 +733,18 @@
         ctx.stroke();
       }
       if (!s.visible) return;
-      const points = plotData.filter(function (p) {
-        return (
-          p.timestamp >= from &&
-          p.timestamp <= now &&
-          typeof p[s.key] === "number" &&
-          Number.isFinite(p[s.key])
-        );
-      });
+      const points = plotData
+        .filter(function (p) {
+          return (
+            p.timestamp >= from &&
+            p.timestamp <= now &&
+            typeof p[s.key] === "number" &&
+            Number.isFinite(p[s.key])
+          );
+        })
+        .sort(function (a, b) {
+          return a.timestamp - b.timestamp;
+        });
       if (!points.length) return;
       const values = points.map(function (p) {
           return p[s.key];
