@@ -129,9 +129,50 @@ export class PLCConnection {
                     return;
                 }
 
+                this.lastReadErrors = this.collectReadErrors();
                 resolve(values);
             });
         });
+    }
+
+    /**
+     * Return per-signal quality errors reported by nodes7's parsed read items.
+     * This uses nodes7 response metadata, not console text.
+     */
+    collectReadErrors() {
+        const errors = [];
+        const blocks = Array.isArray(this.conn.globalReadBlockList)
+            ? this.conn.globalReadBlockList
+            : [];
+
+        for (const block of blocks) {
+            const items = Array.isArray(block.itemReference) ? block.itemReference : [];
+            for (const item of items) {
+                const quality = item.quality;
+                const goodQuality = quality === 'OK'
+                    || (Array.isArray(quality) && quality.length > 0 && quality.every((part) => part === 'OK'));
+                if (goodQuality) continue;
+
+                const key = typeof item.useraddr === 'string' ? item.useraddr : '';
+                const address = (key && this.variables[key]) || item.addr || '';
+                if (!key && !address) continue;
+
+                errors.push({
+                    key,
+                    address,
+                    reason: item.errCode || (Array.isArray(quality) ? quality.join(', ') : String(quality || 'Bad PLC quality'))
+                });
+            }
+        }
+
+        return errors;
+    }
+
+    /**
+     * Get the per-signal errors from the most recent completed read.
+     */
+    getLastReadErrors() {
+        return Array.isArray(this.lastReadErrors) ? this.lastReadErrors : [];
     }
 
     /**
