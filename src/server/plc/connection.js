@@ -55,7 +55,7 @@ export class PLCConnection {
      * @param {string} name - WebSocket data key
      * @param {string} address - nodes7 PLC address
      */
-    addVariable(name, address) {
+    addVariable(name, address, plcType = '') {
         if (typeof name !== 'string' || !/^[a-zA-Z_][a-zA-Z0-9_-]{0,63}$/.test(name)) {
             throw new Error('Invalid signal key');
         }
@@ -63,15 +63,20 @@ export class PLCConnection {
             throw new Error('A PLC address is required for real PLC signals');
         }
 
-        // STEP 7 DBD denotes a 32-bit storage area; nodes7 uses DWORD for
-        // an unsigned 32-bit read when no more specific symbol type is available.
-        const normalizedAddress = address.trim().replace(/^(DB\d+),DBD(\d+)$/i, '$1,DWORD$2');
+        // Keep the PLC data type when translating a generic DBD address.
+        // REAL must be decoded as IEEE-754 float, not unsigned DWORD.
+        const type = String(plcType || '').trim().toUpperCase();
+        const normalizedAddress = address.trim().replace(
+            /^(DB\d+),DBD(\d+)$/i,
+            (_match, db, offset) => db + ',' +
+                (type === 'R' || type === 'REAL' ? 'REAL' :
+                 type === 'DI' || type === 'DINT' ? 'DINT' : 'DWORD') + offset
+        );
         if (this.variables[name] && this.variables[name] !== normalizedAddress) {
             throw new Error(`Signal key ${name} is already registered to ${this.variables[name]}`);
         }
 
         if (this.variables[name] === normalizedAddress) {
-            // Already registered; leave activation to setReadVariables().
             return;
         }
 
