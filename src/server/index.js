@@ -36,7 +36,7 @@ export class Server {
 
         this.plcConnection.onError((error) => {
             console.error('❌ PLC error:', error);
-            if (this.polling.isPolling) this.reconnectPLC();
+            if (this.polling.recordingRequested) this.reconnectPLC();
         });
 
         // Polling events
@@ -84,15 +84,15 @@ export class Server {
      * Reconnect to PLC
      */
     async reconnectPLC() {
-        if (!this.polling.isPolling) return;
+        if (!this.polling.recordingRequested) return;
         console.log('⏳ Reconnecting to PLC in 2 seconds...');
         setTimeout(async () => {
-            if (!this.polling.isPolling || this.plcConnection.isConnected) return;
+            if (!this.polling.recordingRequested || this.plcConnection.isConnected) return;
             try {
                 await this.connectPLC();
             } catch (error) {
                 console.error('Reconnection failed:', error);
-                if (this.polling.isPolling) this.reconnectPLC();
+                if (this.polling.recordingRequested) this.reconnectPLC();
             }
         }, 2000);
     }
