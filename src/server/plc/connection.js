@@ -72,14 +72,12 @@ export class PLCConnection {
                 (type === 'R' || type === 'REAL' ? 'REAL' :
                  type === 'DI' || type === 'DINT' ? 'DINT' : 'DWORD') + offset
         );
-        if (this.variables[name] && this.variables[name] !== normalizedAddress) {
-            throw new Error(`Signal key ${name} is already registered to ${this.variables[name]}`);
-        }
-
         if (this.variables[name] === normalizedAddress) {
             return;
         }
 
+        // A signal's selected data type can change in the analyzer. Updating
+        // the translation for the same key lets the next S7 read use that type.
         this.variables[name] = normalizedAddress;
         this.conn.setTranslationCB((itemName) => this.variables[itemName]);
         console.log(`➕ Registered PLC signal ${name} → ${normalizedAddress}`);
