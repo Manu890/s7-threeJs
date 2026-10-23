@@ -254,9 +254,22 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
    const data=event.data;const signal=signals.find(function(s){return s.key===data.key;});if(!signal)return;
    const previousType=signal.type;signal.type=String(data.plcType||signal.type||"B");signal.dataType=signal.type;
    signal.precision=Math.min(20,Math.max(0,Number(data.precision)||0));saveCustomSignals();
-   if(previousType!==signal.type&&signal.address&&socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify({type:"addSignal",key:signal.key,plcType:signal.type,address:signal.address}));
-   const last=history.length?history[history.length-1]:null;if(last&&last[signal.key]!==undefined)updateSignalValue(signal,last[signal.key]);
-   drawAll();document.getElementById("sampleStatus").textContent="Settings updated for "+signal.label+".";
+   const typeChanged=previousType!==signal.type;
+   if(typeChanged){
+    // Samples captured with the old decoder cannot be reinterpreted safely
+    // (for example, a DWORD value is not the same thing as a REAL value).
+    history.forEach(function(sample){delete sample[signal.key];});
+    recorded.forEach(function(sample){delete sample[signal.key];});
+    updateSignalValue(signal,null);
+    if(signal.address&&socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify({type:"addSignal",key:signal.key,plcType:signal.type,address:signal.address}));
+   }else{
+    const last=history.length?history[history.length-1]:null;
+    if(last&&last[signal.key]!==undefined)updateSignalValue(signal,last[signal.key]);
+   }
+   drawAll();
+   document.getElementById("sampleStatus").textContent=typeChanged
+    ?("Type updated for "+signal.label+". "+(recording?"Waiting for a fresh PLC sample.":"Start recording to read this signal using the new type."))
+    :"Settings updated for "+signal.label+".";
   });
   function setConnection(ok,text){document.getElementById("connectionDot").className="dot "+(ok?"online":"offline");document.getElementById("connectionText").textContent=text;}
  function connect(){
