@@ -357,6 +357,45 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   }
   return rows;
  }
+
+ function resolveProjectAddress(address){
+  const target=normalizeStep7Address(address).toUpperCase().replace(/\\s+/g,"").replace(/,BYTE(\\d+)/,",DBB$1");
+  const direct=projectSymbols.find(function(s){return normalizeStep7Address(s.address).toUpperCase().replace(/\\s+/g,"").replace(/,BYTE(\\d+)/,",DBB$1")===target;});
+  if(direct)return direct;
+  const m=target.match(/^DB(\\d+),(?:DBB|DBW|DBD)(\\d+)$/);if(!m)return null;
+  return projectSymbols.find(function(s){return s._dbStructure&&s.address.toUpperCase()==="DB"+m[1]+",DBB"+m[2];})||null;
+ }
+ function parseStep7DbStructure(text,filename){
+  const src=String(text||"");
+  const m=src.match(/(?:DATA_BLOCK\\s+)?DB\\s*(\\d+)\\b/i)||String(filename||"").match(/\\bDB\\s*(\\d+)\\b/i);
+  if(!m)return [];
+  const db=Number(m[1]),out=[];let inStruct=false,offset=0,bit=-1;
+  const sizes={BOOL:0,BYTE:1,CHAR:1,SINT:1,USINT:1,WORD:2,INT:2,UINT:2,S5TIME:2,DATE:2,DWORD:4,DINT:4,UDINT:4,REAL:4,TIME:4,TIME_OF_DAY:4,LREAL:8,LINT:8,ULINT:8,LTIME:8,DATE_AND_TIME:8,DT:8,DTL:12};
+  src.split(/\\r?\\n/).forEach(function(raw){
+   const line=raw.replace(/\\/\\/.*$/,"").trim();if(!line)return;
+   if(/\\bSTRUCT\\b/i.test(line)){inStruct=true;return;}
+   if(/\\bEND_STRUCT\\b/i.test(line)){inStruct=false;return;}
+   if(!inStruct||/^(DATA_BLOCK|TITLE|VERSION|BEGIN|END_DATA_BLOCK)\\b/i.test(line))return;
+   const f=line.match(/^([A-Za-z_][A-Za-z0-9_]*)\\s*:\\s*(.+?)\\s*;?$/);if(!f)return;
+   const name=f[1],type=f[2].replace(/;$/,"").trim().toUpperCase();
+   let size=sizes[type];
+   const arr=type.match(/^ARRAY\\s*\\[\\s*(-?\\d+)\\s*\\.\\.\\s*(-?\\d+)\\s*\\]\\s*OF\\s*(\\w+)$/);
+   if(arr&&sizes[arr[3]]!==undefined)size=(Number(arr[2])-Number(arr[1])+1)*Math.max(1,sizes[arr[3]]);
+   const str=type.match(/^STRING(?:\\s*\\[\\s*(\\d+)\\s*\\])?$/);if(str)size=2+Number(str[1]||254);
+   if(size===undefined)return;
+   if(type==="BOOL"){
+    if(bit<0||bit>7){offset=Math.ceil(offset);bit=0;}
+    const addr="DB"+db+",DBX"+offset+"."+bit;
+    out.push({name:name,address:addr,type:"BOOL",comment:"DB structure field",symbolName:name,operand:addr,dataType:"BOOL",_dbStructure:true});
+    bit++;if(bit>7){offset++;bit=-1;}return;
+   }
+   if(bit>=0){offset++;bit=-1;}
+   if(size>=2&&offset%2)offset++;
+   const prefix=size===1?"DBB":size===2?"DBW":size===4?"DBD":"DBB",addr="DB"+db+","+prefix+offset;
+   out.push({name:name,address:addr,type:type,comment:"DB structure field · offset "+offset+" · "+type,symbolName:name,operand:addr,dataType:type,_dbStructure:true});offset+=size;
+  });
+  return out;
+ }
  async function walkStep7Folder(root){
   const found=[],files=[],maxFiles=12000;let visited=0;
   async function walk(dir,depth){
@@ -366,7 +405,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
     if(entry.name.startsWith(".")||/^(node_modules|cache|temp|tmp)$/i.test(entry.name))continue;
     if(entry.kind==="directory"){await walk(entry,depth+1);continue;}
     visited++;const ext=entry.name.split(".").pop().toLowerCase();
-    if(["asc","sdf","seq","dif","csv","txt","dbf","ydb","cdb","idb"].includes(ext))files.push(entry);
+    if(["asc","sdf","seq","dif","csv","txt","dbf","ydb","cdb","idb","awl","scl","db","udt"].includes(ext))files.push(entry);
    }
   }
   await walk(root,0);
@@ -374,10 +413,15 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   for(const entry of files){
    const upper=entry.name.toUpperCase(),ext=upper.split(".").pop();
    const likelySymbol=ext==="ASC"||ext==="SDF"||ext==="SEQ"||ext==="DIF"||/SYM_TAB\.DBF$/.test(upper)||/^SYM[_-]?\d*\.DBF$/.test(upper)||/SYMBOL.*\.DBF$/.test(upper)||/SYMLIST\.DBF$/.test(upper);
-   if(!likelySymbol)continue;
+   const likelyStructure=["AWL","SCL","DB","UDT"].includes(ext);
+   if(!likelySymbol&&!likelyStructure)continue;
    try{
     const file=await entry.getFile();
-    if(ext==="DBF"){
+    if(likelyStructure){
+     if(file.size>15*1024*1024)continue;
+     const source=await file.text();
+     found.push(...parseStep7DbStructure(source,entry.name));
+    }else    if(ext==="DBF"){
      const rows=await parseDbfSymbolFile(file);
      if(rows.length)found.push(...rows);
      else binaryCandidates.push(entry.name+" (DBF found, layout not recognized)");
@@ -448,9 +492,13 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   if(addressInput){
    if(!plcAddressPattern.test(addressInput)){error.textContent="Enter a valid PLC address in the second field (for example DB1001,BYTE0).";return;}
    address=normalizeStep7Address(addressInput);
+   const resolved=resolveProjectAddress(address);
+   if(resolved){label=label||resolved.name;document.getElementById("signalNameInput").value=label;}
    if(!label)label=address;
   }else if(plcAddressPattern.test(key)){
    address=normalizeStep7Address(key);
+   const resolved=resolveProjectAddress(address);
+   if(resolved){label=label||resolved.name;document.getElementById("signalNameInput").value=label;}
    key=address.toUpperCase().replace(/\s+/g,"").replace(/[,.:/]/g,"_");
    if(!label)label=address;
   }
