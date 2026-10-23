@@ -372,7 +372,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   const db=Number(m[1]),out=[];let inStruct=false,offset=0,bit=-1;
   const sizes={BOOL:0,BYTE:1,CHAR:1,SINT:1,USINT:1,WORD:2,INT:2,UINT:2,S5TIME:2,DATE:2,DWORD:4,DINT:4,UDINT:4,REAL:4,TIME:4,TIME_OF_DAY:4,LREAL:8,LINT:8,ULINT:8,LTIME:8,DATE_AND_TIME:8,DT:8,DTL:12};
   src.split(/\\r?\\n/).forEach(function(raw){
-   const line=raw.replace(/\\/\\/.*$/,"").trim();if(!line)return;
+   const line=raw.replace(/\/\/.*$/,"").trim();if(!line)return;
    if(/\\bSTRUCT\\b/i.test(line)){inStruct=true;return;}
    if(/\\bEND_STRUCT\\b/i.test(line)){inStruct=false;return;}
    if(!inStruct||/^(DATA_BLOCK|TITLE|VERSION|BEGIN|END_DATA_BLOCK)\\b/i.test(line))return;
