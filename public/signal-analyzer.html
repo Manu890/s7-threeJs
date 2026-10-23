@@ -124,7 +124,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   typeSelect.value=s.type||"B";
   typeSelect.addEventListener("change",function(){s.type=typeSelect.value;s.dataType=s.type;saveCustomSignals();label.title=(s.dataType||"—")+" · "+(s.comment||"—");if(s.address&&socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify({type:"addSignal",key:s.key,plcType:s.type,address:s.address}));const latest=history.length?history[history.length-1]:null;if(latest&&latest[s.key]!==undefined)updateSignalValue(s,latest[s.key]);document.getElementById("sampleStatus").textContent="Type for "+s.label+" set to "+typeSelect.options[typeSelect.selectedIndex].text+".";});
   const precisionSelect=document.createElement("select");precisionSelect.className="trace-precision-select";precisionSelect.setAttribute("aria-label","Display precision for "+s.label);precisionSelect.title="Significant digits for REAL values";
-  [3,4,5,6,7,8,9,10].forEach(function(digits){const option=document.createElement("option");option.value=String(digits);option.textContent="Precision: "+digits;precisionSelect.appendChild(option);});
+  Array.from({length:18},function(_,i){return i+1;}).forEach(function(digits){const option=document.createElement("option");option.value=String(digits);option.textContent="Precision: "+digits;precisionSelect.appendChild(option);});
   precisionSelect.value=String(Number(s.precision)||6);
   precisionSelect.addEventListener("change",function(){s.precision=Number(precisionSelect.value);saveCustomSignals();const latest=history.length?history[history.length-1]:null;if(latest&&latest[s.key]!==undefined)updateSignalValue(s,latest[s.key]);document.getElementById("sampleStatus").textContent="Display precision for "+s.label+" set to "+s.precision+" significant digits.";});
   const symbolTooltip=(s.dataType||"—")+" · "+(s.comment||"—");label.title=symbolTooltip;label.append(title,address,value,typeSelect,precisionSelect);
@@ -228,7 +228,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   let shown="—";
   if(value!==null&&value!==undefined){
    const isReal=s.type==="R"||s.type==="REAL";
-   const digits=Math.min(10,Math.max(3,Number(s.precision)||6));
+   const digits=Math.min(17,Math.max(1,Number(s.precision)||6));
    shown=isReal&&typeof value==="number"&&Number.isFinite(value)?String(Number(value.toPrecision(digits))):String(value);
   }
   const listValue=document.getElementById("list-"+safeId(s.key));const traceValue=document.getElementById("value-"+safeId(s.key));
