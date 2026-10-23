@@ -778,7 +778,6 @@
           if (Math.abs(p.timestamp - hoverTime) < Math.abs(nearest.timestamp - hoverTime))
             nearest = p;
         });
-        ctx.fillStyle = s.color;
         ctx.font = "11px ui-monospace,Consolas,monospace";
         const cursorDate = new Date(nearest.timestamp);
         const cursorTime =
@@ -786,9 +785,13 @@
           String(cursorDate.getMinutes()).padStart(2, "0") + ":" +
           String(cursorDate.getSeconds()).padStart(2, "0") + "." +
           String(cursorDate.getMilliseconds()).padStart(3, "0");
-        const cursorLabel = cursorTime + "  " + String(nearest[s.key]);
-        const labelX = Math.max(4, Math.min(cw - ctx.measureText(cursorLabel).width - 4, x + 5));
-        ctx.fillText(cursorLabel, labelX, 14);
+        const valueLabel = String(nearest[s.key]);
+        const valueX = Math.max(4, Math.min(cw - ctx.measureText(valueLabel).width - 4, x + 5));
+        ctx.fillStyle = s.color;
+        ctx.fillText(valueLabel, valueX, 14);
+        ctx.fillStyle = "#8b9bb0";
+        const timeX = Math.max(4, Math.min(cw - ctx.measureText(cursorTime).width - 4, x + 5));
+        ctx.fillText(cursorTime, timeX, ch - 5);
       }
     });
     const ticks = document.getElementById("axisTicks"),
