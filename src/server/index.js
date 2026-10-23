@@ -13,7 +13,7 @@ export class Server {
         this.polling = new PLCPolling(this.plcConnection, pollConfig);
         this.wsServer = new WSServer(wsConfig);
         this.handlers = new MessageHandlers(this.plcConnection, this.polling);
-        
+
         this.plcConnection.setVariables(variables);
         this.setupEventHandlers();
     }
@@ -25,6 +25,7 @@ export class Server {
         // PLC events
         this.plcConnection.onConnect(() => {
             console.log('✅ Connected to PLC');
+            // Polling starts only after a recording request has selected its S7 read list.
             this.polling.start();
         });
 
@@ -35,7 +36,7 @@ export class Server {
 
         this.plcConnection.onError((error) => {
             console.error('❌ PLC error:', error);
-            this.reconnectPLC();
+            if (this.polling.isPolling) this.reconnectPLC();
         });
 
         // Polling events
@@ -58,48 +59,40 @@ export class Server {
     }
 
     /**
-     * Start server
+     * Start server. The PLC connection is opened on demand when recording starts.
      */
     async start() {
-    console.log('🏭 S7 PLC ↔ WebSocket Bridge');
-    console.log('================================');
-    console.log(`PLC: ${this.plcConnection.config.host}:${this.plcConnection.config.rack}/${this.plcConnection.config.slot}`);
-    console.log(`WebSocket: ws://localhost:${this.wsServer.config.port}`);
-    console.log(`Poll Interval: ${this.polling.config.interval}ms`);
-    console.log('================================\n');
-
-        try {
-            await this.connectPLC();
-        } catch (error) {
-            console.error('Failed to connect to PLC:', error);
-            console.log('Will retry in 5 seconds...');
-            setTimeout(() => this.connectPLC(), 5000);
-        }
+        console.log('🏭 S7 PLC ↔ WebSocket Bridge');
+        console.log('================================');
+        console.log(`PLC: ${this.plcConnection.config.host}:${this.plcConnection.config.rack}/${this.plcConnection.config.slot}`);
+        console.log(`WebSocket: ws://localhost:${this.wsServer.config.port}`);
+        console.log(`Poll Interval: ${this.polling.config.interval}ms`);
+        console.log('PLC polling is idle until Start Recording is pressed.');
+        console.log('================================\n');
     }
 
     /**
      * Connect to PLC
      */
     async connectPLC() {
+        if (this.plcConnection.isConnected) return;
         console.log(`🔌 Connecting to PLC ${this.plcConnection.config.host}...`);
-        try {
-            await this.plcConnection.connect();
-        } catch (error) {
-            throw error;
-        }
+        await this.plcConnection.connect();
     }
 
     /**
      * Reconnect to PLC
      */
     async reconnectPLC() {
+        if (!this.polling.isPolling) return;
         console.log('⏳ Reconnecting to PLC in 2 seconds...');
         setTimeout(async () => {
+            if (!this.polling.isPolling || this.plcConnection.isConnected) return;
             try {
                 await this.connectPLC();
             } catch (error) {
                 console.error('Reconnection failed:', error);
-                this.reconnectPLC();
+                if (this.polling.isPolling) this.reconnectPLC();
             }
         }, 2000);
     }
@@ -109,11 +102,11 @@ export class Server {
      */
     async stop() {
         console.log('\n🛑 Stopping server...');
-        
+
         this.polling.stop();
         await this.plcConnection.disconnect();
         await this.wsServer.close();
-        
+
         console.log('✅ Server stopped');
     }
 }
