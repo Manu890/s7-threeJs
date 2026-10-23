@@ -1606,6 +1606,32 @@
   document
     .getElementById("signalKeyInput")
     .addEventListener("blur", fillSignalNameFromProjectAddress);
+  function fillSignalAddressFromProjectName() {
+    const nameInput = document.getElementById("signalNameInput");
+    const keyInput = document.getElementById("signalKeyInput");
+    const candidate = nameInput.value.trim().toLowerCase();
+    if (!candidate || !projectSymbols.length) return;
+    const resolved = projectSymbols.find(function (symbol) {
+      return (
+        String(symbol.name || "").trim().toLowerCase() === candidate ||
+        String(symbol.symbolName || "").trim().toLowerCase() === candidate
+      );
+    });
+    if (resolved && resolved.address) {
+      keyInput.value = normalizeStep7Address(resolved.address);
+      const error = document.getElementById("signalFormError");
+      if (error) error.textContent = "";
+    }
+  }
+  document
+    .getElementById("signalNameInput")
+    .addEventListener("input", fillSignalAddressFromProjectName);
+  document
+    .getElementById("signalNameInput")
+    .addEventListener("change", fillSignalAddressFromProjectName);
+  document
+    .getElementById("signalNameInput")
+    .addEventListener("blur", fillSignalAddressFromProjectName);
   symbolSearchInput.addEventListener("input", renderProjectSymbols);
   document.getElementById("addSignalForm").addEventListener("submit", function (e) {
     e.preventDefault();
