@@ -1905,16 +1905,12 @@
     )
       return;
     const span = Number(document.getElementById("windowSelect").value) * 1000;
-    const available = history
-      .concat(recorded)
-      .map(function (p) {
-        return p.timestamp;
-      })
-      .filter(Number.isFinite);
+    const available = getAvailableSamples().map(function (p) { return p.timestamp; });
     const earliest = available.length ? Math.min.apply(null, available) : 0;
-    const latest = lastTimestamp || Date.now();
+    const latest = available.length ? Math.max.apply(null, available) : lastTimestamp || Date.now();
     inspectionViewTime += inspectionScrollDirection * 50;
-    inspectionViewTime = Math.max(earliest + span, Math.min(latest, inspectionViewTime));
+    if (!historicalMode)
+      inspectionViewTime = Math.max(earliest + span, Math.min(latest, inspectionViewTime));
     hoverTime = inspectionScrollDirection < 0 ? inspectionViewTime - span : inspectionViewTime;
     drawAll();
   }, 50);
