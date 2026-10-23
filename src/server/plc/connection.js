@@ -17,13 +17,34 @@ export class PLCConnection {
     }
 
     /**
-     * Set variables to read from PLC
+     * Set variables known to the PLC bridge.
      * @param {Object} variables - Object with variable names and addresses
      */
     setVariables(variables) {
         this.variables = variables;
         this.conn.setTranslationCB((name) => this.variables[name]);
         this.conn.addItems(Object.keys(this.variables));
+    }
+
+    /**
+     * Set the active S7 read list without removing signal address registrations.
+     * nodes7 reads only the items in its current item list.
+     * @param {string[]} keys - Registered variable keys to read
+     * @returns {string[]} Keys that were activated
+     */
+    setReadVariables(keys) {
+        const selected = [...new Set(Array.isArray(keys) ? keys : [])]
+            .filter((key) => typeof key === 'string' && Object.prototype.hasOwnProperty.call(this.variables, key));
+
+        this.conn.removeItems();
+        this.conn.setTranslationCB((name) => this.variables[name]);
+
+        if (selected.length > 0) {
+            this.conn.addItems(selected);
+        }
+
+        console.log(`📡 S7 read list updated: ${selected.length ? selected.join(', ') : '(empty)'}`);
+        return selected;
     }
 
     /**
@@ -43,7 +64,12 @@ export class PLCConnection {
         if (this.variables[name] && this.variables[name] !== normalizedAddress) {
             throw new Error(`Signal key ${name} is already registered to ${this.variables[name]}`);
         }
-        if (this.variables[name] === normalizedAddress) return;
+
+        if (this.variables[name] === normalizedAddress) {
+            // The read list may have been cleared after a previous recording session.
+            this.conn.addItems([name]);
+            return;
+        }
 
         this.variables[name] = normalizedAddress;
         this.conn.setTranslationCB((itemName) => this.variables[itemName]);
