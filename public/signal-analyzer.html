@@ -256,9 +256,35 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
    signal.precision=Math.min(20,Math.max(0,Number(data.precision)||0));saveCustomSignals();
    const typeChanged=previousType!==signal.type;
    if(typeChanged){
-    // Keep all captured samples intact. Clear only the live value until the
-    // PLC returns a fresh sample decoded with the updated type.
-    updateSignalValue(signal,null);
+    // Re-decode existing numeric samples immediately when the selected type changes.
+    // DWORD <-> REAL needs bit reinterpretation, not a numeric cast.
+    function decodeForType(value,fromType,toType){
+     if(value===null||value===undefined||value==="")return value;
+     const from=String(fromType||"").toUpperCase(),to=String(toType||"").toUpperCase();
+     const isReal=function(t){return t==="R"||t==="REAL"||t==="RR"||t==="RREAL";};
+     const isDword=function(t){return ["D","DW","DWORD","RD","RDW","RDWORD"].includes(t);};
+     if(typeof value==="number"&&Number.isFinite(value)&&isReal(from)!==isReal(to)&&(isReal(from)||isReal(to))&&(isDword(from)||isDword(to))){
+      const buffer=new ArrayBuffer(4),view=new DataView(buffer);
+      if(isReal(from)){view.setFloat32(0,value,false);return view.getUint32(0,false);}
+      view.setUint32(0,value>>>0,false);return view.getFloat32(0,false);
+     }
+     if(typeof value!=="number"||!Number.isFinite(value))return value;
+     switch(to){
+      case "X": return value?1:0;
+      case "B": return value&0xff;
+      case "I": return (value<<16)>>16;
+      case "DI": return value|0;
+      case "W": return value&0xffff;
+      case "D": case "DW": case "DWORD": return value>>>0;
+      case "R": case "REAL": case "RR": case "RREAL": return Math.fround(value);
+      default: return value;
+     }
+    }
+    history.forEach(function(sample){if(Object.prototype.hasOwnProperty.call(sample,signal.key))sample[signal.key]=decodeForType(sample[signal.key],previousType,signal.type);});
+    recorded.forEach(function(sample){if(Object.prototype.hasOwnProperty.call(sample,signal.key))sample[signal.key]=decodeForType(sample[signal.key],previousType,signal.type);});
+    const lastSamples=(recording?recorded:history);
+    const last=lastSamples.length?lastSamples[lastSamples.length-1]:null;
+    updateSignalValue(signal,last&&last[signal.key]!==undefined?last[signal.key]:null);
     if(signal.address&&socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify({type:"addSignal",key:signal.key,plcType:signal.type,address:signal.address}));
    }else{
     const last=history.length?history[history.length-1]:null;
