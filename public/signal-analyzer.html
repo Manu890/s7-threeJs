@@ -359,29 +359,29 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
  }
 
  function resolveProjectAddress(address){
-  const target=normalizeStep7Address(address).toUpperCase().replace(/\\s+/g,"").replace(/,BYTE(\\d+)/,",DBB$1");
-  const direct=projectSymbols.find(function(s){return normalizeStep7Address(s.address).toUpperCase().replace(/\\s+/g,"").replace(/,BYTE(\\d+)/,",DBB$1")===target;});
+  const target=normalizeStep7Address(address).toUpperCase().replace(/\s+/g,"").replace(/,BYTE(\d+)/,",DBB$1");
+  const direct=projectSymbols.find(function(s){return normalizeStep7Address(s.address).toUpperCase().replace(/\s+/g,"").replace(/,BYTE(\d+)/,",DBB$1")===target;});
   if(direct)return direct;
-  const m=target.match(/^DB(\\d+),(?:DBB|DBW|DBD)(\\d+)$/);if(!m)return null;
+  const m=target.match(/^DB(\d+),(?:DBB|DBW|DBD)(\d+)$/);if(!m)return null;
   return projectSymbols.find(function(s){return s._dbStructure&&s.address.toUpperCase()==="DB"+m[1]+",DBB"+m[2];})||null;
  }
  function parseStep7DbStructure(text,filename){
   const src=String(text||"");
-  const m=src.match(/(?:DATA_BLOCK\\s+)?DB\\s*(\\d+)\\b/i)||String(filename||"").match(/\\bDB\\s*(\\d+)\\b/i);
+  const m=src.match(/(?:DATA_BLOCK\s+)?DB\s*(\d+)\b/i)||String(filename||"").match(/\bDB\s*(\d+)\b/i);
   if(!m)return [];
   const db=Number(m[1]),out=[];let inStruct=false,offset=0,bit=-1;
   const sizes={BOOL:0,BYTE:1,CHAR:1,SINT:1,USINT:1,WORD:2,INT:2,UINT:2,S5TIME:2,DATE:2,DWORD:4,DINT:4,UDINT:4,REAL:4,TIME:4,TIME_OF_DAY:4,LREAL:8,LINT:8,ULINT:8,LTIME:8,DATE_AND_TIME:8,DT:8,DTL:12};
-  src.split(/\\r?\\n/).forEach(function(raw){
+  src.split(/\r?\n/).forEach(function(raw){
    const line=raw.replace(/\/\/.*$/,"").trim();if(!line)return;
-   if(/\\bSTRUCT\\b/i.test(line)){inStruct=true;return;}
-   if(/\\bEND_STRUCT\\b/i.test(line)){inStruct=false;return;}
-   if(!inStruct||/^(DATA_BLOCK|TITLE|VERSION|BEGIN|END_DATA_BLOCK)\\b/i.test(line))return;
-   const f=line.match(/^([A-Za-z_][A-Za-z0-9_]*)\\s*:\\s*(.+?)\\s*;?$/);if(!f)return;
+   if(/\bSTRUCT\b/i.test(line)){inStruct=true;return;}
+   if(/\bEND_STRUCT\b/i.test(line)){inStruct=false;return;}
+   if(!inStruct||/^(DATA_BLOCK|TITLE|VERSION|BEGIN|END_DATA_BLOCK)\b/i.test(line))return;
+   const f=line.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.+?)\s*;?$/);if(!f)return;
    const name=f[1],type=f[2].replace(/;$/,"").trim().toUpperCase();
    let size=sizes[type];
-   const arr=type.match(/^ARRAY\\s*\\[\\s*(-?\\d+)\\s*\\.\\.\\s*(-?\\d+)\\s*\\]\\s*OF\\s*(\\w+)$/);
+   const arr=type.match(/^ARRAY\s*\[\s*(-?\d+)\s*\.\.\s*(-?\d+)\s*\]\s*OF\s*(\w+)$/);
    if(arr&&sizes[arr[3]]!==undefined)size=(Number(arr[2])-Number(arr[1])+1)*Math.max(1,sizes[arr[3]]);
-   const str=type.match(/^STRING(?:\\s*\\[\\s*(\\d+)\\s*\\])?$/);if(str)size=2+Number(str[1]||254);
+   const str=type.match(/^STRING(?:\s*\[\s*(\d+)\s*\])?$/);if(str)size=2+Number(str[1]||254);
    if(size===undefined)return;
    if(type==="BOOL"){
     if(bit<0||bit>7){offset=Math.ceil(offset);bit=0;}
@@ -396,41 +396,119 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   });
   return out;
  }
+ async function readStep7DbtMemo(dbtBytes, blockNumber){
+  if(!dbtBytes||!Number.isInteger(blockNumber)||blockNumber<=0)return "";
+  const start=blockNumber*512;
+  if(start>=dbtBytes.length)return "";
+  const bytes=dbtBytes.slice(start,Math.min(dbtBytes.length,start+512));
+  let payload=bytes;
+  if(bytes.length>=8&&bytes[0]===0xFF&&bytes[1]===0xFF&&bytes[2]===0x08&&bytes[3]===0x00){
+   const view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
+   const length=[view.getUint32(4,true),view.getUint32(4,false)].find(n=>n>0&&n<=bytes.length-8);
+   if(length)payload=bytes.slice(8,8+length);
+  }else{
+   let stop=-1;
+   for(let i=0;i<bytes.length-1;i++){if(bytes[i]===0x1A&&bytes[i+1]===0x1A){stop=i;break;}}
+   if(stop>0)payload=bytes.slice(0,stop);
+  }
+  const text=new TextDecoder("windows-1252").decode(payload);
+  const printable=(text.match(/[\t\r\n\x20-\x7E\u00A0-\u00FF]/g)||[]).length;
+  return text.length&&printable/text.length>0.82?text:"";
+ }
+ async function parseStep7SubblkDbf(file,dbtFile){
+  const buffer=await file.arrayBuffer(),view=new DataView(buffer),bytes=new Uint8Array(buffer);
+  if(bytes.length<33)return {rows:[],memoCount:0};
+  const recordCount=view.getUint32(4,true),headerLength=view.getUint16(8,true),recordLength=view.getUint16(10,true);
+  if(headerLength<33||recordLength<2||headerLength>bytes.length)return {rows:[],memoCount:0};
+  const fields=[];let pos=32;
+  while(pos<headerLength-1&&bytes[pos]!==0x0D){
+   if(pos+32>bytes.length)break;
+   let fieldEnd=pos;while(fieldEnd<pos+11&&bytes[fieldEnd]!==0&&bytes[fieldEnd]!==0x20)fieldEnd++;
+   const name=new TextDecoder("latin1").decode(bytes.slice(pos,fieldEnd)).trim().toUpperCase();
+   const type=String.fromCharCode(bytes[pos+11]||0).toUpperCase(),length=bytes[pos+16];
+   if(!name||!length)break;
+   fields.push({name,type,length});pos+=32;
+  }
+  if(!fields.length)return {rows:[],memoCount:0};
+  let offset=1;fields.forEach(f=>{f.offset=offset;offset+=f.length;});
+  let dbtBytes=null;
+  if(dbtFile){try{dbtBytes=new Uint8Array(await (await dbtFile.getFile()).arrayBuffer());}catch(e){console.warn("Could not read companion DBT",e);}}
+  const rows=[],count=Math.min(recordCount,100000),decoder=new TextDecoder("windows-1252");let memoCount=0;
+  for(let i=0;i<count;i++){
+   const base=headerLength+i*recordLength;if(base+recordLength>bytes.length)break;
+   if(bytes[base]===0x2A)continue;
+   const row={};
+   for(const f of fields){
+    const raw=decoder.decode(bytes.slice(base+f.offset,base+f.offset+f.length)).replace(/\0/g,"").trim();
+    row[f.name]=raw;
+    if((f.type==="M"||/^(MC5CODE|UDA|ADDINFO|SSBPART)$/i.test(f.name))&&dbtBytes){
+     const pointer=Number(raw);
+     if(Number.isFinite(pointer)&&pointer>0){
+      const memo=await readStep7DbtMemo(dbtBytes,pointer);
+      if(memo){row[f.name+"_TEXT"]=memo;memoCount++;}
+     }
+    }
+   }
+   rows.push(row);
+  }
+  return {rows:rows,memoCount:memoCount,fields:fields.map(f=>f.name)};
+ }
  async function walkStep7Folder(root){
   const found=[],files=[],maxFiles=12000;let visited=0;
-  async function walk(dir,depth){
+  async function walk(dir,depth,relativePath){
    if(depth>12||visited>=maxFiles)return;
    for await(const entry of dir.values()){
     if(visited>=maxFiles)break;
     if(entry.name.startsWith(".")||/^(node_modules|cache|temp|tmp)$/i.test(entry.name))continue;
-    if(entry.kind==="directory"){await walk(entry,depth+1);continue;}
+    const path=relativePath?relativePath+"/"+entry.name:entry.name;
+    if(entry.kind==="directory"){await walk(entry,depth+1,path);continue;}
     visited++;const ext=entry.name.split(".").pop().toLowerCase();
-    if(["asc","sdf","seq","dif","csv","txt","dbf","ydb","cdb","idb","awl","scl","db","udt"].includes(ext))files.push(entry);
+    if(["asc","sdf","seq","dif","csv","txt","dbf","dbt","ydb","cdb","idb","awl","scl","db","udt"].includes(ext))files.push({entry:entry,path:path});
    }
   }
-  await walk(root,0);
-  const binaryCandidates=[];
-  for(const entry of files){
-   const upper=entry.name.toUpperCase(),ext=upper.split(".").pop();
+  await walk(root,0,"");
+  const binaryCandidates=[],subblkFiles=[];
+  for(const item of files){
+   const entry=item.entry,upper=entry.name.toUpperCase(),ext=upper.split(".").pop();
+   if(upper==="SUBBLK.DBF")subblkFiles.push(item);
    const likelySymbol=ext==="ASC"||ext==="SDF"||ext==="SEQ"||ext==="DIF"||/SYM_TAB\.DBF$/.test(upper)||/^SYM[_-]?\d*\.DBF$/.test(upper)||/SYMBOL.*\.DBF$/.test(upper)||/SYMLIST\.DBF$/.test(upper);
    const likelyStructure=["AWL","SCL","DB","UDT"].includes(ext);
-   if(!likelySymbol&&!likelyStructure)continue;
+   if(!likelySymbol&&!likelyStructure&&upper!=="SUBBLK.DBF")continue;
    try{
     const file=await entry.getFile();
     if(likelyStructure){
      if(file.size>15*1024*1024)continue;
-     const source=await file.text();
-     found.push(...parseStep7DbStructure(source,entry.name));
-    }else    if(ext==="DBF"){
+     found.push(...parseStep7DbStructure(await file.text(),entry.name));
+    }else if(ext==="DBF"){
      const rows=await parseDbfSymbolFile(file);
      if(rows.length)found.push(...rows);
-     else binaryCandidates.push(entry.name+" (DBF found, layout not recognized)");
+     else if(likelySymbol)binaryCandidates.push(item.path+" (DBF found, symbol layout not recognized)");
     }else{
      if(file.size>15*1024*1024)continue;
      const content=await file.text();
      content.split(/\r?\n/).forEach(line=>{const row=splitSymbolRecord(line);if(row&&row.name&&row.address)found.push(row);});
     }
-   }catch(err){console.warn("Could not inspect STEP 7 symbol file",entry.name,err);}
+   }catch(err){console.warn("Could not inspect STEP 7 symbol file",item.path,err);}
+  }
+  let subblkRows=0,subblkMemos=0,subblkStructures=0;
+  for(const item of subblkFiles){
+   try{
+    const directory=item.path.includes("/")?item.path.slice(0,item.path.lastIndexOf("/")+1):"";
+    const companion=files.find(f=>f.path.toUpperCase()===(directory+"SUBBLK.DBT").toUpperCase());
+    const parsed=await parseStep7SubblkDbf(await item.entry.getFile(),companion&&companion.entry);
+    subblkRows+=parsed.rows.length;subblkMemos+=parsed.memoCount;
+    for(const row of parsed.rows){
+     const blockValue=row.BLKNUMBER||row.BLKNR||row.NUMBER||row.BLOCKNR||"";
+     const blockName=row.BLKNAME||row.NAME||row.BLOCKNAME||"";
+     const match=String(blockName+" "+blockValue).match(/\bDB\s*0*(\d+)\b/i)||String(blockValue).match(/^\s*0*(\d+)\s*$/);
+     if(!match)continue;
+     const dbNumber=Number(match[1]);
+     const body=Object.keys(row).filter(k=>/_TEXT$/.test(k)).map(k=>row[k]).join("\n");
+     if(!body||!/STRUCT/i.test(body))continue;
+     const fields=parseStep7DbStructure(body,"DB"+dbNumber+".DB");
+     if(fields.length){found.push(...fields);subblkStructures++;}
+    }
+   }catch(err){binaryCandidates.push(item.path+" (SUBBLK parse error: "+err.message+")");}
   }
   const dedup=new Map();
   found.forEach(s=>{
@@ -439,7 +517,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
    const id=normalizeSignalAddress(s.address);
    if(!dedup.has(id))dedup.set(id,s);
   });
-  return {symbols:Array.from(dedup.values()),files:files.length,binaryCandidates:binaryCandidates,visited:visited};
+  return {symbols:Array.from(dedup.values()),files:files.length,binaryCandidates:binaryCandidates,visited:visited,subblkFiles:subblkFiles.length,subblkRows:subblkRows,subblkMemos:subblkMemos,subblkStructures:subblkStructures};
  }
  function renderProjectSymbols(){
   const query=symbolSearchInput.value.trim().toLowerCase(),addressQuery=query.toUpperCase().replace(/\s+/g,"");symbolResults.replaceChildren();
@@ -471,7 +549,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
    symbolProjectStatus.textContent="Scanning "+root.name+" for symbol tables…";
    const result=await walkStep7Folder(root);projectSymbols=result.symbols;
    symbolSearchInput.disabled=false;renderProjectSymbols();
-   let status="Project: "+root.name+" · "+projectSymbols.length+" unique symbols parsed · "+result.files+" candidate text/DBF files scanned.";
+   let status="Project: "+root.name+" · "+projectSymbols.length+" unique symbols parsed · "+result.files+" candidate files scanned · SUBBLK.DBF: "+result.subblkFiles+" file(s), "+result.subblkRows+" rows, "+result.subblkMemos+" readable memo(s), "+result.subblkStructures+" text structure(s) decoded.";
    if(result.binaryCandidates.length)status+=" Some DBF files were not recognized: "+result.binaryCandidates.slice(0,4).join(", ")+(result.binaryCandidates.length>4?"…":"")+".";
    if(!projectSymbols.length)status+=" No supported symbol records were readable. Check that the selected folder contains the extracted project and its hrs\\YDBs folders.";
    symbolProjectStatus.textContent=status;
