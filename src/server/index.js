@@ -22,6 +22,31 @@ export class Server {
      * Setup event handlers
      */
     setupEventHandlers() {
+        // nodes7 writes optimization warnings to the process console instead of
+        // exposing them as structured events. Forward only this specific warning
+        // to the browser so the analyzer can mark the corresponding trace.
+        if (!globalThis.__s7OptimizationWarningForwarderInstalled) {
+            globalThis.__s7OptimizationWarningForwarderInstalled = true;
+            const originalLog = console.log.bind(console);
+            const originalWarn = console.warn.bind(console);
+            const forwardWarning = (args) => {
+                const line = args.map((arg) => {
+                    if (typeof arg === 'string') return arg;
+                    try { return JSON.stringify(arg); } catch { return String(arg); }
+                }).join(' ');
+                const match = line.match(/Skipping optimization of item\s+(DB\d+\s*,?\s*(?:DWORD|DBD)\s*\d+)/i);
+                if (match) {
+                    this.wsServer.broadcast({
+                        type: 'plcWarning',
+                        address: match[1].replace(/\s+/g, ''),
+                        message: line
+                    });
+                }
+            };
+            console.log = (...args) => { originalLog(...args); forwardWarning(args); };
+            console.warn = (...args) => { originalWarn(...args); forwardWarning(args); };
+        }
+
         // PLC events
         this.plcConnection.onConnect(() => {
             console.log('✅ Connected to PLC');
