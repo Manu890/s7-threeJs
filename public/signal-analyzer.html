@@ -71,7 +71,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
  const SIGNAL_STORAGE_KEY="s7-threejs-signal-analyzer-signals-v1";
  function saveCustomSignals(){
   try{
-   localStorage.setItem(SIGNAL_STORAGE_KEY,JSON.stringify(signals.filter(function(s){return !s.builtin;}).map(function(s){return {key:s.key,label:s.label,address:s.address,type:s.type||"B",precision:Number(s.precision)||6,visible:s.visible,symbolName:s.symbolName||"",operand:s.operand||s.address||"",dataType:s.dataType||s.type||"",comment:s.comment||""};})));
+   localStorage.setItem(SIGNAL_STORAGE_KEY,JSON.stringify(signals.filter(function(s){return !s.builtin;}).map(function(s){return {key:s.key,label:s.label,address:s.address,type:s.type||"B",precision:s.precision===undefined?2:Math.min(20,Math.max(0,Number(s.precision)||0)),visible:s.visible,symbolName:s.symbolName||"",operand:s.operand||s.address||"",dataType:s.dataType||s.type||"",comment:s.comment||""};})));
   }catch(e){console.warn("Could not save signal configuration in this browser.",e);}
  }
  function restoreCustomSignals(){
@@ -82,7 +82,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
     if(!s||typeof s.key!=="string"||typeof s.label!=="string"||signals.some(function(existing){return existing.key.toLowerCase()===s.key.toLowerCase();}))return;
     if(!/^[a-zA-Z_][a-zA-Z0-9_-]{0,39}$/.test(s.key))return;
     const savedAddress=typeof s.address==="string"?s.address:"";
-    signals.push({key:s.key,label:s.label,address:savedAddress.indexOf("WebSocket key: ")===0?"":savedAddress,type:typeof s.type==="string"?s.type:"B",precision:Number(s.precision)||6,symbolName:typeof s.symbolName==="string"?s.symbolName:"",operand:typeof s.operand==="string"?s.operand:savedAddress,dataType:typeof s.dataType==="string"?s.dataType:"",comment:typeof s.comment==="string"?s.comment:"",color:palette[signals.length%palette.length],builtin:false,visible:s.visible!==false});
+    signals.push({key:s.key,label:s.label,address:savedAddress.indexOf("WebSocket key: ")===0?"":savedAddress,type:typeof s.type==="string"?s.type:"B",precision:s.precision===undefined?2:Math.min(20,Math.max(0,Number(s.precision)||0)),symbolName:typeof s.symbolName==="string"?s.symbolName:"",operand:typeof s.operand==="string"?s.operand:savedAddress,dataType:typeof s.dataType==="string"?s.dataType:"",comment:typeof s.comment==="string"?s.comment:"",color:palette[signals.length%palette.length],builtin:false,visible:s.visible!==false});
    });
   }catch(e){console.warn("Could not restore saved signal configuration.",e);}
  }
@@ -226,7 +226,16 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   const listValue=document.getElementById("list-"+safeId(s.key));const traceValue=document.getElementById("value-"+safeId(s.key));
   if(listValue)listValue.textContent=shown;if(traceValue)traceValue.textContent=shown;
  }
- function setConnection(ok,text){document.getElementById("connectionDot").className="dot "+(ok?"online":"offline");document.getElementById("connectionText").textContent=text;}
+ window.addEventListener("message",function(event){
+   if(event.origin!==window.location.origin||!event.data||event.data.type!=="signalSettingsUpdated")return;
+   const data=event.data;const signal=signals.find(function(s){return s.key===data.key;});if(!signal)return;
+   const previousType=signal.type;signal.type=String(data.plcType||signal.type||"B");signal.dataType=signal.type;
+   signal.precision=Math.min(20,Math.max(0,Number(data.precision)||0));saveCustomSignals();
+   if(previousType!==signal.type&&signal.address&&socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify({type:"addSignal",key:signal.key,plcType:signal.type,address:signal.address}));
+   const last=history.length?history[history.length-1]:null;if(last&&last[signal.key]!==undefined)updateSignalValue(signal,last[signal.key]);
+   drawAll();document.getElementById("sampleStatus").textContent="Settings updated for "+signal.label+".";
+  });
+  function setConnection(ok,text){document.getElementById("connectionDot").className="dot "+(ok?"online":"offline");document.getElementById("connectionText").textContent=text;}
  function connect(){
   const protocol=location.protocol==="https:"?"wss:":"ws:";
   socket=new WebSocket(protocol+"//"+(location.hostname||"localhost")+":8080?client=analyzer");
