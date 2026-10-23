@@ -1447,7 +1447,7 @@
       : null;
     const requestedDb = dbAddress ? Number(dbAddress[1]) : null;
     const dbMode = Number.isInteger(requestedDb);
-    const matches = (dbMode
+    const matchingSymbols = dbMode
       ? projectSymbols.filter(function (s) {
           const address = normalizeStep7Address(s.address || s.operand || "")
             .toUpperCase()
@@ -1461,7 +1461,8 @@
               .toLowerCase()
               .includes(query) ||
             normalizeStep7Address(s.address).replace(/\s+/g, "").includes(addressQuery)
-        )).slice(0, dbMode ? undefined : 150);
+        );
+    const matches = dbMode ? matchingSymbols : matchingSymbols.slice(0, 150);
     matches.forEach((s) => {
       const row = document.createElement("div");
       row.style.cssText =
