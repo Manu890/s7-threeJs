@@ -220,8 +220,8 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   let shown="—";
   if(value!==null&&value!==undefined){
    const isReal=s.type==="R"||s.type==="REAL";
-   const digits=Math.min(17,Math.max(1,Number(s.precision)||6));
-   shown=isReal&&typeof value==="number"&&Number.isFinite(value)?value.toPrecision(digits):String(value);
+   const digits=Math.min(20,Math.max(0,Number(s.precision)||0));
+   shown=isReal&&typeof value==="number"&&Number.isFinite(value)?value.toFixed(digits):String(value);
   }
   const listValue=document.getElementById("list-"+safeId(s.key));const traceValue=document.getElementById("value-"+safeId(s.key));
   if(listValue)listValue.textContent=shown;if(traceValue)traceValue.textContent=shown;
