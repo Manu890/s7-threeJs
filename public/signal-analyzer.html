@@ -118,7 +118,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   const title=document.createElement("strong");title.style.color=s.color;title.textContent=s.label;
   const address=document.createElement("small");address.textContent=s.operand||s.address||("key: "+s.key);
   const value=document.createElement("em");value.id="value-"+safeId(s.key);value.textContent="—";
-  const settingsButton=document.createElement("button");settingsButton.type="button";settingsButton.className="trace-settings-button";settingsButton.textContent="⚙ Settings";settingsButton.setAttribute("aria-label","Configure "+s.label);settingsButton.addEventListener("click",function(){window.location.href="signal-settings.html?key="+encodeURIComponent(s.key);});
+  const settingsButton=document.createElement("button");settingsButton.type="button";settingsButton.className="trace-settings-button";settingsButton.textContent="⚙ Settings";settingsButton.setAttribute("aria-label","Configure "+s.label);settingsButton.addEventListener("click",function(){const popup=window.open("signal-settings.html?key="+encodeURIComponent(s.key),"signalSettings","popup=yes,width=460,height=440,resizable=yes,scrollbars=yes");if(!popup){document.getElementById("sampleStatus").textContent="Settings popup was blocked. Allow popups for this local analyzer and try again.";}});
   const symbolTooltip=(s.dataType||"—")+" · "+(s.comment||"—");label.title=symbolTooltip;label.append(title,address,value,settingsButton);
   const wrap=document.createElement("div");wrap.className="canvas-wrap";
   const canvas=document.createElement("canvas");canvas.className="trace-canvas";canvas.id="canvas-"+safeId(s.key);canvas.setAttribute("aria-label",s.label+" signal trace");
