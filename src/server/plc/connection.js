@@ -18,12 +18,14 @@ export class PLCConnection {
 
     /**
      * Set variables known to the PLC bridge.
+     * Register their address mappings without activating them for S7 reads.
      * @param {Object} variables - Object with variable names and addresses
      */
     setVariables(variables) {
         this.variables = variables;
         this.conn.setTranslationCB((name) => this.variables[name]);
-        this.conn.addItems(Object.keys(this.variables));
+        // Do not call addItems here. Only setReadVariables() should activate
+        // signals for reading, based on the user's current selection.
     }
 
     /**
@@ -49,6 +51,7 @@ export class PLCConnection {
 
     /**
      * Register an additional PLC variable while the bridge is running.
+     * Registration stores the address mapping only; it does not activate S7 reads.
      * @param {string} name - WebSocket data key
      * @param {string} address - nodes7 PLC address
      */
@@ -66,14 +69,12 @@ export class PLCConnection {
         }
 
         if (this.variables[name] === normalizedAddress) {
-            // The read list may have been cleared after a previous recording session.
-            this.conn.addItems([name]);
+            // Already registered; leave activation to setReadVariables().
             return;
         }
 
         this.variables[name] = normalizedAddress;
         this.conn.setTranslationCB((itemName) => this.variables[itemName]);
-        this.conn.addItems([name]);
         console.log(`➕ Registered PLC signal ${name} → ${normalizedAddress}`);
     }
 
