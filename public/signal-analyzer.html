@@ -216,12 +216,6 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   saveCustomSignals();renderAllControls();drawAll();
   document.getElementById("sampleStatus").textContent="All signals removed. Add signals using the form.";
  }
- function normalizePlcAddress(value){
-  return String(value||"").toUpperCase().replace(/\s+/g,"").replace(/[,.:/\\_-]/g,"");
- }
- function isOptimizationWarningSignal(s){
-  return Boolean(s&&s.address&&/^(?:DB\d+|[PIQMEMTCA]\w*)/i.test(String(s.address)));
- }
  function handlePlcReadErrors(errors){
   if(!Array.isArray(errors))return;
   const byKey=new Map();
@@ -277,7 +271,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
    const failedKeys=new Set(readErrors.map(function(error){return error&&error.key;}).filter(Boolean));
    handlePlcReadErrors(readErrors);
    const sample={timestamp:timestamp};
-   signals.forEach(function(s){const hasValue=Object.prototype.hasOwnProperty.call(msg.data,s.key);const raw=msg.data[s.key];let value=null;if(!failedKeys.has(s.key)&&raw!==null&&raw!==undefined&&raw!==""){if(typeof raw==="number")value=Number.isFinite(raw)?raw:null;else if(typeof raw==="boolean")value=raw?1:0;else if(typeof raw==="string"){const numeric=Number(raw);value=raw.trim()!==""&&Number.isFinite(numeric)?numeric:raw;}}sample[s.key]=value;updateSignalValue(s,value===null?"—":value);});
+   signals.forEach(function(s){const raw=msg.data[s.key];let value=null;if(!failedKeys.has(s.key)&&raw!==null&&raw!==undefined&&raw!==""){if(typeof raw==="number")value=Number.isFinite(raw)?raw:null;else if(typeof raw==="boolean")value=raw?1:0;else if(typeof raw==="string"){const numeric=Number(raw);value=raw.trim()!==""&&Number.isFinite(numeric)?numeric:raw;}}sample[s.key]=value;updateSignalValue(s,value===null?"—":value);});
    if(recording&&!chartFrozen){history.push(sample);if(history.length>maxSamples)history.shift();}
    if(recording){recorded.push(Object.assign({},sample));}
    document.getElementById("sampleStatus").textContent="Samples buffered: "+history.length+" · Last update: "+new Date(timestamp).toLocaleTimeString();
