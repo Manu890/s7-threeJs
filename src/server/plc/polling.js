@@ -10,6 +10,7 @@ export class PLCPolling {
         this.config = config;
         this.pollTimer = null;
         this.isPolling = false;
+        this.recordingRequested = false;
         this.onDataCallback = null;
         this.onErrorCallback = null;
         this.stats = {
@@ -53,7 +54,7 @@ export class PLCPolling {
      * Poll PLC once
      */
     async poll() {
-        if (!this.plcConnection.isConnected) {
+        if (!this.isPolling || !this.plcConnection.isConnected) {
             return;
         }
 
@@ -61,6 +62,10 @@ export class PLCPolling {
 
         try {
             const data = await this.plcConnection.readAll();
+
+            // A read may finish after Stop Recording was pressed. Do not broadcast it.
+            if (!this.isPolling) return;
+
             this.stats.successfulReads++;
             this.stats.lastReadTime = Date.now();
 
@@ -68,13 +73,16 @@ export class PLCPolling {
                 this.onDataCallback(data);
             }
         } catch (error) {
+            if (!this.isPolling) return;
+
             this.stats.failedReads++;
-            
+
             if (this.onErrorCallback) {
                 this.onErrorCallback(error);
             }
 
-            // Stop polling on error
+            // Stop polling on error; the recording request remains active so the
+            // server can reconnect and resume the selected read list.
             this.stop();
         }
     }
