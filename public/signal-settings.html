@@ -41,8 +41,7 @@ h1{font-size:22px;margin:0 0 6px}p{color:var(--muted);line-height:1.5}.field{mar
   try{localStorage.setItem(STORAGE_KEY,JSON.stringify(savedSignals));}catch(e){status.textContent="Could not save settings in this browser.";return;}
   status.textContent="Settings saved.";
   if(window.opener&&!window.opener.closed){
-   try{window.opener.location.reload();}catch(e){}
-   setTimeout(function(){window.close();},250);
+   try{window.opener.postMessage({type:"signalSettingsUpdated",key:signal.key,plcType:signal.type,precision:signal.precision},location.origin);window.close();}catch(e){status.textContent="Settings saved. Close this window and return to the analyzer.";}
   }else{
    const back=document.createElement("a");back.href="signal-analyzer.html";back.textContent=" Return to analyzer";back.style.marginLeft="10px";document.querySelector(".actions").appendChild(back);
   }
