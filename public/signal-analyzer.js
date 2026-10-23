@@ -1435,7 +1435,8 @@
     // A trailing dot after a DB symbol (for example db_visu_add.) means
     // "show every parsed field belonging to that data block".
     const dbSymbolQuery = query.match(/^(.+)\.$/);
-    const dbRoot = dbSymbolQuery
+    const directDbQuery = query.match(/^db\s*0*(\d+)\.$/i);
+    const dbRoot = dbSymbolQuery && !directDbQuery
       ? projectSymbols.find(function (s) {
           const name = String(s.name || "").trim().toLowerCase();
           const symbolName = String(s.symbolName || "").trim().toLowerCase();
@@ -1445,7 +1446,11 @@
     const dbAddress = dbRoot
       ? String(dbRoot.address || dbRoot.operand || "").match(/^DB\s*0*(\d+)(?:$|[,.:/])/i)
       : null;
-    const requestedDb = dbAddress ? Number(dbAddress[1]) : null;
+    const requestedDb = directDbQuery
+      ? Number(directDbQuery[1])
+      : dbAddress
+        ? Number(dbAddress[1])
+        : null;
     const dbMode = Number.isInteger(requestedDb);
     const matchingSymbols = dbMode
       ? projectSymbols.filter(function (s) {
