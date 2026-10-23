@@ -70,7 +70,7 @@ export class PLCPolling {
             this.stats.lastReadTime = Date.now();
 
             if (this.onDataCallback) {
-                this.onDataCallback(data);
+                this.onDataCallback(data, this.plcConnection.getLastReadErrors());
             }
         } catch (error) {
             if (!this.isPolling) return;
