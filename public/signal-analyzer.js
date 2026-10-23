@@ -92,6 +92,9 @@
   let recordedSampleCount = 0;
   let recordingEndedAt = 0;
   let lastTimestamp = 0;
+  let historicalMode = false;
+  let historicalSamples = [];
+  let historyLoadRequest = 0;
   let socket = null;
   let hoverTime = null;
   let inspectionViewTime = null;
@@ -100,6 +103,53 @@
   let inspectionDragStartX = 0;
   let inspectionDragStartViewTime = 0;
   const traces = document.getElementById("traces");
+  function getAvailableSamples() {
+    return (historicalMode ? historicalSamples : history.concat(recorded)).filter(function (sample) {
+      return Number.isFinite(sample.timestamp);
+    });
+  }
+  function convertStoredSamples(samples) {
+    return (samples || []).map(function (storedSample) {
+      const sample = { timestamp: Number(storedSample.timestamp) || 0 };
+      signals.forEach(function (signal) {
+        const raw = storedSample.data ? storedSample.data[signal.key] : undefined;
+        if (raw === undefined || raw === null || raw === "") sample[signal.key] = null;
+        else if (typeof raw === "number") sample[signal.key] = Number.isFinite(raw) ? raw : null;
+        else if (typeof raw === "boolean") sample[signal.key] = raw ? 1 : 0;
+        else if (typeof raw === "string") {
+          const numeric = Number(raw);
+          sample[signal.key] = raw.trim() !== "" && Number.isFinite(numeric) ? numeric : raw;
+        } else sample[signal.key] = String(raw);
+      });
+      return sample;
+    }).filter(function (sample) { return sample.timestamp > 0; });
+  }
+  async function loadHistoricalRange(latest) {
+    const requestId = ++historyLoadRequest;
+    const seconds = Number(document.getElementById("windowSelect").value) || 300;
+    const canvas = document.querySelector(".trace-canvas");
+    const pixels = canvas ? Math.floor(canvas.getBoundingClientRect().width) : 1200;
+    const params = new URLSearchParams({ seconds: String(seconds), pixels: String(Math.max(300, pixels)) });
+    if (latest || inspectionViewTime === null) params.set("latest", "1");
+    else {
+      params.set("from", String(inspectionViewTime - seconds * 1000));
+      params.set("to", String(inspectionViewTime));
+    }
+    document.getElementById("sampleStatus").textContent = "Loading selected time range from MongoDB…";
+    const response = await fetch("http://127.0.0.1:3002/api/plot?" + params.toString(), { cache: "no-store" });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "History query failed");
+    if (requestId !== historyLoadRequest) return;
+    historicalSamples = convertStoredSamples(result.samples);
+    historicalMode = true;
+    if (result.to) inspectionViewTime = Number(result.to);
+    hoverTime = null;
+    document.getElementById("loadStoredBtn").textContent = "Return to live";
+    document.getElementById("sampleStatus").textContent =
+      "Historical view · " + historicalSamples.length.toLocaleString() + " plotted points from " +
+      Number(result.scanned || historicalSamples.length).toLocaleString() + " stored samples";
+    drawAll();
+  }
   function safeId(key) {
     return key.replace(/[^a-zA-Z0-9_-]/g, "_");
   }
@@ -648,6 +698,7 @@
     const now = inspectionViewTime === null ? liveNow : inspectionViewTime,
       span = Number(document.getElementById("windowSelect").value) * 1000,
       from = now - span;
+    const plotData = historicalMode ? historicalSamples : history;
     signals.forEach(function (s) {
       const row = traces.querySelector('[data-signal="' + CSS.escape(s.key) + '"]');
       if (!row) return;
@@ -684,7 +735,7 @@
         ctx.stroke();
       }
       if (!s.visible) return;
-      const points = history.filter(function (p) {
+      const points = plotData.filter(function (p) {
         return (
           p.timestamp >= from &&
           p.timestamp <= now &&
@@ -1620,9 +1671,12 @@
     timeZoom = document.getElementById("timeZoom"),
     timeZoomValue = document.getElementById("timeZoomValue");
   function setTimeWindow(value) {
-    value = Math.max(1, Math.min(300, Number(value) || 30));
+    value = Math.max(1, Math.min(259200, Math.round(Number(value) || 30)));
     const valueText =
-      value >= 60 ? value / 60 + " min" : value + " second" + (value === 1 ? "" : "s");
+      value >= 86400 ? (value / 86400).toFixed(2) + " days" :
+      value >= 3600 ? (value / 3600).toFixed(2) + " hours" :
+      value >= 60 ? (value / 60).toFixed(2) + " min" :
+      value + " second" + (value === 1 ? "" : "s");
     let option = Array.from(windowSelect.options).find(function (item) {
       return Number(item.value) === value;
     });
@@ -1636,17 +1690,14 @@
       windowSelect.appendChild(option);
     }
     windowSelect.value = String(value);
-    timeZoom.value = String(value);
+    timeZoom.value = String(Math.log2(value));
     timeZoomValue.textContent =
-      value >= 60 ? (value / 60).toFixed(2) + " min" : value.toFixed(2) + " s";
+      value >= 86400 ? (value / 86400).toFixed(2) + " days" :
+      value >= 3600 ? (value / 3600).toFixed(2) + " hours" :
+      value >= 60 ? (value / 60).toFixed(2) + " min" : value + " s";
     if (inspectionViewTime !== null) {
       const span = value * 1000,
-        available = history
-          .concat(recorded)
-          .map(function (p) {
-            return p.timestamp;
-          })
-          .filter(Number.isFinite);
+        available = getAvailableSamples().map(function (p) { return p.timestamp; });
       if (available.length) {
         const earliest = Math.min.apply(null, available),
           latest = Math.max.apply(null, available);
@@ -1658,13 +1709,12 @@
       hoverTime = null;
     }
     drawAll();
+    if (historicalMode) loadHistoricalRange(false).catch(function (error) {
+      document.getElementById("sampleStatus").textContent = "Could not load plot range: " + error.message;
+    });
   }
-  windowSelect.addEventListener("change", function () {
-    setTimeWindow(Number(this.value));
-  });
-  timeZoom.addEventListener("input", function () {
-    setTimeWindow(Number(this.value));
-  });
+  windowSelect.addEventListener("change", function () { setTimeWindow(Number(this.value)); });
+  timeZoom.addEventListener("input", function () { setTimeWindow(Math.pow(2, Number(this.value))); });
   document.getElementById("recordBtn").addEventListener("click", async function () {
     const button = this;
     button.disabled = true;
@@ -1815,58 +1865,36 @@
   }
   document.getElementById("loadStoredBtn").addEventListener("click", async function () {
     const button = this;
+    if (historicalMode) {
+      historyLoadRequest++;
+      historicalMode = false;
+      historicalSamples = [];
+      inspectionViewTime = null;
+      hoverTime = null;
+      button.textContent = "Load stored history";
+      document.getElementById("sampleStatus").textContent = "Returned to live PLC view.";
+      drawAll();
+      return;
+    }
     button.disabled = true;
     button.textContent = "Loading stored…";
     try {
-      const response = await fetch("http://127.0.0.1:3002/api/samples?limit=5000", {
-        cache: "no-store",
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "History query failed");
-      const stored = (result.samples || []).map(function (s) {
-        const sample = { timestamp: Number(s.timestamp) || Date.now() };
-        signals.forEach(function (signal) {
-          const raw = s.data ? s.data[signal.key] : undefined;
-          if (raw === undefined || raw === null || raw === "") sample[signal.key] = null;
-          else if (typeof raw === "number") sample[signal.key] = Number.isFinite(raw) ? raw : null;
-          else if (typeof raw === "boolean") sample[signal.key] = raw ? 1 : 0;
-          else if (typeof raw === "string") {
-            const n = Number(raw);
-            sample[signal.key] = raw.trim() !== "" && Number.isFinite(n) ? n : raw;
-          } else sample[signal.key] = String(raw);
-        });
-        return sample;
-      });
-      const byTimestamp = new Map();
-      history.concat(stored).forEach(function (sample) {
-        byTimestamp.set(sample.timestamp, sample);
-      });
-      history.splice(
-        0,
-        history.length,
-        ...Array.from(byTimestamp.values())
-          .sort(function (a, b) {
-            return a.timestamp - b.timestamp;
-          })
-          .slice(-maxSamples)
-      );
-      drawAll();
-      document.getElementById("sampleStatus").textContent =
-        "Loaded " + stored.length + " stored samples from MongoDB.";
+      await loadHistoricalRange(true);
     } catch (error) {
-      document.getElementById("sampleStatus").textContent =
-        "Could not load stored history: " + error.message;
+      document.getElementById("sampleStatus").textContent = "Could not load stored history: " + error.message;
     } finally {
       button.disabled = false;
-      button.textContent = "Load stored history";
+      button.textContent = historicalMode ? "Return to live" : "Load stored history";
       checkPersistence();
     }
   });
   window.addEventListener("mouseup", function () {
+    const reloadHistorical = historicalMode && (inspectionDragging || inspectionScrollDirection !== 0);
     inspectionDragging = false;
     inspectionScrollDirection = 0;
-    document.querySelectorAll(".trace-canvas").forEach(function (canvas) {
-      canvas.style.cursor = "";
+    document.querySelectorAll(".trace-canvas").forEach(function (canvas) { canvas.style.cursor = ""; });
+    if (reloadHistorical) loadHistoricalRange(false).catch(function (error) {
+      document.getElementById("sampleStatus").textContent = "Could not load plot range: " + error.message;
     });
   });
   window.addEventListener("resize", drawAll);
