@@ -766,13 +766,12 @@
       ctx.stroke();
       if (hoverTime !== null && hoverTime >= from && hoverTime <= now) {
         const x = ((hoverTime - from) / span) * cw;
-        ctx.strokeStyle = "#d5dfebaa";
-        ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = "#16a34a";
+        ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, ch);
+        ctx.moveTo(Math.round(x) + 0.5, 0);
+        ctx.lineTo(Math.round(x) + 0.5, ch);
         ctx.stroke();
-        ctx.setLineDash([]);
         let nearest = points[0];
         points.forEach(function (p) {
           if (Math.abs(p.timestamp - hoverTime) < Math.abs(nearest.timestamp - hoverTime))
