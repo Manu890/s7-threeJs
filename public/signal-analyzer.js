@@ -1431,16 +1431,37 @@
     const query = symbolSearchInput.value.trim().toLowerCase(),
       addressQuery = query.toUpperCase().replace(/\s+/g, "");
     symbolResults.replaceChildren();
-    const matches = projectSymbols
-      .filter(
-        (s) =>
-          !query ||
-          (s.name + " " + s.address + " " + s.type + " " + s.comment)
-            .toLowerCase()
-            .includes(query) ||
-          normalizeStep7Address(s.address).replace(/\s+/g, "").includes(addressQuery)
-      )
-      .slice(0, 150);
+
+    // A trailing dot after a DB symbol (for example db_visu_add.) means
+    // "show every parsed field belonging to that data block".
+    const dbSymbolQuery = query.match(/^(.+)\.$/);
+    const dbRoot = dbSymbolQuery
+      ? projectSymbols.find(function (s) {
+          const name = String(s.name || "").trim().toLowerCase();
+          const symbolName = String(s.symbolName || "").trim().toLowerCase();
+          return name === dbSymbolQuery[1].trim() || symbolName === dbSymbolQuery[1].trim();
+        })
+      : null;
+    const dbAddress = dbRoot
+      ? String(dbRoot.address || dbRoot.operand || "").match(/^DB\s*0*(\d+)(?:$|[,.:/])/i)
+      : null;
+    const requestedDb = dbAddress ? Number(dbAddress[1]) : null;
+    const dbMode = Number.isInteger(requestedDb);
+    const matches = (dbMode
+      ? projectSymbols.filter(function (s) {
+          const address = normalizeStep7Address(s.address || s.operand || "")
+            .toUpperCase()
+            .replace(/\s+/g, "");
+          return new RegExp("^DB0*" + requestedDb + "(?:[,.:/]|$)").test(address);
+        })
+      : projectSymbols.filter(
+          (s) =>
+            !query ||
+            (s.name + " " + s.address + " " + s.type + " " + s.comment)
+              .toLowerCase()
+              .includes(query) ||
+            normalizeStep7Address(s.address).replace(/\s+/g, "").includes(addressQuery)
+        )).slice(0, dbMode ? undefined : 150);
     matches.forEach((s) => {
       const row = document.createElement("div");
       row.style.cssText =
