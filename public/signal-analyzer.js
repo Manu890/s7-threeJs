@@ -1611,12 +1611,49 @@
     const keyInput = document.getElementById("signalKeyInput");
     const candidate = nameInput.value.trim().toLowerCase();
     if (!candidate || !projectSymbols.length) return;
-    const resolved = projectSymbols.find(function (symbol) {
-      return (
-        String(symbol.name || "").trim().toLowerCase() === candidate ||
-        String(symbol.symbolName || "").trim().toLowerCase() === candidate
-      );
+
+    const symbolName = function (symbol) {
+      return String(symbol.name || "").trim().toLowerCase();
+    };
+    const symbolAlias = function (symbol) {
+      return String(symbol.symbolName || "").trim().toLowerCase();
+    };
+    let resolved = projectSymbols.find(function (symbol) {
+      return symbolName(symbol) === candidate || symbolAlias(symbol) === candidate;
     });
+
+    // STEP 7 DB structure parsers may expose a field as "temp_wt" while the
+    // symbol table names the containing DB "db_visu_add". Resolve the qualified
+    // form "db_visu_add.temp_wt" by finding the DB number first, then the field
+    // with a matching name in that same DB.
+    if (!resolved && candidate.includes(".")) {
+      const separator = candidate.lastIndexOf(".");
+      const rootName = candidate.slice(0, separator);
+      const fieldName = candidate.slice(separator + 1);
+      const root = projectSymbols.find(function (symbol) {
+        return symbolName(symbol) === rootName || symbolAlias(symbol) === rootName;
+      });
+      const rootAddress = root && String(root.address || root.operand || "");
+      const dbMatch = rootAddress && rootAddress.match(/^DB\\s*0*(\\d+)(?:$|[,.:/])/i);
+      if (dbMatch) {
+        const dbPrefix = "DB" + Number(dbMatch[1]) + ",";
+        resolved = projectSymbols.find(function (symbol) {
+          const address = normalizeStep7Address(symbol.address || symbol.operand || "")
+            .toUpperCase()
+            .replace(/\\s+/g, "");
+          return (
+            (symbolName(symbol) === fieldName || symbolAlias(symbol) === fieldName) &&
+            address.startsWith(dbPrefix)
+          );
+        });
+      }
+      if (!resolved) {
+        resolved = projectSymbols.find(function (symbol) {
+          return symbolName(symbol) === fieldName || symbolAlias(symbol) === fieldName;
+        });
+      }
+    }
+
     if (resolved && resolved.address) {
       keyInput.value = normalizeStep7Address(resolved.address);
       const error = document.getElementById("signalFormError");
