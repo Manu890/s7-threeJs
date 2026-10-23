@@ -172,6 +172,51 @@ const api = http.createServer(async (req, res) => {
     });
     return;
   }
+  if (req.method === "GET" && url.pathname === "/api/export.csv") {
+    if (!mongoConnected || !collection)
+      return json(res, 503, { error: "MongoDB is not connected yet." });
+    const from = Number(url.searchParams.get("from"));
+    const to = Number(url.searchParams.get("to"));
+    const filter = {};
+    if (Number.isFinite(from) && from > 0) filter.timestampMs = { ...(filter.timestampMs || {}), $gte: from };
+    if (Number.isFinite(to) && to > 0) filter.timestampMs = { ...(filter.timestampMs || {}), $lte: to };
+    try {
+      const first = await collection.find(filter).sort({ timestampMs: 1 }).limit(1).next();
+      if (!first) {
+        res.writeHead(200, {
+          "content-type": "text/csv; charset=utf-8",
+          "content-disposition": 'attachment; filename="plc-recording.csv"',
+          "access-control-allow-origin": "http://localhost:3001",
+          "cache-control": "no-store",
+        });
+        return res.end("timestampMs,datetime,data\\r\\n");
+      }
+      const keys = Array.from(new Set([].concat(...(await collection.find(filter, { projection: { data: 1 } }).limit(1000).toArray()).map((sample) => Object.keys(sample.data || {}))));
+      const csvCell = (value) => {
+        const text = value === null || value === undefined ? "" : String(value);
+        return /[",\\r\\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
+      };
+      res.writeHead(200, {
+        "content-type": "text/csv; charset=utf-8",
+        "content-disposition": 'attachment; filename="plc-recording.csv"',
+        "access-control-allow-origin": "http://localhost:3001",
+        "cache-control": "no-store",
+      });
+      res.write(["timestampMs", "datetime", ...keys].map(csvCell).join(",") + "\\r\\n");
+      const cursor = collection.find(filter).sort({ timestampMs: 1 });
+      for await (const sample of cursor) {
+        const row = [sample.timestampMs, new Date(sample.timestampMs).toISOString(), ...keys.map((key) => sample.data?.[key])];
+        if (!res.write(row.map(csvCell).join(",") + "\\r\\n"))
+          await new Promise((resolve) => res.once("drain", resolve));
+      }
+      res.end();
+    } catch (error) {
+      lastError = error.message;
+      if (!res.headersSent) return json(res, 500, { error: "Could not export stored samples." });
+      res.destroy(error);
+    }
+    return;
+  }
   if (req.method === "GET" && url.pathname === "/api/samples") {
     if (!mongoConnected || !collection)
       return json(res, 503, { error: "MongoDB is not connected yet." });
