@@ -14,6 +14,20 @@ export class MessageHandlers {
      */
     async handle(ws, wsServer, message) {
         switch (message.type) {
+            case 'startRecording':
+                ws.analyzerRecordingMode = true;
+                ws.analyzerRecordingKeys = new Set(
+                    Array.isArray(message.keys)
+                        ? message.keys.filter(key => typeof key === 'string' && /^[a-zA-Z_][a-zA-Z0-9_-]{0,39}$/.test(key))
+                        : []
+                );
+                break;
+
+            case 'stopRecording':
+                ws.analyzerRecordingMode = false;
+                if (ws.analyzerRecordingKeys) ws.analyzerRecordingKeys.clear();
+                break;
+
             case MessageTypes.PING:
                 this.handlePing(ws, wsServer);
                 break;
