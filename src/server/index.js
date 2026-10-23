@@ -22,52 +22,6 @@ export class Server {
      * Setup event handlers
      */
     setupEventHandlers() {
-        // Forward nodes7 optimization/read errors to the analyzer. The address is
-        // extracted from the warning, so this works for any PLC variable, not one
-        // hard-coded DB address. Some nodes7 versions print the follow-up invalid
-        // response on a separate console line, so retain the most recent address.
-        if (!globalThis.__s7PlcWarningForwarderInstalled) {
-            globalThis.__s7PlcWarningForwarderInstalled = true;
-            let lastSkippedAddress = null;
-            let lastSkippedAt = 0;
-            const originals = {
-                log: console.log.bind(console),
-                warn: console.warn.bind(console),
-                error: console.error.bind(console)
-            };
-            const forwardWarning = (args) => {
-                const line = args.map((arg) => {
-                    if (typeof arg === 'string') return arg;
-                    try { return JSON.stringify(arg); } catch { return String(arg); }
-                }).join(' ');
-                const skipped = line.match(/Skipping optimization of item\s+((?:DB\s*\d+\s*,?\s*[A-Z]+\s*\d+(?:\.\d+)*|(?:I|Q|M|E|A|PI|PQ|PE|PA|T|C)\s*\d+(?:\.\d+)*))/i);
-                if (skipped) {
-                    lastSkippedAddress = skipped[1].replace(/\s+/g, '');
-                    lastSkippedAt = Date.now();
-                    this.wsServer.broadcast({
-                        type: 'plcWarning',
-                        address: lastSkippedAddress,
-                        message: line
-                    });
-                    return;
-                }
-                if (/Invalid Response Code\s*[-:]?\s*5\b/i.test(line)
-                    && lastSkippedAddress && Date.now() - lastSkippedAt < 10000) {
-                    this.wsServer.broadcast({
-                        type: 'plcWarning',
-                        address: lastSkippedAddress,
-                        message: line + ' (following optimization warning for ' + lastSkippedAddress + ')'
-                    });
-                }
-            };
-            for (const method of ['log', 'warn', 'error']) {
-                console[method] = (...args) => {
-                    originals[method](...args);
-                    forwardWarning(args);
-                };
-            }
-        }
-
         // PLC events
         this.plcConnection.onConnect(() => {
             console.log('✅ Connected to PLC');
