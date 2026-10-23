@@ -36,16 +36,6 @@ export class WSServer {
 
             this.clients.add(ws);
 
-            // The analyzer receives PLC samples only while recording. Other WebSocket
-            // clients (including the MongoDB persistence service) keep the full stream.
-            try {
-                const url = new URL(request.url || "/", "http://localhost");
-                if (url.searchParams.get("client") === "analyzer") {
-                    ws.analyzerRecordingMode = false;
-                    ws.analyzerRecordingKeys = new Set();
-                }
-            } catch {}
-
             ws.on('message', (message) => {
                 this.handleMessage(ws, message);
             });
@@ -101,25 +91,8 @@ export class WSServer {
         this.wss.clients.forEach((client) => {
             if (client.readyState !== 1) return; // WebSocket.OPEN
 
-            // Analyzer clients opt in to samples when Start Recording is pressed.
-            // Their frames contain only the selected signal keys; other clients still
-            // receive the complete PLC sample as before.
-            if (client.analyzerRecordingMode === false) return;
-
-            let clientPayload = payload;
-            if (client.analyzerRecordingMode === true && data && data.data &&
-                typeof data.data === 'object' && !Array.isArray(data.data)) {
-                const filteredData = {};
-                for (const key of client.analyzerRecordingKeys || []) {
-                    if (Object.prototype.hasOwnProperty.call(data.data, key)) {
-                        filteredData[key] = data.data[key];
-                    }
-                }
-                clientPayload = JSON.stringify({ ...data, data: filteredData });
-            }
-
             try {
-                client.send(clientPayload);
+                client.send(payload);
                 sentCount++;
                 this.stats.messagesSent++;
             } catch (error) {
