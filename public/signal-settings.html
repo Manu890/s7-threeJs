@@ -39,8 +39,13 @@ h1{font-size:22px;margin:0 0 6px}p{color:var(--muted);line-height:1.5}.field{mar
  document.getElementById("save").addEventListener("click",function(){
   signal.type=type.value;signal.dataType=type.value;signal.precision=Number(precision.value);
   try{localStorage.setItem(STORAGE_KEY,JSON.stringify(savedSignals));}catch(e){status.textContent="Could not save settings in this browser.";return;}
-  status.textContent="Settings saved. Returning to the analyzer…";
-  location.href="signal-analyzer.html";
+  status.textContent="Settings saved.";
+  if(window.opener&&!window.opener.closed){
+   try{window.opener.location.reload();}catch(e){}
+   setTimeout(function(){window.close();},250);
+  }else{
+   const back=document.createElement("a");back.href="signal-analyzer.html";back.textContent=" Return to analyzer";back.style.marginLeft="10px";document.querySelector(".actions").appendChild(back);
+  }
  });
 })();
 </script>
