@@ -548,6 +548,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
    const root=await window.showDirectoryPicker({mode:"read"});
    symbolProjectStatus.textContent="Scanning "+root.name+" for symbol tables…";
    const result=await walkStep7Folder(root);projectSymbols=result.symbols;
+   fillSignalNameFromProjectAddress();
    symbolSearchInput.disabled=false;renderProjectSymbols();
    let status="Project: "+root.name+" · "+projectSymbols.length+" unique symbols parsed · "+result.files+" candidate files scanned · SUBBLK.DBF: "+result.subblkFiles+" file(s), "+result.subblkRows+" rows, "+result.subblkMemos+" readable memo(s), "+result.subblkStructures+" text structure(s) decoded.";
    if(result.binaryCandidates.length)status+=" Some DBF files were not recognized: "+result.binaryCandidates.slice(0,4).join(", ")+(result.binaryCandidates.length>4?"…":"")+".";
@@ -558,6 +559,19 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
    symbolProjectStatus.textContent="Could not scan project folder: "+(err&&err.message?err.message:String(err));
   }finally{button.disabled=false;button.textContent="📂 Open STEP 7 V5 project folder";}
  });
+ function fillSignalNameFromProjectAddress(){
+  const nameInput=document.getElementById("signalNameInput");
+  const keyInput=document.getElementById("signalKeyInput");
+  const addressInput=document.getElementById("signalAddressInput");
+  const candidate=addressInput.value.trim()||keyInput.value.trim();
+  if(!candidate)return;
+  const resolved=resolveProjectAddress(candidate);
+  if(resolved)nameInput.value=resolved.name||"";
+ }
+ document.getElementById("signalKeyInput").addEventListener("change",fillSignalNameFromProjectAddress);
+ document.getElementById("signalKeyInput").addEventListener("blur",fillSignalNameFromProjectAddress);
+ document.getElementById("signalAddressInput").addEventListener("change",fillSignalNameFromProjectAddress);
+ document.getElementById("signalAddressInput").addEventListener("blur",fillSignalNameFromProjectAddress);
  symbolSearchInput.addEventListener("input",renderProjectSymbols);
  document.getElementById("addSignalForm").addEventListener("submit",function(e){
   e.preventDefault();const error=document.getElementById("signalFormError");
