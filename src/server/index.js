@@ -40,10 +40,11 @@ export class Server {
         });
 
         // Polling events
-        this.polling.onData((data) => {
+        this.polling.onData((data, errors = []) => {
             this.wsServer.broadcast({
                 timestamp: Date.now(),
-                data: data
+                data: data,
+                errors: errors
             });
         });
 
