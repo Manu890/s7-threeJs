@@ -4,111 +4,58 @@
  const SIGNAL_STORAGE_KEY="s7-threejs-signal-analyzer-signals-v1";
  function saveCustomSignals(){
   try{
-   localStorage.setItem(SIGNAL_STORAGE_KEY,JSON.stringify(signals.filter(function(s){return !s.builtin;
-}).map(function(s){return {key:s.key,label:s.label,address:s.address,type:s.type||"B",precision:s.precision===undefined?2:Math.min(20,Math.max(0,Number(s.precision)||0)),visible:s.visible,symbolName:s.symbolName||"",operand:s.operand||s.address||"",dataType:s.dataType||s.type||"",comment:s.comment||""};
-})));
-  }catch(e){console.warn("Could not save signal configuration in this browser.",e);
-}
+   localStorage.setItem(SIGNAL_STORAGE_KEY,JSON.stringify(signals.filter(function(s){return !s.builtin;}).map(function(s){return {key:s.key,label:s.label,address:s.address,type:s.type||"B",precision:s.precision===undefined?2:Math.min(20,Math.max(0,Number(s.precision)||0)),visible:s.visible,symbolName:s.symbolName||"",operand:s.operand||s.address||"",dataType:s.dataType||s.type||"",comment:s.comment||""};})));
+  }catch(e){console.warn("Could not save signal configuration in this browser.",e);}
  }
  function restoreCustomSignals(){
   try{
    const saved=JSON.parse(localStorage.getItem(SIGNAL_STORAGE_KEY)||"[]");
    if(!Array.isArray(saved))return;
    saved.forEach(function(s){
-    if(!s||typeof s.key!=="string"||typeof s.label!=="string"||signals.some(function(existing){return existing.key.toLowerCase()===s.key.toLowerCase();
-}))return;
+    if(!s||typeof s.key!=="string"||typeof s.label!=="string"||signals.some(function(existing){return existing.key.toLowerCase()===s.key.toLowerCase();}))return;
     if(!/^[a-zA-Z_][a-zA-Z0-9_-]{0,39}$/.test(s.key))return;
     const savedAddress=typeof s.address==="string"?s.address:"";
     signals.push({key:s.key,label:s.label,address:savedAddress.indexOf("WebSocket key: ")===0?"":savedAddress,type:typeof s.type==="string"?s.type:"B",precision:s.precision===undefined?2:Math.min(20,Math.max(0,Number(s.precision)||0)),symbolName:typeof s.symbolName==="string"?s.symbolName:"",operand:typeof s.operand==="string"?s.operand:savedAddress,dataType:typeof s.dataType==="string"?s.dataType:"",comment:typeof s.comment==="string"?s.comment:"",color:palette[signals.length%palette.length],builtin:false,visible:s.visible!==false});
    });
-  }catch(e){console.warn("Could not restore saved signal configuration.",e);
-}
+  }catch(e){console.warn("Could not restore saved signal configuration.",e);}
  }
  restoreCustomSignals();
- const history=[];
-const maxSamples=5000;
-let recording=false;
-let recordingStartedAt=0;
-let chartFrozen=false;
-let frozenTimestamp=0;
-let recorded=[];
-let lastTimestamp=0;
-let socket=null;
-let hoverTime=null;
-let inspectionViewTime=null;
-let inspectionScrollDirection=0;
-let inspectionDragging=false;
-let inspectionDragStartX=0;
-let inspectionDragStartViewTime=0;
+ const history=[]; const maxSamples=5000; let recording=false; let recordingStartedAt=0; let chartFrozen=false; let frozenTimestamp=0; let recorded=[]; let lastTimestamp=0; let socket=null; let hoverTime=null; let inspectionViewTime=null; let inspectionScrollDirection=0; let inspectionDragging=false; let inspectionDragStartX=0; let inspectionDragStartViewTime=0;
  const traces=document.getElementById("traces");
- function safeId(key){return key.replace(/[^a-zA-Z0-9_-]/g,"_");
-}
+ function safeId(key){return key.replace(/[^a-zA-Z0-9_-]/g,"_");}
  function reorderSignals(draggedKey,targetKey){
   if(!draggedKey||!targetKey||draggedKey===targetKey)return;
-  const from=signals.findIndex(function(s){return s.key===draggedKey;
-});
-  const to=signals.findIndex(function(s){return s.key===targetKey;
-});
+  const from=signals.findIndex(function(s){return s.key===draggedKey;});
+  const to=signals.findIndex(function(s){return s.key===targetKey;});
   if(from<0||to<0)return;
   const moved=signals.splice(from,1)[0];
   signals.splice(to,0,moved);
-  signals.forEach(function(signal){const row=traces.querySelector('[data-signal="'+CSS.escape(signal.key)+'"]');
-if(row)traces.appendChild(row);
-});
-  saveCustomSignals();
-renderAllControls();
-drawAll();
+  signals.forEach(function(signal){const row=traces.querySelector('[data-signal="'+CSS.escape(signal.key)+'"]');if(row)traces.appendChild(row);});
+  saveCustomSignals();renderAllControls();drawAll();
  }
  function addTrace(s){
-  const row=document.createElement("div");
-row.className="trace-row";
-row.dataset.signal=s.key;
-row.draggable=true;
+  const row=document.createElement("div");row.className="trace-row";row.dataset.signal=s.key;row.draggable=true;
   row.style.cursor="grab";
   row.addEventListener("dragstart",function(e){
    e.dataTransfer.setData("text/plain",s.key);
    e.dataTransfer.effectAllowed="move";
    row.style.opacity=".45";
   });
-  row.addEventListener("dragend",function(){row.style.opacity="";
-});
-  row.addEventListener("dragover",function(e){e.preventDefault();
-e.dataTransfer.dropEffect="move";
-});
+  row.addEventListener("dragend",function(){row.style.opacity="";});
+  row.addEventListener("dragover",function(e){e.preventDefault();e.dataTransfer.dropEffect="move";});
   row.addEventListener("drop",function(e){
    e.preventDefault();
    reorderSignals(e.dataTransfer.getData("text/plain"),s.key);
   });
-  const label=document.createElement("div");
-label.className="trace-label";
-  const title=document.createElement("strong");
-title.style.color=s.color;
-title.textContent=s.label;
-  const address=document.createElement("small");
-address.textContent=s.operand||s.address||("key: "+s.key);
-  const value=document.createElement("em");
-value.id="value-"+safeId(s.key);
-value.textContent="—";
-  const settingsButton=document.createElement("button");
-settingsButton.type="button";
-settingsButton.className="trace-settings-button";
-settingsButton.textContent="⚙ Settings";
-settingsButton.setAttribute("aria-label","Configure "+s.label);
-settingsButton.addEventListener("click",function(){const popup=window.open("signal-settings.html?key="+encodeURIComponent(s.key),"signalSettings","popup=yes,width=460,height=440,resizable=yes,scrollbars=yes");
-if(!popup){document.getElementById("sampleStatus").textContent="Settings popup was blocked. Allow popups for this local analyzer and try again.";
-}});
-  const symbolTooltip=(s.dataType||"—")+" · "+(s.comment||"—");
-label.title=symbolTooltip;
-label.append(title,address,value,settingsButton);
-  const wrap=document.createElement("div");
-wrap.className="canvas-wrap";
-  const canvas=document.createElement("canvas");
-canvas.className="trace-canvas";
-canvas.id="canvas-"+safeId(s.key);
-canvas.setAttribute("aria-label",s.label+" signal trace");
-  wrap.appendChild(canvas);
-row.append(label,wrap);
-traces.appendChild(row);
+  const label=document.createElement("div");label.className="trace-label";
+  const title=document.createElement("strong");title.style.color=s.color;title.textContent=s.label;
+  const address=document.createElement("small");address.textContent=s.operand||s.address||("key: "+s.key);
+  const value=document.createElement("em");value.id="value-"+safeId(s.key);value.textContent="—";
+  const settingsButton=document.createElement("button");settingsButton.type="button";settingsButton.className="trace-settings-button";settingsButton.textContent="⚙ Settings";settingsButton.setAttribute("aria-label","Configure "+s.label);settingsButton.addEventListener("click",function(){const popup=window.open("signal-settings.html?key="+encodeURIComponent(s.key),"signalSettings","popup=yes,width=460,height=440,resizable=yes,scrollbars=yes");if(!popup){document.getElementById("sampleStatus").textContent="Settings popup was blocked. Allow popups for this local analyzer and try again.";}});
+  const symbolTooltip=(s.dataType||"—")+" · "+(s.comment||"—");label.title=symbolTooltip;label.append(title,address,value,settingsButton);
+  const wrap=document.createElement("div");wrap.className="canvas-wrap";
+  const canvas=document.createElement("canvas");canvas.className="trace-canvas";canvas.id="canvas-"+safeId(s.key);canvas.setAttribute("aria-label",s.label+" signal trace");
+  wrap.appendChild(canvas);row.append(label,wrap);traces.appendChild(row);
   canvas.addEventListener("mousedown",function(e){
    if(recording)return;
    e.preventDefault();
@@ -129,8 +76,7 @@ traces.appendChild(row);
     hoverTime=displayNow-(1-x/rect.width)*span;
    }else{
     if(inspectionDragging){
-     const available=history.concat(recorded).map(function(p){return p.timestamp;
-}).filter(Number.isFinite);
+     const available=history.concat(recorded).map(function(p){return p.timestamp;}).filter(Number.isFinite);
      const earliest=available.length?Math.min.apply(null,available):0;
      const latest=lastTimestamp||Date.now();
      inspectionViewTime=inspectionDragStartViewTime-((e.clientX-inspectionDragStartX)/Math.max(1,rect.width))*span;
@@ -148,53 +94,26 @@ traces.appendChild(row);
    }
    drawAll();
   });
-  canvas.addEventListener("mouseleave",function(){if(!inspectionDragging){inspectionScrollDirection=0;
-hoverTime=null;
-drawAll();
-}});
+  canvas.addEventListener("mouseleave",function(){if(!inspectionDragging){inspectionScrollDirection=0;hoverTime=null;drawAll();}});
  }
  function renderSignalList(){
-  const list=document.getElementById("signalList");
-list.replaceChildren();
+  const list=document.getElementById("signalList");list.replaceChildren();
   signals.forEach(function(s){
-   const row=document.createElement("div");
-row.className="signal-item";
-   const checkbox=document.createElement("input");
-checkbox.type="checkbox";
-checkbox.checked=s.visible;
-checkbox.setAttribute("aria-label","Show "+s.label);
-   checkbox.addEventListener("change",function(){s.visible=checkbox.checked;
-saveCustomSignals();
-drawAll();
-});
-   const details=document.createElement("span");
-details.style.minWidth="0";
-details.style.flex="1";
-   const name=document.createElement("div");
-name.className="signal-name";
-name.textContent=s.label;
-   const address=document.createElement("div");
-address.className="signal-address";
-address.textContent=s.address||("key: "+s.key);
+   const row=document.createElement("div");row.className="signal-item";
+   const checkbox=document.createElement("input");checkbox.type="checkbox";checkbox.checked=s.visible;checkbox.setAttribute("aria-label","Show "+s.label);
+   checkbox.addEventListener("change",function(){s.visible=checkbox.checked;saveCustomSignals();drawAll();});
+   const details=document.createElement("span");details.style.minWidth="0";details.style.flex="1";
+   const name=document.createElement("div");name.className="signal-name";name.textContent=s.label;
+   const address=document.createElement("div");address.className="signal-address";address.textContent=s.address||("key: "+s.key);
    details.append(name,address);
-   const current=document.createElement("span");
-current.className="signal-current";
-current.id="list-"+safeId(s.key);
-current.textContent="—";
+   const current=document.createElement("span");current.className="signal-current";current.id="list-"+safeId(s.key);current.textContent="—";
    row.append(checkbox,details,current);
-   const remove=document.createElement("button");
-remove.type="button";
-remove.textContent="Remove";
-remove.setAttribute("aria-label","Remove "+s.label);
-remove.addEventListener("click",function(){removeSignal(s.key);
-});
-row.appendChild(remove);
+   const remove=document.createElement("button");remove.type="button";remove.textContent="Remove";remove.setAttribute("aria-label","Remove "+s.label);remove.addEventListener("click",function(){removeSignal(s.key);});row.appendChild(remove);
    list.appendChild(row);
   });
   document.getElementById("signalCount").textContent=signals.length+" signal"+(signals.length===1?"":"s");
  }
- function renderAllControls(){renderSignalList();
-}
+ function renderAllControls(){renderSignalList();}
  function normalizeSignalAddress(address){
   return String(address||"").toUpperCase().replace(/\s+/g,"").replace(/[,.:/]/g,"_");
  }
@@ -209,43 +128,25 @@ row.appendChild(remove);
  function addSignal(config){
   if(isDuplicateSignal(config.key,config.address))return false;
   const s={key:config.key,label:config.label,address:config.address||"",type:config.type||"B",symbolName:config.symbolName||config.label||"",operand:config.operand||config.address||"",dataType:config.dataType||config.type||"",comment:config.comment||"",color:palette[signals.length%palette.length],builtin:false,visible:true};
-  signals.push(s);
-addTrace(s);
-saveCustomSignals();
-renderAllControls();
+  signals.push(s);addTrace(s);saveCustomSignals();renderAllControls();
   if(s.address&&socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify({type:"addSignal",key:s.key,plcType:s.type,address:s.address}));
   const last=history.length?history[history.length-1]:null;
   if(last&&last[s.key]!==undefined)updateSignalValue(s,last[s.key]);
-  drawAll();
-return true;
+  drawAll();return true;
  }
  function removeSignal(key){
-  const idx=signals.findIndex(function(s){return s.key===key;
-});
-if(idx<0)return;
+  const idx=signals.findIndex(function(s){return s.key===key;});if(idx<0)return;
   signals.splice(idx,1);
-  const row=traces.querySelector('[data-signal="'+CSS.escape(key)+'"]');
-if(row)row.remove();
-  history.forEach(function(sample){delete sample[key];
-});
-recorded.forEach(function(sample){delete sample[key];
-});
-  saveCustomSignals();
-renderAllControls();
-drawAll();
+  const row=traces.querySelector('[data-signal="'+CSS.escape(key)+'"]');if(row)row.remove();
+  history.forEach(function(sample){delete sample[key];});recorded.forEach(function(sample){delete sample[key];});
+  saveCustomSignals();renderAllControls();drawAll();
  }
  function removeAllSignals(){
   signals.splice(0,signals.length);
   traces.replaceChildren();
-  history.forEach(function(sample){Object.keys(sample).forEach(function(key){if(key!=="timestamp")delete sample[key];
-});
-});
-  recorded.forEach(function(sample){Object.keys(sample).forEach(function(key){if(key!=="timestamp")delete sample[key];
-});
-});
-  saveCustomSignals();
-renderAllControls();
-drawAll();
+  history.forEach(function(sample){Object.keys(sample).forEach(function(key){if(key!=="timestamp")delete sample[key];});});
+  recorded.forEach(function(sample){Object.keys(sample).forEach(function(key){if(key!=="timestamp")delete sample[key];});});
+  saveCustomSignals();renderAllControls();drawAll();
   document.getElementById("sampleStatus").textContent="All signals removed. Add signals using the form.";
  }
  function handlePlcReadErrors(errors){
@@ -266,20 +167,10 @@ drawAll();
  }
  function setSignalReadStatus(s,readable,reason){
   if(!s||!s.address)return;
-  const label=traces.querySelector(`[data-signal="${CSS.escape(s.key)}"] .trace-label`);
-if(!label)return;
-  if(readable){label.classList.remove("signal-unreadable");
-label.removeAttribute("data-error");
-label.removeAttribute("title");
-s.lastReadAt=Date.now();
-s.readError=false;
-return;
-}
+  const label=traces.querySelector(`[data-signal="${CSS.escape(s.key)}"] .trace-label`);if(!label)return;
+  if(readable){label.classList.remove("signal-unreadable");label.removeAttribute("data-error");label.removeAttribute("title");s.lastReadAt=Date.now();s.readError=false;return;}
   const message=reason||("PLC read failed for "+s.address+". Check its address, data type, and PLC access settings.");
-  label.classList.add("signal-unreadable");
-label.dataset.error=message;
-label.title=message;
-s.readError=true;
+  label.classList.add("signal-unreadable");label.dataset.error=message;label.title=message;s.readError=true;
  }
  function updateSignalValue(s,value){
   let shown="—";
@@ -288,22 +179,14 @@ s.readError=true;
    const digits=Math.min(20,Math.max(0,Number(s.precision)||0));
    shown=isReal&&typeof value==="number"&&Number.isFinite(value)?value.toFixed(digits):String(value);
   }
-  const listValue=document.getElementById("list-"+safeId(s.key));
-const traceValue=document.getElementById("value-"+safeId(s.key));
-  if(listValue)listValue.textContent=shown;
-if(traceValue)traceValue.textContent=shown;
+  const listValue=document.getElementById("list-"+safeId(s.key));const traceValue=document.getElementById("value-"+safeId(s.key));
+  if(listValue)listValue.textContent=shown;if(traceValue)traceValue.textContent=shown;
  }
  window.addEventListener("message",function(event){
    if(event.origin!==window.location.origin||!event.data||event.data.type!=="signalSettingsUpdated")return;
-   const data=event.data;
-const signal=signals.find(function(s){return s.key===data.key;
-});
-if(!signal)return;
-   const previousType=signal.type;
-signal.type=String(data.plcType||signal.type||"B");
-signal.dataType=signal.type;
-   signal.precision=Math.min(20,Math.max(0,Number(data.precision)||0));
-saveCustomSignals();
+   const data=event.data;const signal=signals.find(function(s){return s.key===data.key;});if(!signal)return;
+   const previousType=signal.type;signal.type=String(data.plcType||signal.type||"B");signal.dataType=signal.type;
+   signal.precision=Math.min(20,Math.max(0,Number(data.precision)||0));saveCustomSignals();
    const typeChanged=previousType!==signal.type;
    if(typeChanged){
     // Re-decode existing numeric samples immediately when the selected type changes.
@@ -311,20 +194,15 @@ saveCustomSignals();
     function decodeForType(value,fromType,toType){
      if(value===null||value===undefined||value==="")return value;
      const from=String(fromType||"").toUpperCase(),to=String(toType||"").toUpperCase();
-     const isReal=function(t){return ["R","REAL","RR","RREAL"].includes(t);
-};
-     const isDword=function(t){return ["D","DW","DWORD","RD","RDW","RDWORD"].includes(t);
-};
+     const isReal=function(t){return ["R","REAL","RR","RREAL"].includes(t);};
+     const isDword=function(t){return ["D","DW","DWORD","RD","RDW","RDWORD"].includes(t);};
      const isDbDoubleWord=/^DB\d+\s*[,.:/]\s*DBD\s*\d+$/i.test(signal.address||"");
      if(typeof value==="number"&&Number.isFinite(value)&&isReal(from)!==isReal(to)&&(isReal(from)||isReal(to))&&(isDword(from)||isDword(to)||isDbDoubleWord)){
       const buffer=new ArrayBuffer(4),view=new DataView(buffer);
-      if(isReal(from)){view.setFloat32(0,value,false);
-return view.getUint32(0,false);
-}
+      if(isReal(from)){view.setFloat32(0,value,false);return view.getUint32(0,false);}
       // DBD addresses are 32-bit PLC values. Their original UI type may be
       // unset/incorrect (for example "I"), while the bridge returns a DWORD.
-      view.setUint32(0,value>>>0,false);
-return view.getFloat32(0,false);
+      view.setUint32(0,value>>>0,false);return view.getFloat32(0,false);
      }
      if(typeof value!=="number"||!Number.isFinite(value))return value;
      switch(to){
@@ -338,10 +216,8 @@ return view.getFloat32(0,false);
       default: return value;
      }
     }
-    history.forEach(function(sample){if(Object.prototype.hasOwnProperty.call(sample,signal.key))sample[signal.key]=decodeForType(sample[signal.key],previousType,signal.type);
-});
-    recorded.forEach(function(sample){if(Object.prototype.hasOwnProperty.call(sample,signal.key))sample[signal.key]=decodeForType(sample[signal.key],previousType,signal.type);
-});
+    history.forEach(function(sample){if(Object.prototype.hasOwnProperty.call(sample,signal.key))sample[signal.key]=decodeForType(sample[signal.key],previousType,signal.type);});
+    recorded.forEach(function(sample){if(Object.prototype.hasOwnProperty.call(sample,signal.key))sample[signal.key]=decodeForType(sample[signal.key],previousType,signal.type);});
     const lastSamples=(recording?recorded:history);
     const last=lastSamples.length?lastSamples[lastSamples.length-1]:null;
     updateSignalValue(signal,last&&last[signal.key]!==undefined?last[signal.key]:null);
@@ -355,127 +231,51 @@ return view.getFloat32(0,false);
     ?("Type updated for "+signal.label+". "+(recording?"Waiting for a fresh PLC sample.":"Start recording to read this signal using the new type."))
     :"Settings updated for "+signal.label+".";
   });
-  function setConnection(ok,text){document.getElementById("connectionDot").className="dot "+(ok?"online":"offline");
-document.getElementById("connectionText").textContent=text;
-}
+  function setConnection(ok,text){document.getElementById("connectionDot").className="dot "+(ok?"online":"offline");document.getElementById("connectionText").textContent=text;}
  function connect(){
   const protocol=location.protocol==="https:"?"wss:":"ws:";
   socket=new WebSocket(protocol+"//"+(location.hostname||"localhost")+":8080?client=analyzer");
-  socket.onopen=function(){setConnection(true,"Connected · "+socket.url);
-signals.filter(function(s){return !s.builtin&&s.address;
-}).forEach(function(s){socket.send(JSON.stringify({type:"addSignal",key:s.key,plcType:s.type,address:s.address}));
-});
-if(recording)socket.send(JSON.stringify({type:"startRecording",keys:signals.map(function(s){return s.key;
-})}));
-};
+  socket.onopen=function(){setConnection(true,"Connected · "+socket.url);signals.filter(function(s){return !s.builtin&&s.address;}).forEach(function(s){socket.send(JSON.stringify({type:"addSignal",key:s.key,plcType:s.type,address:s.address}));});if(recording)socket.send(JSON.stringify({type:"startRecording",keys:signals.map(function(s){return s.key;})}));};
   socket.onmessage=function(event){
-   let msg;
-try{msg=JSON.parse(event.data);
-}catch(e){return;
-}
+   let msg;try{msg=JSON.parse(event.data);}catch(e){return;}
    if(!msg.data||typeof msg.data!=="object")return;
-   const timestamp=Number(msg.timestamp)||Date.now();
-lastTimestamp=timestamp;
+   const timestamp=Number(msg.timestamp)||Date.now();lastTimestamp=timestamp;
    const readErrors=Array.isArray(msg.errors)?msg.errors:[];
-   const failedKeys=new Set(readErrors.map(function(error){return error&&error.key;
-}).filter(Boolean));
+   const failedKeys=new Set(readErrors.map(function(error){return error&&error.key;}).filter(Boolean));
    handlePlcReadErrors(readErrors);
    const sample={timestamp:timestamp};
-   signals.forEach(function(s){const raw=msg.data[s.key];
-let value=null;
-if(!failedKeys.has(s.key)&&raw!==null&&raw!==undefined&&raw!==""){if(typeof raw==="number")value=Number.isFinite(raw)?raw:null;
-else if(typeof raw==="boolean")value=raw?1:0;
-else if(typeof raw==="string"){const numeric=Number(raw);
-value=raw.trim()!==""&&Number.isFinite(numeric)?numeric:raw;
-}}sample[s.key]=value;
-updateSignalValue(s,value===null?"—":value);
-});
-   if(recording&&!chartFrozen){history.push(sample);
-if(history.length>maxSamples)history.shift();
-}
-   if(recording){recorded.push(Object.assign({},sample));
-}
+   signals.forEach(function(s){const raw=msg.data[s.key];let value=null;if(!failedKeys.has(s.key)&&raw!==null&&raw!==undefined&&raw!==""){if(typeof raw==="number")value=Number.isFinite(raw)?raw:null;else if(typeof raw==="boolean")value=raw?1:0;else if(typeof raw==="string"){const numeric=Number(raw);value=raw.trim()!==""&&Number.isFinite(numeric)?numeric:raw;}}sample[s.key]=value;updateSignalValue(s,value===null?"—":value);});
+   if(recording&&!chartFrozen){history.push(sample);if(history.length>maxSamples)history.shift();}
+   if(recording){recorded.push(Object.assign({},sample));}
    document.getElementById("sampleStatus").textContent="Samples buffered: "+history.length+" · Last update: "+new Date(timestamp).toLocaleTimeString();
    drawAll();
   };
-  socket.onclose=function(){setConnection(false,"Disconnected · reconnecting…");
-setTimeout(connect,2000);
-};
-  socket.onerror=function(){setConnection(false,"WebSocket connection error");
-};
+  socket.onclose=function(){setConnection(false,"Disconnected · reconnecting…");setTimeout(connect,2000);};
+  socket.onerror=function(){setConnection(false,"WebSocket connection error");};
  }
  function drawAll(){
   const liveNow=chartFrozen?(frozenTimestamp||lastTimestamp||Date.now()):(lastTimestamp||Date.now());
   const now=inspectionViewTime===null?liveNow:inspectionViewTime,span=Number(document.getElementById("windowSelect").value)*1000,from=now-span;
   signals.forEach(function(s){
-   const row=traces.querySelector('[data-signal="'+CSS.escape(s.key)+'"]');
-if(!row)return;
-row.style.display=s.visible?"grid":"none";
-   const canvas=document.getElementById("canvas-"+safeId(s.key));
-if(!canvas)return;
+   const row=traces.querySelector('[data-signal="'+CSS.escape(s.key)+'"]');if(!row)return;row.style.display=s.visible?"grid":"none";
+   const canvas=document.getElementById("canvas-"+safeId(s.key));if(!canvas)return;
    const rect=canvas.getBoundingClientRect(),dpr=window.devicePixelRatio||1,w=Math.max(1,Math.floor(rect.width*dpr)),h=Math.max(1,Math.floor(rect.height*dpr));
-   if(canvas.width!==w||canvas.height!==h){canvas.width=w;
-canvas.height=h;
-}
-   const ctx=canvas.getContext("2d");
-ctx.setTransform(dpr,0,0,dpr,0,0);
-const cw=rect.width,ch=rect.height;
-ctx.clearRect(0,0,cw,ch);
-   ctx.strokeStyle="#263447";
-ctx.lineWidth=1;
-   for(let y=0;y<=4;y++){const yy=8+(ch-16)*y/4;
-ctx.beginPath();
-ctx.moveTo(0,yy);
-ctx.lineTo(cw,yy);
-ctx.stroke();
-}
-   for(let x=0;x<=6;x++){const xx=cw*x/6;
-ctx.beginPath();
-ctx.moveTo(xx,0);
-ctx.lineTo(xx,ch);
-ctx.stroke();
-}
+   if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}
+   const ctx=canvas.getContext("2d");ctx.setTransform(dpr,0,0,dpr,0,0);const cw=rect.width,ch=rect.height;ctx.clearRect(0,0,cw,ch);
+   ctx.strokeStyle="#263447";ctx.lineWidth=1;
+   for(let y=0;y<=4;y++){const yy=8+(ch-16)*y/4;ctx.beginPath();ctx.moveTo(0,yy);ctx.lineTo(cw,yy);ctx.stroke();}
+   for(let x=0;x<=6;x++){const xx=cw*x/6;ctx.beginPath();ctx.moveTo(xx,0);ctx.lineTo(xx,ch);ctx.stroke();}
    if(!s.visible)return;
-   const points=history.filter(function(p){return p.timestamp>=from&&p.timestamp<=now&&typeof p[s.key]==="number"&&Number.isFinite(p[s.key]);
-});
+   const points=history.filter(function(p){return p.timestamp>=from&&p.timestamp<=now&&typeof p[s.key]==="number"&&Number.isFinite(p[s.key]);});
    if(!points.length)return;
-   const values=points.map(function(p){return p[s.key];
-}),min=Math.min.apply(null,values),max=Math.max.apply(null,values),range=max-min||1;
-   ctx.strokeStyle=s.color;
-ctx.lineWidth=1.7;
-ctx.lineJoin="round";
-ctx.beginPath();
-   points.forEach(function(p,i){const x=((p.timestamp-from)/span)*cw,y=ch-8-((p[s.key]-min)/range)*(ch-16);
-if(i===0)ctx.moveTo(x,y);
-else{const prev=points[i-1],prevY=ch-8-((prev[s.key]-min)/range)*(ch-16);
-ctx.lineTo(x,prevY);
-ctx.lineTo(x,y);
-}});
+   const values=points.map(function(p){return p[s.key];}),min=Math.min.apply(null,values),max=Math.max.apply(null,values),range=max-min||1;
+   ctx.strokeStyle=s.color;ctx.lineWidth=1.7;ctx.lineJoin="round";ctx.beginPath();
+   points.forEach(function(p,i){const x=((p.timestamp-from)/span)*cw,y=ch-8-((p[s.key]-min)/range)*(ch-16);if(i===0)ctx.moveTo(x,y);else{const prev=points[i-1],prevY=ch-8-((prev[s.key]-min)/range)*(ch-16);ctx.lineTo(x,prevY);ctx.lineTo(x,y);}});
    ctx.stroke();
-   if(hoverTime!==null&&hoverTime>=from&&hoverTime<=now){const x=(hoverTime-from)/span*cw;
-ctx.strokeStyle="#d5dfebaa";
-ctx.setLineDash([4,4]);
-ctx.beginPath();
-ctx.moveTo(x,0);
-ctx.lineTo(x,ch);
-ctx.stroke();
-ctx.setLineDash([]);
-let nearest=points[0];
-points.forEach(function(p){if(Math.abs(p.timestamp-hoverTime)<Math.abs(nearest.timestamp-hoverTime))nearest=p;
-});
-ctx.fillStyle=s.color;
-ctx.font="11px ui-monospace,Consolas,monospace";
-ctx.fillText(String(nearest[s.key]),Math.min(cw-90,Math.max(4,x+5)),14);
-}
+   if(hoverTime!==null&&hoverTime>=from&&hoverTime<=now){const x=(hoverTime-from)/span*cw;ctx.strokeStyle="#d5dfebaa";ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,ch);ctx.stroke();ctx.setLineDash([]);let nearest=points[0];points.forEach(function(p){if(Math.abs(p.timestamp-hoverTime)<Math.abs(nearest.timestamp-hoverTime))nearest=p;});ctx.fillStyle=s.color;ctx.font="11px ui-monospace,Consolas,monospace";ctx.fillText(String(nearest[s.key]),Math.min(cw-90,Math.max(4,x+5)),14);}
   });
-  const ticks=document.getElementById("axisTicks"),seconds=Number(document.getElementById("windowSelect").value);
-ticks.replaceChildren();
-  for(let i=0;i<=4;i++){const spanEl=document.createElement("span");
-const tickTime=new Date(now-seconds*1000+(seconds*1000*i/4));
-const hh=String(tickTime.getHours()).padStart(2,"0"),mm=String(tickTime.getMinutes()).padStart(2,"0"),ss=String(tickTime.getSeconds()).padStart(2,"0"),ms=String(tickTime.getMilliseconds()).padStart(3,"0");
-spanEl.textContent=hh+":"+mm+":"+ss+"."+ms;
-ticks.appendChild(spanEl);
-}
+  const ticks=document.getElementById("axisTicks"),seconds=Number(document.getElementById("windowSelect").value);ticks.replaceChildren();
+  for(let i=0;i<=4;i++){const spanEl=document.createElement("span");const tickTime=new Date(now-seconds*1000+(seconds*1000*i/4));const hh=String(tickTime.getHours()).padStart(2,"0"),mm=String(tickTime.getMinutes()).padStart(2,"0"),ss=String(tickTime.getSeconds()).padStart(2,"0"),ms=String(tickTime.getMilliseconds()).padStart(3,"0");spanEl.textContent=hh+":"+mm+":"+ss+"."+ms;ticks.appendChild(spanEl);}
  }
  // STEP 7 V5 project symbol discovery. Folder access stays in this browser tab.
  const symbolSearchInput=document.getElementById("symbolSearchInput");
@@ -489,8 +289,7 @@ ticks.appendChild(spanEl);
  }
  function splitSymbolRecord(line){
   const text=String(line||"").replace(/^\uFEFF/,"").trim();
-  if(!text||/^(symbol|name)[,;
-\t]/i.test(text)||/^\s*#/.test(text))return null;
+  if(!text||/^(symbol|name)[,;\t]/i.test(text)||/^\s*#/.test(text))return null;
   // STEP 7 ASC: length,symbol. address datatype comment
   const asc=text.match(/^\s*\d+\s*,\s*([^,]+?)\s+((?:DB\d+\s*[,.:/]\s*)?[A-Z]+\s*\d+(?:\.\d+){0,2}|(?:PI|PQ|PE|PA|M|I|E|Q|A|T|C)[A-Z]*\s*\d+(?:\.\d+){0,2})\s+([A-Z][A-Z0-9_]*)?(?:\s+(.*))?$/i);
   if(asc)return {name:asc[1].replace(/[.\s]+$/,"").trim(),address:asc[2].trim(),type:asc[3]||"",comment:asc[4]||"",symbolName:asc[1].replace(/[.\s]+$/,"").trim(),operand:asc[2].trim(),dataType:asc[3]||""};
@@ -499,14 +298,7 @@ ticks.appendChild(spanEl);
   if(text.includes("\t"))cells=text.split("\t");
   else if(text.includes(",")){
    let current="",quoted=false;
-   for(let i=0;i<text.length;i++){const ch=text[i];
-if(ch==='"'){if(quoted&&text[i+1]==='"'){current+='"';
-i++;
-}else quoted=!quoted;
-}else if(ch===","&&!quoted){cells.push(current.trim());
-current="";
-}else current+=ch;
-}
+   for(let i=0;i<text.length;i++){const ch=text[i];if(ch==='"'){if(quoted&&text[i+1]==='"'){current+='"';i++;}else quoted=!quoted;}else if(ch===","&&!quoted){cells.push(current.trim());current="";}else current+=ch;}
    cells.push(current.trim());
   }else return null;
   cells=cells.map(v=>v.trim().replace(/^"(.*)"$/,"$1").trim());
@@ -542,23 +334,17 @@ current="";
   if(bytes.length<33)return [];
   const recordCount=view.getUint32(4,true),headerLength=view.getUint16(8,true),recordLength=view.getUint16(10,true);
   if(headerLength<33||recordLength<2||headerLength>bytes.length)return [];
-  const fields=[];
-let pos=32;
+  const fields=[];let pos=32;
   while(pos<headerLength-1&&bytes[pos]!==0x0D){
    if(pos+32>bytes.length)break;
-   let end=pos;
-while(end<pos+11&&bytes[end]!==0&&bytes[end]!==0x20)end++;
+   let end=pos;while(end<pos+11&&bytes[end]!==0&&bytes[end]!==0x20)end++;
    const name=new TextDecoder("latin1").decode(bytes.slice(pos,end)).trim().toUpperCase();
    const length=bytes[pos+16];
    if(!name||!length)break;
-   fields.push({name:name,length:length});
-pos+=32;
+   fields.push({name:name,length:length});pos+=32;
   }
   if(!fields.length)return [];
-  let offset=1;
-fields.forEach(f=>{f.offset=offset;
-offset+=f.length;
-});
+  let offset=1;fields.forEach(f=>{f.offset=offset;offset+=f.length;});
   const findField=(exact,terms=[])=>fields.find(f=>exact.includes(f.name))||fields.find(f=>terms.some(t=>f.name.includes(t)));
   // STEP 7 V5's native SYMLIST.DBF schema uses these exact field names.
   const nameField=findField(["_SKZ"],["SYMBOL","SYMNAME","SYM_NAME","NAME","MNEMONIC","IDENT"]);
@@ -568,8 +354,7 @@ offset+=f.length;
   if(!nameField||!addressField)return [];
   const rows=[],count=Math.min(recordCount,100000),decoder=new TextDecoder("windows-1252");
   for(let i=0;i<count;i++){
-   const base=headerLength+i*recordLength;
-if(base+recordLength>bytes.length)break;
+   const base=headerLength+i*recordLength;if(base+recordLength>bytes.length)break;
    if(bytes[base]===0x2A)continue;
    const get=f=>f?decoder.decode(bytes.slice(base+f.offset,base+f.offset+f.length)).replace(/\\0/g,"").trim():"";
    const name=get(nameField),address=normalizeStep7Address(get(addressField));
@@ -582,60 +367,39 @@ if(base+recordLength>bytes.length)break;
 
  function resolveProjectAddress(address){
   const target=normalizeStep7Address(address).toUpperCase().replace(/\s+/g,"").replace(/,BYTE(\d+)/,",DBB$1");
-  const direct=projectSymbols.find(function(s){return normalizeStep7Address(s.address).toUpperCase().replace(/\s+/g,"").replace(/,BYTE(\d+)/,",DBB$1")===target;
-});
+  const direct=projectSymbols.find(function(s){return normalizeStep7Address(s.address).toUpperCase().replace(/\s+/g,"").replace(/,BYTE(\d+)/,",DBB$1")===target;});
   if(direct)return direct;
-  const m=target.match(/^DB(\d+),(?:DBB|DBW|DBD)(\d+)$/);
-if(!m)return null;
-  return projectSymbols.find(function(s){return s._dbStructure&&s.address.toUpperCase()==="DB"+m[1]+",DBB"+m[2];
-})||null;
+  const m=target.match(/^DB(\d+),(?:DBB|DBW|DBD)(\d+)$/);if(!m)return null;
+  return projectSymbols.find(function(s){return s._dbStructure&&s.address.toUpperCase()==="DB"+m[1]+",DBB"+m[2];})||null;
  }
  function parseStep7DbStructure(text,filename){
   const src=String(text||"");
   const m=src.match(/(?:DATA_BLOCK\s+)?DB\s*(\d+)\b/i)||String(filename||"").match(/\bDB\s*(\d+)\b/i);
   if(!m)return [];
-  const db=Number(m[1]),out=[];
-let inStruct=false,offset=0,bit=-1;
+  const db=Number(m[1]),out=[];let inStruct=false,offset=0,bit=-1;
   const sizes={BOOL:0,BYTE:1,CHAR:1,SINT:1,USINT:1,WORD:2,INT:2,UINT:2,S5TIME:2,DATE:2,DWORD:4,DINT:4,UDINT:4,REAL:4,TIME:4,TIME_OF_DAY:4,LREAL:8,LINT:8,ULINT:8,LTIME:8,DATE_AND_TIME:8,DT:8,DTL:12};
   src.split(/\r?\n/).forEach(function(raw){
-   const line=raw.replace(/\/\/.*$/,"").trim();
-if(!line)return;
-   if(/\bSTRUCT\b/i.test(line)){inStruct=true;
-return;
-}
-   if(/\bEND_STRUCT\b/i.test(line)){inStruct=false;
-return;
-}
+   const line=raw.replace(/\/\/.*$/,"").trim();if(!line)return;
+   if(/\bSTRUCT\b/i.test(line)){inStruct=true;return;}
+   if(/\bEND_STRUCT\b/i.test(line)){inStruct=false;return;}
    if(!inStruct||/^(DATA_BLOCK|TITLE|VERSION|BEGIN|END_DATA_BLOCK)\b/i.test(line))return;
-   const f=line.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.+?)\s*;
-?$/);
-if(!f)return;
-   const name=f[1],type=f[2].replace(/;
-$/,"").trim().toUpperCase();
+   const f=line.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.+?)\s*;?$/);if(!f)return;
+   const name=f[1],type=f[2].replace(/;$/,"").trim().toUpperCase();
    let size=sizes[type];
    const arr=type.match(/^ARRAY\s*\[\s*(-?\d+)\s*\.\.\s*(-?\d+)\s*\]\s*OF\s*(\w+)$/);
    if(arr&&sizes[arr[3]]!==undefined)size=(Number(arr[2])-Number(arr[1])+1)*Math.max(1,sizes[arr[3]]);
-   const str=type.match(/^STRING(?:\s*\[\s*(\d+)\s*\])?$/);
-if(str)size=2+Number(str[1]||254);
+   const str=type.match(/^STRING(?:\s*\[\s*(\d+)\s*\])?$/);if(str)size=2+Number(str[1]||254);
    if(size===undefined)return;
    if(type==="BOOL"){
-    if(bit<0||bit>7){offset=Math.ceil(offset);
-bit=0;
-}
+    if(bit<0||bit>7){offset=Math.ceil(offset);bit=0;}
     const addr="DB"+db+",DBX"+offset+"."+bit;
     out.push({name:name,address:addr,type:"BOOL",comment:"DB structure field",symbolName:name,operand:addr,dataType:"BOOL",_dbStructure:true});
-    bit++;
-if(bit>7){offset++;
-bit=-1;
-}return;
+    bit++;if(bit>7){offset++;bit=-1;}return;
    }
-   if(bit>=0){offset++;
-bit=-1;
-}
+   if(bit>=0){offset++;bit=-1;}
    if(size>=2&&offset%2)offset++;
    const prefix=size===1?"DBB":size===2?"DBW":size===4?"DBD":"DBB",addr="DB"+db+","+prefix+offset;
-   out.push({name:name,address:addr,type:type,comment:"DB structure field · offset "+offset+" · "+type,symbolName:name,operand:addr,dataType:type,_dbStructure:true});
-offset+=size;
+   out.push({name:name,address:addr,type:type,comment:"DB structure field · offset "+offset+" · "+type,symbolName:name,operand:addr,dataType:type,_dbStructure:true});offset+=size;
   });
   return out;
  }
@@ -651,9 +415,7 @@ offset+=size;
    if(length)payload=bytes.slice(8,8+length);
   }else{
    let stop=-1;
-   for(let i=0;i<bytes.length-1;i++){if(bytes[i]===0x1A&&bytes[i+1]===0x1A){stop=i;
-break;
-}}
+   for(let i=0;i<bytes.length-1;i++){if(bytes[i]===0x1A&&bytes[i+1]===0x1A){stop=i;break;}}
    if(stop>0)payload=bytes.slice(0,stop);
   }
   const text=new TextDecoder("windows-1252").decode(payload);
@@ -665,32 +427,22 @@ break;
   if(bytes.length<33)return {rows:[],memoCount:0};
   const recordCount=view.getUint32(4,true),headerLength=view.getUint16(8,true),recordLength=view.getUint16(10,true);
   if(headerLength<33||recordLength<2||headerLength>bytes.length)return {rows:[],memoCount:0};
-  const fields=[];
-let pos=32;
+  const fields=[];let pos=32;
   while(pos<headerLength-1&&bytes[pos]!==0x0D){
    if(pos+32>bytes.length)break;
-   let fieldEnd=pos;
-while(fieldEnd<pos+11&&bytes[fieldEnd]!==0&&bytes[fieldEnd]!==0x20)fieldEnd++;
+   let fieldEnd=pos;while(fieldEnd<pos+11&&bytes[fieldEnd]!==0&&bytes[fieldEnd]!==0x20)fieldEnd++;
    const name=new TextDecoder("latin1").decode(bytes.slice(pos,fieldEnd)).trim().toUpperCase();
    const type=String.fromCharCode(bytes[pos+11]||0).toUpperCase(),length=bytes[pos+16];
    if(!name||!length)break;
-   fields.push({name,type,length});
-pos+=32;
+   fields.push({name,type,length});pos+=32;
   }
   if(!fields.length)return {rows:[],memoCount:0};
-  let offset=1;
-fields.forEach(f=>{f.offset=offset;
-offset+=f.length;
-});
+  let offset=1;fields.forEach(f=>{f.offset=offset;offset+=f.length;});
   let dbtBytes=null;
-  if(dbtFile){try{dbtBytes=new Uint8Array(await (await dbtFile.getFile()).arrayBuffer());
-}catch(e){console.warn("Could not read companion DBT",e);
-}}
-  const rows=[],count=Math.min(recordCount,100000),decoder=new TextDecoder("windows-1252");
-let memoCount=0;
+  if(dbtFile){try{dbtBytes=new Uint8Array(await (await dbtFile.getFile()).arrayBuffer());}catch(e){console.warn("Could not read companion DBT",e);}}
+  const rows=[],count=Math.min(recordCount,100000),decoder=new TextDecoder("windows-1252");let memoCount=0;
   for(let i=0;i<count;i++){
-   const base=headerLength+i*recordLength;
-if(base+recordLength>bytes.length)break;
+   const base=headerLength+i*recordLength;if(base+recordLength>bytes.length)break;
    if(bytes[base]===0x2A)continue;
    const row={};
    for(const f of fields){
@@ -700,9 +452,7 @@ if(base+recordLength>bytes.length)break;
      const pointer=Number(raw);
      if(Number.isFinite(pointer)&&pointer>0){
       const memo=await readStep7DbtMemo(dbtBytes,pointer);
-      if(memo){row[f.name+"_TEXT"]=memo;
-memoCount++;
-}
+      if(memo){row[f.name+"_TEXT"]=memo;memoCount++;}
      }
     }
    }
@@ -711,19 +461,15 @@ memoCount++;
   return {rows:rows,memoCount:memoCount,fields:fields.map(f=>f.name)};
  }
  async function walkStep7Folder(root){
-  const found=[],files=[],maxFiles=12000;
-let visited=0;
+  const found=[],files=[],maxFiles=12000;let visited=0;
   async function walk(dir,depth,relativePath){
    if(depth>12||visited>=maxFiles)return;
    for await(const entry of dir.values()){
     if(visited>=maxFiles)break;
     if(entry.name.startsWith(".")||/^(node_modules|cache|temp|tmp)$/i.test(entry.name))continue;
     const path=relativePath?relativePath+"/"+entry.name:entry.name;
-    if(entry.kind==="directory"){await walk(entry,depth+1,path);
-continue;
-}
-    visited++;
-const ext=entry.name.split(".").pop().toLowerCase();
+    if(entry.kind==="directory"){await walk(entry,depth+1,path);continue;}
+    visited++;const ext=entry.name.split(".").pop().toLowerCase();
     if(["asc","sdf","seq","dif","csv","txt","dbf","dbt","ydb","cdb","idb","awl","scl","db","udt"].includes(ext))files.push({entry:entry,path:path});
    }
   }
@@ -747,12 +493,9 @@ const ext=entry.name.split(".").pop().toLowerCase();
     }else{
      if(file.size>15*1024*1024)continue;
      const content=await file.text();
-     content.split(/\r?\n/).forEach(line=>{const row=splitSymbolRecord(line);
-if(row&&row.name&&row.address)found.push(row);
-});
+     content.split(/\r?\n/).forEach(line=>{const row=splitSymbolRecord(line);if(row&&row.name&&row.address)found.push(row);});
     }
-   }catch(err){console.warn("Could not inspect STEP 7 symbol file",item.path,err);
-}
+   }catch(err){console.warn("Could not inspect STEP 7 symbol file",item.path,err);}
   }
   let subblkRows=0,subblkMemos=0,subblkStructures=0;
   for(const item of subblkFiles){
@@ -760,8 +503,7 @@ if(row&&row.name&&row.address)found.push(row);
     const directory=item.path.includes("/")?item.path.slice(0,item.path.lastIndexOf("/")+1):"";
     const companion=files.find(f=>f.path.toUpperCase()===(directory+"SUBBLK.DBT").toUpperCase());
     const parsed=await parseStep7SubblkDbf(await item.entry.getFile(),companion&&companion.entry);
-    subblkRows+=parsed.rows.length;
-subblkMemos+=parsed.memoCount;
+    subblkRows+=parsed.rows.length;subblkMemos+=parsed.memoCount;
     for(const row of parsed.rows){
      const blockValue=row.BLKNUMBER||row.BLKNR||row.NUMBER||row.BLOCKNR||"";
      const blockName=row.BLKNAME||row.NAME||row.BLOCKNAME||"";
@@ -771,17 +513,13 @@ subblkMemos+=parsed.memoCount;
      const body=Object.keys(row).filter(k=>/_TEXT$/.test(k)).map(k=>row[k]).join("\n");
      if(!body||!/STRUCT/i.test(body))continue;
      const fields=parseStep7DbStructure(body,"DB"+dbNumber+".DB");
-     if(fields.length){found.push(...fields);
-subblkStructures++;
-}
+     if(fields.length){found.push(...fields);subblkStructures++;}
     }
-   }catch(err){binaryCandidates.push(item.path+" (SUBBLK parse error: "+err.message+")");
-}
+   }catch(err){binaryCandidates.push(item.path+" (SUBBLK parse error: "+err.message+")");}
   }
   const dedup=new Map();
   found.forEach(s=>{
-   s.name=String(s.name||"").trim();
-s.address=String(s.address||"").trim();
+   s.name=String(s.name||"").trim();s.address=String(s.address||"").trim();
    if(!s.name||!s.address)return;
    const id=normalizeSignalAddress(s.address);
    if(!dedup.has(id))dedup.set(id,s);
@@ -789,79 +527,44 @@ s.address=String(s.address||"").trim();
   return {symbols:Array.from(dedup.values()),files:files.length,binaryCandidates:binaryCandidates,visited:visited,subblkFiles:subblkFiles.length,subblkRows:subblkRows,subblkMemos:subblkMemos,subblkStructures:subblkStructures};
  }
  function renderProjectSymbols(){
-  const query=symbolSearchInput.value.trim().toLowerCase(),addressQuery=query.toUpperCase().replace(/\s+/g,"");
-symbolResults.replaceChildren();
+  const query=symbolSearchInput.value.trim().toLowerCase(),addressQuery=query.toUpperCase().replace(/\s+/g,"");symbolResults.replaceChildren();
   const matches=projectSymbols.filter(s=>!query||(s.name+" "+s.address+" "+s.type+" "+s.comment).toLowerCase().includes(query)||normalizeStep7Address(s.address).replace(/\s+/g,"").includes(addressQuery)).slice(0,150);
   matches.forEach(s=>{
-   const row=document.createElement("div");
-row.style.cssText="display:flex;gap:6px;align-items:center;padding:6px;background:#0b131e;border:1px solid #263447;border-radius:6px";
-   const info=document.createElement("span");
-info.style.cssText="min-width:0;flex:1;overflow-wrap:anywhere";
-   const name=document.createElement("strong");
-name.style.cssText="display:block;font-size:12px";
-name.textContent=s.name;
-   const meta=document.createElement("small");
-meta.style.cssText="display:block;color:var(--muted);font:10px ui-monospace,Consolas,monospace";
-meta.textContent=s.address+(s.type?" · "+s.type:"");
-   info.append(name,meta);
-row.appendChild(info);
-   const add=document.createElement("button");
-add.type="button";
-add.textContent="Add";
-add.style.cssText="padding:4px 8px;flex-shrink:0";
+   const row=document.createElement("div");row.style.cssText="display:flex;gap:6px;align-items:center;padding:6px;background:#0b131e;border:1px solid #263447;border-radius:6px";
+   const info=document.createElement("span");info.style.cssText="min-width:0;flex:1;overflow-wrap:anywhere";
+   const name=document.createElement("strong");name.style.cssText="display:block;font-size:12px";name.textContent=s.name;
+   const meta=document.createElement("small");meta.style.cssText="display:block;color:var(--muted);font:10px ui-monospace,Consolas,monospace";meta.textContent=s.address+(s.type?" · "+s.type:"");
+   info.append(name,meta);row.appendChild(info);
+   const add=document.createElement("button");add.type="button";add.textContent="Add";add.style.cssText="padding:4px 8px;flex-shrink:0";
    add.addEventListener("click",function(){
     const address=normalizeStep7Address(s.address),key=address.toUpperCase().replace(/\s+/g,"").replace(/[,.:/]/g,"_");
-    if(!/^[a-zA-Z_][a-zA-Z0-9_-]{0,39}$/.test(key)){symbolProjectStatus.textContent="Cannot create a WebSocket key from address "+address+". This address format needs backend support.";
-return;
-}
-    if(isDuplicateSignal(key,address)){symbolProjectStatus.textContent="Already monitored: "+s.name+" ("+address+").";
-return;
-}
+    if(!/^[a-zA-Z_][a-zA-Z0-9_-]{0,39}$/.test(key)){symbolProjectStatus.textContent="Cannot create a WebSocket key from address "+address+". This address format needs backend support.";return;}
+    if(isDuplicateSignal(key,address)){symbolProjectStatus.textContent="Already monitored: "+s.name+" ("+address+").";return;}
     const ok=addSignal({key:key,label:s.name,address:address,type:normalizeSymbolType(s.dataType||s.type),symbolName:s.symbolName||s.name,operand:s.operand||s.address||address,dataType:s.dataType||s.type||"",comment:s.comment||""});
     symbolProjectStatus.textContent=ok?"Added "+s.name+" ("+address+").":"This signal is already in the chart.";
    });
-   row.appendChild(add);
-symbolResults.appendChild(row);
+   row.appendChild(add);symbolResults.appendChild(row);
   });
-  if(!matches.length){const empty=document.createElement("div");
-empty.className="help-text";
-empty.textContent=query?"No matching symbols.":"No readable symbols found in this project.";
-symbolResults.appendChild(empty);
-}
-  if(matches.length>0&&matches.length>=150){const note=document.createElement("div");
-note.className="help-text";
-note.textContent="Showing first 150 matches. Search to narrow the list.";
-symbolResults.appendChild(note);
-}
+  if(!matches.length){const empty=document.createElement("div");empty.className="help-text";empty.textContent=query?"No matching symbols.":"No readable symbols found in this project.";symbolResults.appendChild(empty);}
+  if(matches.length>0&&matches.length>=150){const note=document.createElement("div");note.className="help-text";note.textContent="Showing first 150 matches. Search to narrow the list.";symbolResults.appendChild(note);}
  }
  document.getElementById("openStep7FolderBtn").addEventListener("click",async function(){
-  if(!window.showDirectoryPicker){symbolProjectStatus.textContent="Folder access is supported in current Chrome or Edge. Open this page in a recent Chrome/Edge browser and use localhost.";
-return;
-}
-  const button=this;
-button.disabled=true;
-button.textContent="Scanning project…";
-symbolProjectStatus.textContent="Select the root folder of the extracted STEP 7 V5 project.";
+  if(!window.showDirectoryPicker){symbolProjectStatus.textContent="Folder access is supported in current Chrome or Edge. Open this page in a recent Chrome/Edge browser and use localhost.";return;}
+  const button=this;button.disabled=true;button.textContent="Scanning project…";symbolProjectStatus.textContent="Select the root folder of the extracted STEP 7 V5 project.";
   try{
    const root=await window.showDirectoryPicker({mode:"read"});
    symbolProjectStatus.textContent="Scanning "+root.name+" for symbol tables…";
-   const result=await walkStep7Folder(root);
-projectSymbols=result.symbols;
+   const result=await walkStep7Folder(root);projectSymbols=result.symbols;
    fillSignalNameFromProjectAddress();
-   symbolSearchInput.disabled=false;
-renderProjectSymbols();
+   symbolSearchInput.disabled=false;renderProjectSymbols();
    let status="Project: "+root.name+" · "+projectSymbols.length+" unique symbols parsed · "+result.files+" candidate files scanned · SUBBLK.DBF: "+result.subblkFiles+" file(s), "+result.subblkRows+" rows, "+result.subblkMemos+" readable memo(s), "+result.subblkStructures+" text structure(s) decoded.";
    if(result.binaryCandidates.length)status+=" Some DBF files were not recognized: "+result.binaryCandidates.slice(0,4).join(", ")+(result.binaryCandidates.length>4?"…":"")+".";
    if(!projectSymbols.length)status+=" No supported symbol records were readable. Check that the selected folder contains the extracted project and its hrs\\YDBs folders.";
    symbolProjectStatus.textContent=status;
   }catch(err){
-   if(err&&err.name==="AbortError"){symbolProjectStatus.textContent="Folder selection cancelled.";
-return;
-}
+   if(err&&err.name==="AbortError"){symbolProjectStatus.textContent="Folder selection cancelled.";return;}
    symbolProjectStatus.textContent="Could not scan project folder: "+(err&&err.message?err.message:String(err));
-  }finally{button.disabled=false;
-button.textContent="📂 Open STEP 7 V5 project folder";
-}
+  }finally{button.disabled=false;button.textContent="📂 Open STEP 7 V5 project folder";}
  });
  function fillSignalNameFromProjectAddress(){
   const nameInput=document.getElementById("signalNameInput");
@@ -875,8 +578,7 @@ button.textContent="📂 Open STEP 7 V5 project folder";
  document.getElementById("signalKeyInput").addEventListener("blur",fillSignalNameFromProjectAddress);
  symbolSearchInput.addEventListener("input",renderProjectSymbols);
  document.getElementById("addSignalForm").addEventListener("submit",function(e){
-  e.preventDefault();
-const error=document.getElementById("signalFormError");
+  e.preventDefault();const error=document.getElementById("signalFormError");
   let label=document.getElementById("signalNameInput").value.trim();
   let key=document.getElementById("signalKeyInput").value.trim();
   let address="";
@@ -885,22 +587,14 @@ const error=document.getElementById("signalFormError");
   if(plcAddressPattern.test(key)){
    address=normalizeStep7Address(key);
    const resolved=resolveProjectAddress(address);
-   if(resolved){label=label||resolved.name;
-document.getElementById("signalNameInput").value=label;
-}
+   if(resolved){label=label||resolved.name;document.getElementById("signalNameInput").value=label;}
    key=address.toUpperCase().replace(/\s+/g,"").replace(/[,.:/]/g,"_");
    if(!label)label=address;
   }
-  if(!key){error.textContent="Enter a WebSocket data key (such as motorSpeed) or a PLC address (such as DB1,INT6).";
-return;
-}
+  if(!key){error.textContent="Enter a WebSocket data key (such as motorSpeed) or a PLC address (such as DB1,INT6).";return;}
   if(!label)label=key;
-  if(!/^[a-zA-Z_][a-zA-Z0-9_-]{0,39}$/.test(key)){error.textContent="Data key must start with a letter or underscore and use only letters, numbers, _ or -.";
-return;
-}
-  if(isDuplicateSignal(key,address)){error.textContent="This signal is already in the chart. Each data key or PLC address can only be added once.";
-return;
-}
+  if(!/^[a-zA-Z_][a-zA-Z0-9_-]{0,39}$/.test(key)){error.textContent="Data key must start with a letter or underscore and use only letters, numbers, _ or -.";return;}
+  if(isDuplicateSignal(key,address)){error.textContent="This signal is already in the chart. Each data key or PLC address can only be added once.";return;}
   if(address){
    const dbType=address.match(/^DB\d+\s*[,.:/]\s*([A-Z]+)\s*\d+/i);
    if(dbType){
@@ -913,12 +607,8 @@ return;
    else if(/^PID/i.test(address))selectedType="DI";
   }
   const ok=addSignal({key:key,label:label,address:address,type:selectedType});
-  if(ok){document.getElementById("signalNameInput").value="";
-document.getElementById("signalKeyInput").value="";
-error.textContent="Signal added.";
-}
-  else{error.textContent="This signal is already in the chart. Each data key or PLC address can only be added once.";
-}
+  if(ok){document.getElementById("signalNameInput").value="";document.getElementById("signalKeyInput").value="";error.textContent="Signal added."; }
+  else{error.textContent="This signal is already in the chart. Each data key or PLC address can only be added once.";}
  });
  document.getElementById("removeAllSignalsBtn").addEventListener("click",function(){
   if(!signals.length)return;
@@ -933,33 +623,22 @@ error.textContent="Signal added.";
  function setTimeWindow(value){
   value=Math.max(1,Math.min(300,Number(value)||30));
   const valueText=value>=60?(value/60)+" min":value+" second"+(value===1?"":"s");
-  let option=Array.from(windowSelect.options).find(function(item){return Number(item.value)===value;
-});
+  let option=Array.from(windowSelect.options).find(function(item){return Number(item.value)===value;});
   const customOption=windowSelect.querySelector("option[data-zoom-custom]");
   if(customOption)customOption.remove();
-  if(!option){option=document.createElement("option");
-option.value=String(value);
-option.dataset.zoomCustom="true";
-option.textContent=valueText;
-windowSelect.appendChild(option);
-}
+  if(!option){option=document.createElement("option");option.value=String(value);option.dataset.zoomCustom="true";option.textContent=valueText;windowSelect.appendChild(option);}
   windowSelect.value=String(value);
   timeZoom.value=String(value);
   timeZoomValue.textContent=value>=60?(value/60).toFixed(2)+" min":value.toFixed(2)+" s";
   if(inspectionViewTime!==null){
-   const span=value*1000,available=history.concat(recorded).map(function(p){return p.timestamp;
-}).filter(Number.isFinite);
-   if(available.length){const earliest=Math.min.apply(null,available),latest=Math.max.apply(null,available);
-inspectionViewTime=(latest-earliest>=span)?Math.max(earliest+span,Math.min(latest,inspectionViewTime)):latest;
-}
+   const span=value*1000,available=history.concat(recorded).map(function(p){return p.timestamp;}).filter(Number.isFinite);
+   if(available.length){const earliest=Math.min.apply(null,available),latest=Math.max.apply(null,available);inspectionViewTime=(latest-earliest>=span)?Math.max(earliest+span,Math.min(latest,inspectionViewTime)):latest;}
    hoverTime=null;
   }
   drawAll();
  }
- windowSelect.addEventListener("change",function(){setTimeWindow(Number(this.value));
-});
- timeZoom.addEventListener("input",function(){setTimeWindow(Number(this.value));
-});
+ windowSelect.addEventListener("change",function(){setTimeWindow(Number(this.value));});
+ timeZoom.addEventListener("input",function(){setTimeWindow(Number(this.value));});
  document.getElementById("recordBtn").addEventListener("click",async function(){
   const button=this;
   button.disabled=true;
@@ -970,67 +649,29 @@ inspectionViewTime=(latest-earliest>=span)?Math.max(earliest+span,Math.min(lates
    if(!response.ok)throw new Error(result.error||"Could not change MongoDB recording state.");
    recording=nextRecording;
    if(recording){
-    recordingStartedAt=Date.now();
-signals.forEach(function(s){if(s.address){s.lastReadAt=recordingStartedAt;
-s.readError=false;
-const label=traces.querySelector(`[data-signal="${CSS.escape(s.key)}"] .trace-label`);
-if(label){label.classList.remove("signal-unreadable");
-label.removeAttribute("data-error");
-}}});
-    if(socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify({type:"startRecording",keys:signals.map(function(s){return s.key;
-})}));
-    chartFrozen=false;
-frozenTimestamp=0;
-hoverTime=null;
-recorded=[];
-history.length=0;
-    button.textContent="■ Stop recording";
-button.classList.add("danger");
+    recordingStartedAt=Date.now();signals.forEach(function(s){if(s.address){s.lastReadAt=recordingStartedAt;s.readError=false;const label=traces.querySelector(`[data-signal="${CSS.escape(s.key)}"] .trace-label`);if(label){label.classList.remove("signal-unreadable");label.removeAttribute("data-error");}}});
+    if(socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify({type:"startRecording",keys:signals.map(function(s){return s.key;})}));
+    chartFrozen=false;frozenTimestamp=0;hoverTime=null;recorded=[];history.length=0;
+    button.textContent="■ Stop recording";button.classList.add("danger");
     document.getElementById("recordStatus").innerHTML='<span class="record-indicator">RECORDING</span> · 0 samples';
    }else{
     if(socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify({type:"stopRecording"}));
-    chartFrozen=true;
-frozenTimestamp=lastTimestamp||Date.now();
-hoverTime=null;
-    button.textContent="● Start recording";
-button.classList.remove("danger");
+    chartFrozen=true;frozenTimestamp=lastTimestamp||Date.now();hoverTime=null;
+    button.textContent="● Start recording";button.classList.remove("danger");
     document.getElementById("recordStatus").textContent="Recording stopped · "+recorded.length+" samples captured · chart frozen";
    }
    drawAll();
   }catch(error){
    document.getElementById("recordStatus").textContent="Could not change recording state: "+error.message;
-  }finally{button.disabled=false;
-}
+  }finally{button.disabled=false;}
  });
- document.getElementById("exportBtn").addEventListener("click",function(){exportCSV(recording?recorded:history,recording?"plc-recording.csv":"plc-history.csv");
-});
- document.getElementById("clearBtn").addEventListener("click",function(){history.length=0;
-if(recording)recorded=[];
-inspectionViewTime=null;
-inspectionScrollDirection=0;
-hoverTime=null;
-drawAll();
-document.getElementById("sampleStatus").textContent="History cleared";
-});
+ document.getElementById("exportBtn").addEventListener("click",function(){exportCSV(recording?recorded:history,recording?"plc-recording.csv":"plc-history.csv");});
+ document.getElementById("clearBtn").addEventListener("click",function(){history.length=0;if(recording)recorded=[];inspectionViewTime=null;inspectionScrollDirection=0;hoverTime=null;drawAll();document.getElementById("sampleStatus").textContent="History cleared";});
  function exportCSV(rows,filename){
-  if(!rows.length){document.getElementById("sampleStatus").textContent="No samples available to export yet.";
-return;
-}
-  const keys=signals.map(function(s){return s.key;
-});
-const lines=[["timestamp","datetime"].concat(keys).join(",")];
-  rows.forEach(function(p){lines.push([p.timestamp,new Date(p.timestamp).toISOString()].concat(keys.map(function(key){return p[key]===undefined||p[key]===null?"":p[key];
-})).join(","));
-});
-  const blob=new Blob([lines.join("\r\n")],{type:"text/csv;charset=utf-8;"});
-const url=URL.createObjectURL(blob);
-const a=document.createElement("a");
-a.href=url;
-a.download=filename;
-document.body.appendChild(a);
-a.click();
-a.remove();
-URL.revokeObjectURL(url);
+  if(!rows.length){document.getElementById("sampleStatus").textContent="No samples available to export yet.";return;}
+  const keys=signals.map(function(s){return s.key;});const lines=[["timestamp","datetime"].concat(keys).join(",")];
+  rows.forEach(function(p){lines.push([p.timestamp,new Date(p.timestamp).toISOString()].concat(keys.map(function(key){return p[key]===undefined||p[key]===null?"":p[key];})).join(","));});
+  const blob=new Blob([lines.join("\r\n")],{type:"text/csv;charset=utf-8;"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
  }
  async function checkPersistence(){
   const status=document.getElementById("persistenceStatus");
@@ -1052,9 +693,7 @@ URL.revokeObjectURL(url);
   }
  }
  document.getElementById("loadStoredBtn").addEventListener("click",async function(){
-  const button=this;
-button.disabled=true;
-button.textContent="Loading stored…";
+  const button=this;button.disabled=true;button.textContent="Loading stored…";
   try{
    const response=await fetch("http://127.0.0.1:3002/api/samples?limit=5000",{cache:"no-store"});
    const result=await response.json();
@@ -1066,38 +705,25 @@ button.textContent="Loading stored…";
      if(raw===undefined||raw===null||raw==="")sample[signal.key]=null;
      else if(typeof raw==="number")sample[signal.key]=Number.isFinite(raw)?raw:null;
      else if(typeof raw==="boolean")sample[signal.key]=raw?1:0;
-     else if(typeof raw==="string"){const n=Number(raw);
-sample[signal.key]=raw.trim()!==""&&Number.isFinite(n)?n:raw;
-}
+     else if(typeof raw==="string"){const n=Number(raw);sample[signal.key]=raw.trim()!==""&&Number.isFinite(n)?n:raw;}
      else sample[signal.key]=String(raw);
     });
     return sample;
    });
    const byTimestamp=new Map();
-   history.concat(stored).forEach(function(sample){byTimestamp.set(sample.timestamp,sample);
-});
-   history.splice(0,history.length,...Array.from(byTimestamp.values()).sort(function(a,b){return a.timestamp-b.timestamp;
-}).slice(-maxSamples));
+   history.concat(stored).forEach(function(sample){byTimestamp.set(sample.timestamp,sample);});
+   history.splice(0,history.length,...Array.from(byTimestamp.values()).sort(function(a,b){return a.timestamp-b.timestamp;}).slice(-maxSamples));
    drawAll();
    document.getElementById("sampleStatus").textContent="Loaded "+stored.length+" stored samples from MongoDB.";
-  }catch(error){document.getElementById("sampleStatus").textContent="Could not load stored history: "+error.message;
-}
-  finally{button.disabled=false;
-button.textContent="Load stored history";
-checkPersistence();
-}
+  }catch(error){document.getElementById("sampleStatus").textContent="Could not load stored history: "+error.message;}
+  finally{button.disabled=false;button.textContent="Load stored history";checkPersistence();}
  });
- window.addEventListener("mouseup",function(){inspectionDragging=false;
-inspectionScrollDirection=0;
-document.querySelectorAll(".trace-canvas").forEach(function(canvas){canvas.style.cursor="";
-});
-});
+ window.addEventListener("mouseup",function(){inspectionDragging=false;inspectionScrollDirection=0;document.querySelectorAll(".trace-canvas").forEach(function(canvas){canvas.style.cursor="";});});
  window.addEventListener("resize",drawAll);
  setInterval(function(){
   if(recording||inspectionDragging||inspectionScrollDirection===0||inspectionViewTime===null)return;
   const span=Number(document.getElementById("windowSelect").value)*1000;
-  const available=history.concat(recorded).map(function(p){return p.timestamp;
-}).filter(Number.isFinite);
+  const available=history.concat(recorded).map(function(p){return p.timestamp;}).filter(Number.isFinite);
   const earliest=available.length?Math.min.apply(null,available):0;
   const latest=lastTimestamp||Date.now();
   inspectionViewTime+=inspectionScrollDirection*50;
@@ -1105,12 +731,7 @@ document.querySelectorAll(".trace-canvas").forEach(function(canvas){canvas.style
   hoverTime=inspectionScrollDirection<0?inspectionViewTime-span:inspectionViewTime;
   drawAll();
  },50);
- setInterval(checkPersistence,3000);
-checkPersistence();
- setInterval(function(){if(recording)document.getElementById("recordStatus").innerHTML='<span class="record-indicator">RECORDING</span> · '+recorded.length+" samples";
-},500);
- renderAllControls();
-signals.forEach(addTrace);
-connect();
-drawAll();
+ setInterval(checkPersistence,3000);checkPersistence();
+ setInterval(function(){if(recording)document.getElementById("recordStatus").innerHTML='<span class="record-indicator">RECORDING</span> · '+recorded.length+" samples";},500);
+ renderAllControls();signals.forEach(addTrace);connect();drawAll();
 })();
