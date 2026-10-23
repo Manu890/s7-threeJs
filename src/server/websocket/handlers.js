@@ -75,6 +75,7 @@ export class MessageHandlers {
         }
 
         this.startingRecording = true;
+        this.polling.recordingRequested = true;
         try {
             if (!this.plcConnection.isConnected) {
                 await this.plcConnection.connect();
@@ -89,6 +90,7 @@ export class MessageHandlers {
                 keys: activeKeys
             });
         } catch (error) {
+            this.polling.recordingRequested = false;
             this.polling.stop();
             this.plcConnection.setReadVariables([]);
             wsServer.send(ws, {
@@ -107,6 +109,7 @@ export class MessageHandlers {
      * Stop polling, clear the active S7 read list, and close the PLC connection.
      */
     async handleStopRecording(ws, wsServer) {
+        this.polling.recordingRequested = false;
         this.polling.stop();
         this.plcConnection.setReadVariables([]);
 
