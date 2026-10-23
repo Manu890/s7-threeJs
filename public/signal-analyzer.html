@@ -216,18 +216,20 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   saveCustomSignals();renderAllControls();drawAll();
   document.getElementById("sampleStatus").textContent="All signals removed. Add signals using the form.";
  }
- function isOptimizationWarningSignal(s){
-  const normalize=function(value){return String(value||"").toUpperCase().replace(/\s+/g,"").replace(/[,.:/\\_-]/g,"");};
-  return [s.key,s.address,s.operand].some(function(value){const normalized=normalize(value);return normalized.includes("DB601DBD22")||normalized.includes("DB601DWORD22");});
+ function normalizePlcAddress(value){
+  return String(value||"").toUpperCase().replace(/\s+/g,"").replace(/[,.:/\\_-]/g,"");
  }
- function handlePlcWarning(message){
-  if(typeof message!=="string"||!message.includes("Skipping optimization of item"))return;
+ function isOptimizationWarningSignal(s){
+  return Boolean(s&&s.address&&/^(?:DB\d+|[PIQMEMTCA]\w*)/i.test(String(s.address)));
+ }
+ function handlePlcWarning(message,address){
+  if(typeof message!=="string")return;
   const match=message.match(/Skipping optimization of item\s+([^\s\]]+)/i);
-  if(!match)return;
-  const normalize=function(value){return String(value||"").toUpperCase().replace(/\s+/g,"").replace(/[,.:/\\_-]/g,"");};
-  const warnedAddress=normalize(match[1]);
+  const warnedAddress=normalizePlcAddress(address||(match&&match[1]));
+  if(!warnedAddress)return;
   signals.forEach(function(s){
-   if(!isOptimizationWarningSignal(s)||normalize(s.address||s.operand||s.key)!==warnedAddress)return;
+   const candidates=[s.address,s.operand,s.key].map(normalizePlcAddress);
+   if(!candidates.includes(warnedAddress))return;
    const label=traces.querySelector('[data-signal="'+CSS.escape(s.key)+'"] .trace-label');
    if(!label)return;
    const error="PLC warning: "+message;
@@ -270,11 +272,11 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   socket.onopen=function(){setConnection(true,"Connected · "+socket.url);signals.filter(function(s){return !s.builtin&&s.address;}).forEach(function(s){socket.send(JSON.stringify({type:"addSignal",key:s.key,plcType:s.type,address:s.address}));});if(recording)socket.send(JSON.stringify({type:"startRecording",keys:signals.map(function(s){return s.key;})}));};
   socket.onmessage=function(event){
    let msg;try{msg=JSON.parse(event.data);}catch(e){return;}
-   if(msg&&msg.type==="plcWarning"){handlePlcWarning(msg.message);return;}
+   if(msg&&msg.type==="plcWarning"){handlePlcWarning(msg.message,msg.address);return;}
    if(!msg.data||typeof msg.data!=="object")return;
    const timestamp=Number(msg.timestamp)||Date.now();lastTimestamp=timestamp;
    const sample={timestamp:timestamp};
-   signals.forEach(function(s){const hasValue=Object.prototype.hasOwnProperty.call(msg.data,s.key);const raw=msg.data[s.key];let value=null;if(raw!==null&&raw!==undefined&&raw!==""){if(typeof raw==="number")value=Number.isFinite(raw)?raw:null;else if(typeof raw==="boolean")value=raw?1:0;else if(typeof raw==="string"){const numeric=Number(raw);value=raw.trim()!==""&&Number.isFinite(numeric)?numeric:raw;}}sample[s.key]=value;updateSignalValue(s,value===null?"—":value);if(s.address&&isOptimizationWarningSignal(s)&&hasValue&&value!==null&&s.readError){setSignalReadStatus(s,true);}});
+   signals.forEach(function(s){const hasValue=Object.prototype.hasOwnProperty.call(msg.data,s.key);const raw=msg.data[s.key];let value=null;if(raw!==null&&raw!==undefined&&raw!==""){if(typeof raw==="number")value=Number.isFinite(raw)?raw:null;else if(typeof raw==="boolean")value=raw?1:0;else if(typeof raw==="string"){const numeric=Number(raw);value=raw.trim()!==""&&Number.isFinite(numeric)?numeric:raw;}}sample[s.key]=value;updateSignalValue(s,value===null?"—":value);if(s.address&&hasValue&&value!==null&&s.readError){setSignalReadStatus(s,true);}});
    if(recording&&!chartFrozen){history.push(sample);if(history.length>maxSamples)history.shift();}
    if(recording){recorded.push(Object.assign({},sample));}
    document.getElementById("sampleStatus").textContent="Samples buffered: "+history.length+" · Last update: "+new Date(timestamp).toLocaleTimeString();
