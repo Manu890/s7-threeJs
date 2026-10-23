@@ -261,11 +261,14 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
     function decodeForType(value,fromType,toType){
      if(value===null||value===undefined||value==="")return value;
      const from=String(fromType||"").toUpperCase(),to=String(toType||"").toUpperCase();
-     const isReal=function(t){return t==="R"||t==="REAL"||t==="RR"||t==="RREAL";};
+     const isReal=function(t){return ["R","REAL","RR","RREAL"].includes(t);};
      const isDword=function(t){return ["D","DW","DWORD","RD","RDW","RDWORD"].includes(t);};
-     if(typeof value==="number"&&Number.isFinite(value)&&isReal(from)!==isReal(to)&&(isReal(from)||isReal(to))&&(isDword(from)||isDword(to))){
+     const isDbDoubleWord=/^DB\d+\s*[,.:/]\s*DBD\s*\d+$/i.test(signal.address||"");
+     if(typeof value==="number"&&Number.isFinite(value)&&isReal(from)!==isReal(to)&&(isReal(from)||isReal(to))&&(isDword(from)||isDword(to)||isDbDoubleWord)){
       const buffer=new ArrayBuffer(4),view=new DataView(buffer);
       if(isReal(from)){view.setFloat32(0,value,false);return view.getUint32(0,false);}
+      // DBD addresses are 32-bit PLC values. Their original UI type may be
+      // unset/incorrect (for example "I"), while the bridge returns a DWORD.
       view.setUint32(0,value>>>0,false);return view.getFloat32(0,false);
      }
      if(typeof value!=="number"||!Number.isFinite(value))return value;
