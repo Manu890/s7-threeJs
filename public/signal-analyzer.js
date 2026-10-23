@@ -89,6 +89,8 @@
   let chartFrozen = false;
   let frozenTimestamp = 0;
   let recorded = [];
+  let recordedSampleCount = 0;
+  let recordingEndedAt = 0;
   let lastTimestamp = 0;
   let socket = null;
   let hoverTime = null;
@@ -620,6 +622,9 @@
       }
       if (recording) {
         recorded.push(Object.assign({}, sample));
+        // Keep the browser memory bounded; MongoDB is the long-term recording store.
+        if (recorded.length > maxSamples) recorded.shift();
+        recordedSampleCount++;
       }
       document.getElementById("sampleStatus").textContent =
         "Samples buffered: " +
@@ -1700,6 +1705,8 @@
         frozenTimestamp = 0;
         hoverTime = null;
         recorded = [];
+        recordedSampleCount = 0;
+        recordingEndedAt = 0;
         history.length = 0;
         button.textContent = "■ Stop recording";
         button.classList.add("danger");
@@ -1713,8 +1720,9 @@
         hoverTime = null;
         button.textContent = "● Start recording";
         button.classList.remove("danger");
+        recordingEndedAt = Date.now();
         document.getElementById("recordStatus").textContent =
-          "Recording stopped · " + recorded.length + " samples captured · chart frozen";
+          "Recording stopped · " + recordedSampleCount.toLocaleString() + " samples captured · chart frozen";
       }
       drawAll();
     } catch (error) {
@@ -1725,7 +1733,20 @@
     }
   });
   document.getElementById("exportBtn").addEventListener("click", function () {
-    exportCSV(recording ? recorded : history, recording ? "plc-recording.csv" : "plc-history.csv");
+    // Export from MongoDB, not the browser's rolling graph buffer.
+    const from = recordingStartedAt || 0;
+    const to = recording ? Date.now() : recordingEndedAt || Date.now();
+    const url =
+      "http://127.0.0.1:3002/api/export.csv?from=" +
+      encodeURIComponent(String(from)) +
+      "&to=" +
+      encodeURIComponent(String(to));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "plc-recording.csv";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   });
   document.getElementById("clearBtn").addEventListener("click", function () {
     history.length = 0;
@@ -1876,7 +1897,9 @@
   setInterval(function () {
     if (recording)
       document.getElementById("recordStatus").innerHTML =
-        '<span class="record-indicator">RECORDING</span> · ' + recorded.length + " samples";
+        '<span class="record-indicator">RECORDING</span> · ' +
+        recordedSampleCount.toLocaleString() +
+        " samples";
   }, 500);
   renderAllControls();
   signals.forEach(addTrace);
