@@ -780,7 +780,15 @@
         });
         ctx.fillStyle = s.color;
         ctx.font = "11px ui-monospace,Consolas,monospace";
-        ctx.fillText(String(nearest[s.key]), Math.min(cw - 90, Math.max(4, x + 5)), 14);
+        const cursorDate = new Date(nearest.timestamp);
+        const cursorTime =
+          String(cursorDate.getHours()).padStart(2, "0") + ":" +
+          String(cursorDate.getMinutes()).padStart(2, "0") + ":" +
+          String(cursorDate.getSeconds()).padStart(2, "0") + "." +
+          String(cursorDate.getMilliseconds()).padStart(3, "0");
+        const cursorLabel = cursorTime + "  " + String(nearest[s.key]);
+        const labelX = Math.max(4, Math.min(cw - ctx.measureText(cursorLabel).width - 4, x + 5));
+        ctx.fillText(cursorLabel, labelX, 14);
       }
     });
     const ticks = document.getElementById("axisTicks"),
