@@ -227,6 +227,81 @@ const api = http.createServer(async (req, res) => {
     }
     return;
   }
+  if (req.method === "GET" && url.pathname === "/api/plot") {
+    if (!mongoConnected || !collection)
+      return json(res, 503, { error: "MongoDB is not connected yet." });
+    try {
+      let from = Number(url.searchParams.get("from"));
+      let to = Number(url.searchParams.get("to"));
+      const seconds = Math.max(1, Math.min(259200, Number(url.searchParams.get("seconds")) || 300));
+      const requestedPixels = Math.max(100, Math.min(3000, Number(url.searchParams.get("pixels")) || 1200));
+      const maxBuckets = Math.max(50, Math.min(1500, Math.floor(requestedPixels / 2)));
+      if (url.searchParams.get("latest") === "1" || !Number.isFinite(to) || to <= 0) {
+        const latest = await collection.find({}).sort({ timestampMs: -1 }).limit(1).next();
+        if (!latest) return json(res, 200, { count: 0, from: null, to: null, samples: [] });
+        to = latest.timestampMs;
+        if (!Number.isFinite(from) || from <= 0) from = to - seconds * 1000;
+      }
+      if (!Number.isFinite(from) || from <= 0) from = to - seconds * 1000;
+      if (from > to) [from, to] = [to, from];
+      const filter = { timestampMs: { $gte: from, $lte: to } };
+      const first = await collection.find(filter).sort({ timestampMs: 1 }).limit(1).next();
+      if (!first) return json(res, 200, { count: 0, from, to, samples: [] });
+      const last = await collection.find(filter).sort({ timestampMs: -1 }).limit(1).next();
+      const duration = Math.max(1, to - from);
+      const bucketMs = Math.max(1, duration / maxBuckets);
+      const buckets = new Map();
+      let scanned = 0;
+      const cursor = collection.find(filter, { projection: { _id: 0, timestampMs: 1, data: 1 } })
+        .sort({ timestampMs: 1 });
+      for await (const sample of cursor) {
+        scanned++;
+        const bucketIndex = Math.min(maxBuckets - 1, Math.floor((sample.timestampMs - from) / bucketMs));
+        let bucket = buckets.get(bucketIndex);
+        if (!bucket) {
+          bucket = { first: sample, last: sample, candidates: new Map() };
+          buckets.set(bucketIndex, bucket);
+        }
+        bucket.last = sample;
+        for (const [key, value] of Object.entries(sample.data || {})) {
+          if (typeof value !== "number" || !Number.isFinite(value)) continue;
+          const candidate = bucket.candidates.get(key);
+          if (!candidate) bucket.candidates.set(key, { min: sample, max: sample, minValue: value, maxValue: value });
+          else {
+            if (value < candidate.minValue) {
+              candidate.min = sample;
+              candidate.minValue = value;
+            }
+            if (value > candidate.maxValue) {
+              candidate.max = sample;
+              candidate.maxValue = value;
+            }
+          }
+        }
+      }
+      const selected = new Map();
+      for (const bucket of buckets.values()) {
+        for (const sample of [bucket.first, bucket.last]) selected.set(sample.timestampMs, sample);
+        for (const candidate of bucket.candidates.values()) {
+          selected.set(candidate.min.timestampMs, candidate.min);
+          selected.set(candidate.max.timestampMs, candidate.max);
+        }
+      }
+      const samples = Array.from(selected.values())
+        .sort((a, b) => a.timestampMs - b.timestampMs)
+        .map((sample) => ({ timestamp: sample.timestampMs, data: sample.data }));
+      return json(res, 200, {
+        count: samples.length,
+        scanned,
+        from: first.timestampMs,
+        to: last.timestampMs,
+        samples,
+      });
+    } catch (error) {
+      lastError = error.message;
+      return json(res, 500, { error: "Could not load plot history." });
+    }
+  }
   if (req.method === "GET" && url.pathname === "/api/samples") {
     if (!mongoConnected || !collection)
       return json(res, 503, { error: "MongoDB is not connected yet." });
