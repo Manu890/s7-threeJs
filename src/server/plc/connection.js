@@ -120,17 +120,26 @@ export class PLCConnection {
             }
 
             this.conn.readAllItems((err, values) => {
+                // nodes7 uses the first callback argument as a "bad quality exists"
+                // flag as well as an error indicator. For per-item PLC failures it
+                // still returns a data object containing the other signals.
+                if (values && typeof values === 'object') {
+                    this.lastReadErrors = this.collectReadErrors(values);
+                    resolve(values);
+                    return;
+                }
+
                 if (err) {
                     this.isConnected = false;
                     if (this.onErrorCallback) {
                         this.onErrorCallback(err);
                     }
-                    reject(err);
+                    reject(err instanceof Error ? err : new Error(String(err)));
                     return;
                 }
 
-                this.lastReadErrors = this.collectReadErrors();
-                resolve(values);
+                this.lastReadErrors = [];
+                resolve({});
             });
         });
     }
@@ -139,12 +148,28 @@ export class PLCConnection {
      * Return per-signal quality errors reported by nodes7's parsed read items.
      * This uses nodes7 response metadata, not console text.
      */
-    collectReadErrors() {
+    collectReadErrors(values = {}) {
         const errors = [];
         const blocks = Array.isArray(this.conn.globalReadBlockList)
             ? this.conn.globalReadBlockList
             : [];
 
+        const seen = new Set();
+        // The callback data is the most reliable public-facing signal mapping:
+        // nodes7 returns "BAD ..." for individual items with invalid quality.
+        for (const [key, value] of Object.entries(values || {})) {
+            if (typeof value === 'string' && /^BAD(?:\\s|$)/i.test(value)) {
+                errors.push({
+                    key,
+                    address: this.variables[key] || key,
+                    reason: value
+                });
+                seen.add(key);
+            }
+        }
+
+        // Include nodes7's parsed item metadata when available, without
+        // duplicating any failures already reported through the callback data.
         for (const block of blocks) {
             const items = Array.isArray(block.itemReference) ? block.itemReference : [];
             for (const item of items) {
@@ -155,13 +180,14 @@ export class PLCConnection {
 
                 const key = typeof item.useraddr === 'string' ? item.useraddr : '';
                 const address = (key && this.variables[key]) || item.addr || '';
-                if (!key && !address) continue;
+                if ((!key && !address) || (key && seen.has(key))) continue;
 
                 errors.push({
                     key,
                     address,
                     reason: item.errCode || (Array.isArray(quality) ? quality.join(', ') : String(quality || 'Bad PLC quality'))
                 });
+                if (key) seen.add(key);
             }
         }
 
