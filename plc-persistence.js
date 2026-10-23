@@ -160,10 +160,13 @@ const api = http.createServer(async (req, res) => {
           console.log("⏺ MongoDB sample recording enabled.");
         } else {
           recordingEnabled = false;
-          // Wait for any write already in progress, then discard samples queued before Stop.
+          // Drain queued samples before acknowledging Stop so the end of a long recording is saved.
           while (flushing) await new Promise((resolve) => setTimeout(resolve, 10));
-          pending.length = 0;
-          console.log("⏹ MongoDB sample recording stopped; pending samples discarded.");
+          while (pending.length > 0 && mongoConnected) {
+            await flushBatch();
+            if (flushing) await new Promise((resolve) => setTimeout(resolve, 10));
+          }
+          console.log("⏹ MongoDB sample recording stopped; queued samples flushed.");
         }
         return json(res, 200, { ok: true, recordingEnabled, bufferedSamples: pending.length });
       } catch {
