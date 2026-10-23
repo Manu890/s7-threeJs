@@ -216,15 +216,20 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
   saveCustomSignals();renderAllControls();drawAll();
   document.getElementById("sampleStatus").textContent="All signals removed. Add signals using the form.";
  }
+ function isOptimizationWarningSignal(s){
+  const normalize=function(value){return String(value||"").toUpperCase().replace(/\\s+/g,"").replace(/[,.:/\\-]/g,"");};
+  return [s.key,s.address,s.operand].some(function(value){const normalized=normalize(value);return normalized.includes("DB601DBD22")||normalized.includes("DB601DWORD22");});
+ }
  function setSignalReadStatus(s,readable,reason){
+  if(!isOptimizationWarningSignal(s))return;
   const label=traces.querySelector(`[data-signal="${CSS.escape(s.key)}"] .trace-label`);if(!label)return;
   if(readable){label.classList.remove("signal-unreadable");label.removeAttribute("data-error");label.removeAttribute("title");s.lastReadAt=Date.now();s.readError=false;return;}
-  const message=reason||"No valid PLC response for this signal. Check its address and data type.";
+  const message=reason||"PLC reported a read/optimization issue for DB601,DWORD22. Check its address and data type.";
   label.classList.add("signal-unreadable");label.dataset.error=message;label.title=message;s.readError=true;
  }
  setInterval(function(){
   if(!recording)return;
-  const now=Date.now();signals.forEach(function(s){if(s.builtin||!s.address)return;const last=Number(s.lastReadAt)||recordingStartedAt;if(last&&now-last>1500&&!s.readError)setSignalReadStatus(s,false,"No PLC value received for more than 1.5 seconds. Check the PLC address, data type, and PLC connection.");});
+  const now=Date.now();signals.forEach(function(s){if(!isOptimizationWarningSignal(s)||s.builtin||!s.address)return;const last=Number(s.lastReadAt)||recordingStartedAt;if(last&&now-last>1500&&!s.readError)setSignalReadStatus(s,false,"No PLC value received for more than 1.5 seconds. PLC log reported: Skipping optimization of item DB601,DWORD22.");});
  },500);
  function updateSignalValue(s,value){
   let shown="—";
@@ -255,7 +260,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
    if(!msg.data||typeof msg.data!=="object")return;
    const timestamp=Number(msg.timestamp)||Date.now();lastTimestamp=timestamp;
    const sample={timestamp:timestamp};
-   signals.forEach(function(s){const hasValue=Object.prototype.hasOwnProperty.call(msg.data,s.key);const raw=msg.data[s.key];let value=null;if(raw!==null&&raw!==undefined&&raw!==""){if(typeof raw==="number")value=Number.isFinite(raw)?raw:null;else if(typeof raw==="boolean")value=raw?1:0;else if(typeof raw==="string"){const numeric=Number(raw);value=raw.trim()!==""&&Number.isFinite(numeric)?numeric:raw;}}sample[s.key]=value;updateSignalValue(s,value===null?"—":value);if(s.address){if(hasValue&&value!==null)setSignalReadStatus(s,true);else setSignalReadStatus(s,false,"PLC did not return a valid value for "+s.address+". Check the address and data type.");}});
+   signals.forEach(function(s){const hasValue=Object.prototype.hasOwnProperty.call(msg.data,s.key);const raw=msg.data[s.key];let value=null;if(raw!==null&&raw!==undefined&&raw!==""){if(typeof raw==="number")value=Number.isFinite(raw)?raw:null;else if(typeof raw==="boolean")value=raw?1:0;else if(typeof raw==="string"){const numeric=Number(raw);value=raw.trim()!==""&&Number.isFinite(numeric)?numeric:raw;}}sample[s.key]=value;updateSignalValue(s,value===null?"—":value);if(s.address&&isOptimizationWarningSignal(s)){if(hasValue&&value!==null)setSignalReadStatus(s,true);else setSignalReadStatus(s,false,"PLC did not return a valid value for "+s.address+". PLC log reported: Skipping optimization of item DB601,DWORD22.");}});
    if(recording&&!chartFrozen){history.push(sample);if(history.length>maxSamples)history.shift();}
    if(recording){recorded.push(Object.assign({},sample));}
    document.getElementById("sampleStatus").textContent="Samples buffered: "+history.length+" · Last update: "+new Date(timestamp).toLocaleTimeString();
