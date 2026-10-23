@@ -660,6 +660,7 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
    if(!response.ok)throw new Error(result.error||"Could not change MongoDB recording state.");
    recording=nextRecording;
    if(recording){
+    recordingStartedAt=Date.now();signals.forEach(function(s){if(s.address){s.lastReadAt=recordingStartedAt;s.readError=false;const label=traces.querySelector(`[data-signal="${CSS.escape(s.key)}"] .trace-label`);if(label){label.classList.remove("signal-unreadable");label.removeAttribute("data-error");}}});
     if(socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify({type:"startRecording",keys:signals.map(function(s){return s.key;})}));
     chartFrozen=false;frozenTimestamp=0;hoverTime=null;recorded=[];history.length=0;
     button.textContent="■ Stop recording";button.classList.add("danger");
