@@ -154,7 +154,7 @@ export class MessageHandlers {
         }
 
         try {
-            this.plcConnection.addVariable(message.key, address);
+            this.plcConnection.addVariable(message.key, address, message.plcType);
             wsServer.send(ws, {
                 type: 'addSignalResponse',
                 success: true,
