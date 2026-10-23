@@ -716,7 +716,7 @@
       const cw = rect.width,
         ch = rect.height;
       ctx.clearRect(0, 0, cw, ch);
-      ctx.strokeStyle = "#263447";
+      ctx.strokeStyle = "#d1d5db";
       ctx.lineWidth = 1;
       for (let y = 0; y <= 4; y++) {
         const yy = 8 + ((ch - 16) * y) / 4;
@@ -777,7 +777,7 @@
           if (Math.abs(p.timestamp - hoverTime) < Math.abs(nearest.timestamp - hoverTime))
             nearest = p;
         });
-        ctx.font = "11px ui-monospace,Consolas,monospace";
+        ctx.font = "11px Segoe UI,Arial,sans-serif";
         const cursorDate = new Date(nearest.timestamp);
         const cursorTime =
           String(cursorDate.getHours()).padStart(2, "0") + ":" +
