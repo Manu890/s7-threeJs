@@ -7,6 +7,7 @@ export class MessageHandlers {
     constructor(plcConnection, polling) {
         this.plcConnection = plcConnection;
         this.polling = polling;
+        this.startingRecording = false;
     }
 
     /**
@@ -15,17 +16,11 @@ export class MessageHandlers {
     async handle(ws, wsServer, message) {
         switch (message.type) {
             case 'startRecording':
-                ws.analyzerRecordingMode = true;
-                ws.analyzerRecordingKeys = new Set(
-                    Array.isArray(message.keys)
-                        ? message.keys.filter(key => typeof key === 'string' && /^[a-zA-Z_][a-zA-Z0-9_-]{0,39}$/.test(key))
-                        : []
-                );
+                await this.handleStartRecording(ws, wsServer, message);
                 break;
 
             case 'stopRecording':
-                ws.analyzerRecordingMode = false;
-                if (ws.analyzerRecordingKeys) ws.analyzerRecordingKeys.clear();
+                await this.handleStopRecording(ws, wsServer);
                 break;
 
             case MessageTypes.PING:
@@ -46,6 +41,93 @@ export class MessageHandlers {
 
             default:
                 console.warn('Unknown message type:', message.type);
+        }
+    }
+
+    /**
+     * Start S7 polling for the selected registered signals.
+     */
+    async handleStartRecording(ws, wsServer, message) {
+        if (this.startingRecording) {
+            wsServer.send(ws, {
+                type: 'recordingResponse',
+                success: false,
+                action: 'start',
+                error: 'Recording is already starting. Please wait.'
+            });
+            return;
+        }
+
+        const requestedKeys = Array.isArray(message.keys)
+            ? message.keys.filter(key => typeof key === 'string' && /^[a-zA-Z_][a-zA-Z0-9_-]{0,63}$/.test(key))
+            : [];
+        const activeKeys = this.plcConnection.setReadVariables(requestedKeys);
+
+        if (activeKeys.length === 0) {
+            this.polling.stop();
+            wsServer.send(ws, {
+                type: 'recordingResponse',
+                success: false,
+                action: 'start',
+                error: 'No selected signals have registered PLC addresses. Add a PLC address to at least one signal first.'
+            });
+            return;
+        }
+
+        this.startingRecording = true;
+        try {
+            if (!this.plcConnection.isConnected) {
+                await this.plcConnection.connect();
+            }
+
+            this.polling.start();
+            console.log(`⏺ S7 recording started: ${activeKeys.join(', ')}`);
+            wsServer.send(ws, {
+                type: 'recordingResponse',
+                success: true,
+                action: 'start',
+                keys: activeKeys
+            });
+        } catch (error) {
+            this.polling.stop();
+            this.plcConnection.setReadVariables([]);
+            wsServer.send(ws, {
+                type: 'recordingResponse',
+                success: false,
+                action: 'start',
+                error: error.message
+            });
+            console.error('❌ Could not start S7 recording:', error.message);
+        } finally {
+            this.startingRecording = false;
+        }
+    }
+
+    /**
+     * Stop polling, clear the active S7 read list, and close the PLC connection.
+     */
+    async handleStopRecording(ws, wsServer) {
+        this.polling.stop();
+        this.plcConnection.setReadVariables([]);
+
+        try {
+            if (this.plcConnection.isConnected) {
+                await this.plcConnection.disconnect();
+            }
+            console.log('⏹ S7 recording stopped; PLC disconnected and S7 read list cleared.');
+            wsServer.send(ws, {
+                type: 'recordingResponse',
+                success: true,
+                action: 'stop'
+            });
+        } catch (error) {
+            wsServer.send(ws, {
+                type: 'recordingResponse',
+                success: false,
+                action: 'stop',
+                error: error.message
+            });
+            console.error('❌ Could not disconnect after stopping recording:', error.message);
         }
     }
 
@@ -123,7 +205,7 @@ export class MessageHandlers {
     async handleWrite(ws, wsServer, message) {
         try {
             await this.plcConnection.write(message.variable, message.value);
-            
+
             wsServer.send(ws, {
                 type: MessageTypes.WRITE_RESPONSE,
                 success: true,
@@ -139,7 +221,7 @@ export class MessageHandlers {
                 error: error.message
             });
 
-            console.error(`❌ Write error:`, error);
+            console.error('❌ Write error:', error);
         }
     }
 
