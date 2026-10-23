@@ -149,7 +149,7 @@ export class PLCConnection {
             const items = Array.isArray(block.itemReference) ? block.itemReference : [];
             for (const item of items) {
                 const quality = item.quality;
-                const goodQuality = quality === 'OK'
+                const goodQuality = quality === 'OK' || quality === ''
                     || (Array.isArray(quality) && quality.length > 0 && quality.every((part) => part === 'OK'));
                 if (goodQuality) continue;
 
