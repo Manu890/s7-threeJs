@@ -202,6 +202,15 @@ const api = http.createServer(async (req, res) => {
         const text = value === null || value === undefined ? "" : String(value);
         return /[",\r\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
       };
+      const formatLocalDateTime = (timestampMs) => {
+        const date = new Date(timestampMs);
+        const pad = (value, width = 2) => String(value).padStart(width, "0");
+        return (
+          date.getFullYear() + "-" + pad(date.getMonth() + 1) + "-" + pad(date.getDate()) +
+          "T" + pad(date.getHours()) + ":" + pad(date.getMinutes()) + ":" +
+          pad(date.getSeconds()) + "." + pad(date.getMilliseconds(), 3)
+        );
+      };
       res.writeHead(200, {
         "content-type": "text/csv; charset=utf-8",
         "content-disposition": 'attachment; filename="plc-recording.csv"',
@@ -213,7 +222,7 @@ const api = http.createServer(async (req, res) => {
       for await (const sample of cursor) {
         const row = [
           sample.timestampMs,
-          new Date(sample.timestampMs).toISOString(),
+          formatLocalDateTime(sample.timestampMs),
           ...keys.map((key) => sample.data?.[key]),
         ];
         if (!res.write(row.map(csvCell).join(",") + "\r\n"))
