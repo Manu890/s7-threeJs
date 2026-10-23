@@ -788,10 +788,10 @@
         const valueLabel = String(nearest[s.key]);
         const valueX = Math.max(4, Math.min(cw - ctx.measureText(valueLabel).width - 4, x + 5));
         ctx.fillStyle = s.color;
-        ctx.fillText(valueLabel, valueX, 14);
+        ctx.fillText(valueLabel, valueX, 10);
         ctx.fillStyle = "#8b9bb0";
         const timeX = Math.max(4, Math.min(cw - ctx.measureText(cursorTime).width - 4, x + 5));
-        ctx.fillText(cursorTime, timeX, ch - 5);
+        ctx.fillText(cursorTime, timeX, ch - 1);
       }
     });
     const ticks = document.getElementById("axisTicks"),
