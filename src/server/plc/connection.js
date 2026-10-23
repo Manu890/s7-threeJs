@@ -65,7 +65,7 @@ export class PLCConnection {
 
         // STEP 7 DBD denotes a 32-bit storage area; nodes7 uses DWORD for
         // an unsigned 32-bit read when no more specific symbol type is available.
-        const normalizedAddress = address.trim().replace(/^(DB\\d+),DBD(\\d+)$/i, '$1,DWORD$2');
+        const normalizedAddress = address.trim().replace(/^(DB\d+),DBD(\d+)$/i, '$1,DWORD$2');
         if (this.variables[name] && this.variables[name] !== normalizedAddress) {
             throw new Error(`Signal key ${name} is already registered to ${this.variables[name]}`);
         }
