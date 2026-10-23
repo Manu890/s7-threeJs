@@ -12,3 +12,30 @@ button,select{background:#ffffff;border:1px solid #b8c0c9;color:#20252b;border-r
 .footer{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:11px;padding:13px 2px 0}.record-indicator{color:var(--red);font-weight:700}.record-indicator:before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:currentColor;margin-right:6px}
 .empty{padding:32px;text-align:center;color:var(--muted)}.add-signal{padding:12px;border-bottom:1px solid var(--border);display:grid;gap:8px}.add-signal input{width:100%;min-width:0;background:#0b131e;border:1px solid #34465d;border-radius:7px;padding:8px;color:var(--text);font:inherit}.signal-item button{margin-left:auto;padding:3px 7px;color:#ff9ca3;border-color:#75404b;font-size:11px}.signal-list{max-height:65vh;overflow:auto}.help-text{font-size:11px;color:var(--muted);line-height:1.5}.form-error{color:#ff9ca3;font-size:11px;min-height:14px}
 @media(max-width:800px){header{padding:0 14px}.brand small{display:none}main{padding:12px}.layout{grid-template-columns:1fr}.sidebar{order:2}.trace-row,.time-axis{grid-template-columns:112px minmax(380px,1fr)}.trace-head{padding:12px}}
+
+/* Sidebar: clean, light Windows-style industrial controls */
+.sidebar{background:#f8f9fa;border:1px solid #bfc7d0;border-radius:6px;box-shadow:0 1px 2px #20252b0a}
+.sidebar .section-head{min-height:42px;padding:10px 12px;background:#e9edf1;border-bottom:1px solid #c7cfd8;color:#263442;font-size:13px}
+.sidebar .section-head small{color:#596776;font-size:11px}
+.signal-list{max-height:65vh;overflow:auto;background:#fff}
+.signal-item{padding:10px 12px;gap:9px;align-items:center;background:#fff;border-bottom:1px solid #e2e6ea;transition:background-color .12s ease}
+.signal-item:hover{background:#f1f6fa}
+.signal-item:focus-within{background:#edf5fb;outline:1px solid #8db8dc;outline-offset:-1px}
+.signal-item input[type="checkbox"]{margin:0;accent-color:#1672b8;flex:0 0 auto}
+.signal-name{font-size:12px;font-weight:600;color:#263442;line-height:1.35}
+.signal-address{font:11px/1.4 Consolas,"Courier New",monospace;color:#687684;margin-top:3px}
+.signal-current{font:12px/1.4 Consolas,"Courier New",monospace;color:#263442;background:#f1f3f5;border:1px solid #e0e4e8;border-radius:3px;padding:2px 5px;margin-left:auto}
+.add-signal{padding:12px;background:#f8f9fa;border-bottom:1px solid #c7cfd8;gap:7px}
+.add-signal input{width:100%;min-width:0;background:#fff;border:1px solid #aeb8c3;border-radius:4px;padding:7px 9px;color:#20252b;font:12px/1.4 Segoe UI,Arial,sans-serif;box-shadow:inset 0 1px 2px #20252b0a}
+.add-signal input::placeholder{color:#7b8793}
+.add-signal input:focus{outline:2px solid #8db8dc;outline-offset:0;border-color:#3979ad}
+.sidebar button,.trace-settings-button{background:#f4f6f8;border:1px solid #b8c2cc;border-radius:4px;color:#273746}
+.sidebar button:hover,.trace-settings-button:hover{background:#eaf2f8;border-color:#7ea7c8}
+.sidebar button:focus-visible,.sidebar select:focus-visible,.sidebar input:focus-visible{outline:2px solid #3983bd;outline-offset:1px}
+.sidebar .signal-item button{background:#fff;border:1px solid #c4ccd4;border-radius:4px;color:#5a6875;padding:3px 7px;font-size:11px}
+.sidebar .signal-item button:hover{background:#fff0f0;border-color:#d59b9b;color:#a12626}
+.sidebar .empty{padding:24px 16px;background:#fff;color:#66727e;font-size:12px}
+.sidebar .help-text{color:#64717d}
+.sidebar .form-error{color:#b4232c}
+.sidebar .signal-item:last-child{border-bottom:0}
+@media(max-width:800px){.signal-list{max-height:45vh}}
