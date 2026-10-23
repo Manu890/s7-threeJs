@@ -16,7 +16,7 @@ h1{font-size:22px;margin:0 0 6px}p{color:var(--muted);line-height:1.5}.field{mar
 <h1>Signal settings</h1>
 <p id="signalName">Choose the data type and display precision for this trace.</p>
 <div class="field"><label for="type">PLC data type</label><select id="type"></select><div class="hint">Changing this updates how the PLC address is decoded.</div></div>
-<div class="field"><label for="precision">Display precision</label><select id="precision"></select><div class="hint">Significant digits for REAL values. This changes display formatting only, not the recorded raw sample.</div></div>
+<div class="field"><label for="precision">Display precision</label><select id="precision"></select><div class="hint">Digits after the decimal point for REAL values. This changes display formatting only, not the recorded raw sample.</div></div>
 <div class="actions"><button class="primary" id="save">Save settings</button><a href="signal-analyzer.html">Cancel</a></div>
 <div id="status" role="status"></div>
 </main>
@@ -28,14 +28,14 @@ h1{font-size:22px;margin:0 0 6px}p{color:var(--muted);line-height:1.5}.field{mar
  const typeOptions=[["X","BOOL / bit"],["B","BYTE"],["C","CHAR"],["S","STRING"],["I","INT"],["DI","DINT"],["W","WORD"],["D","DWORD (legacy)"],["DW","DWORD"],["R","REAL / float"],["RI","RINT"],["RDI","RDINT"],["RW","RWORD"],["RD","RDWORD (legacy)"],["RDW","RDWORD"],["RR","RREAL"],["TMR","TIMER"],["CTR","COUNTER"],["LR","LREAL"],["DT","DATE_TIME"],["DTZ","DATE_TIME UTC"],["DTL","DATE_AND_TIME_LONG"],["DTLZ","DATE_AND_TIME_LONG UTC"]];
  const type=document.getElementById("type"),precision=document.getElementById("precision"),status=document.getElementById("status");
  typeOptions.forEach(function(item){const o=document.createElement("option");o.value=item[0];o.textContent=item[1];type.appendChild(o);});
- for(let digits=1;digits<=17;digits++){const o=document.createElement("option");o.value=String(digits);o.textContent=digits+" significant digit"+(digits===1?"":"s");precision.appendChild(o);}
+ for(let digits=0;digits<=20;digits++){const o=document.createElement("option");o.value=String(digits);o.textContent=digits+" decimal place"+(digits===1?"":"s");precision.appendChild(o);}
  let savedSignals;
  try{savedSignals=JSON.parse(localStorage.getItem(STORAGE_KEY)||"[]");}catch(e){savedSignals=[];}
  if(!Array.isArray(savedSignals))savedSignals=[];
  const signal=savedSignals.find(function(s){return s&&s.key===key;});
  if(!signal){document.getElementById("signalName").textContent="Signal not found in this browser's saved configuration.";document.getElementById("save").disabled=true;status.textContent="Return to the analyzer and reopen settings for a signal.";return;}
  document.getElementById("signalName").textContent=signal.label+" · "+(signal.address||("key: "+signal.key));
- type.value=signal.type||"B";precision.value=String(Math.min(17,Math.max(1,Number(signal.precision)||6)));
+ type.value=signal.type||"B";precision.value=String(Math.min(20,Math.max(0,signal.precision===undefined?2:Number(signal.precision)||0)));
  document.getElementById("save").addEventListener("click",function(){
   signal.type=type.value;signal.dataType=type.value;signal.precision=Number(precision.value);
   try{localStorage.setItem(STORAGE_KEY,JSON.stringify(savedSignals));}catch(e){status.textContent="Could not save settings in this browser.";return;}
