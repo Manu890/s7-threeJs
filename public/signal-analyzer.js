@@ -789,9 +789,6 @@
         const valueX = Math.max(4, Math.min(cw - ctx.measureText(valueLabel).width - 4, x + 5));
         ctx.fillStyle = s.color;
         ctx.fillText(valueLabel, valueX, 10);
-        ctx.fillStyle = "#8b9bb0";
-        const timeX = Math.max(4, Math.min(cw - ctx.measureText(cursorTime).width - 4, x + 5));
-        ctx.fillText(cursorTime, timeX, ch - 1);
       }
     });
     const ticks = document.getElementById("axisTicks"),
@@ -806,6 +803,19 @@
         ms = String(tickTime.getMilliseconds()).padStart(3, "0");
       spanEl.textContent = hh + ":" + mm + ":" + ss + "." + ms;
       ticks.appendChild(spanEl);
+    }
+    if (hoverTime !== null && hoverTime >= from && hoverTime <= now) {
+      const cursorDate = new Date(hoverTime);
+      const cursorTime =
+        String(cursorDate.getHours()).padStart(2, "0") + ":" +
+        String(cursorDate.getMinutes()).padStart(2, "0") + ":" +
+        String(cursorDate.getSeconds()).padStart(2, "0") + "." +
+        String(cursorDate.getMilliseconds()).padStart(3, "0");
+      const cursorLabel = document.createElement("span");
+      cursorLabel.className = "axis-cursor-time";
+      cursorLabel.textContent = cursorTime;
+      cursorLabel.style.left = ((hoverTime - from) / (now - from)) * 100 + "%";
+      ticks.appendChild(cursorLabel);
     }
   }
   // STEP 7 V5 project symbol discovery. Folder access stays in this browser tab.
