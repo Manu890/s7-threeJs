@@ -256,10 +256,8 @@ button,select{background:#1a2737;border:1px solid #34465d;color:var(--text);bord
    signal.precision=Math.min(20,Math.max(0,Number(data.precision)||0));saveCustomSignals();
    const typeChanged=previousType!==signal.type;
    if(typeChanged){
-    // Samples captured with the old decoder cannot be reinterpreted safely
-    // (for example, a DWORD value is not the same thing as a REAL value).
-    history.forEach(function(sample){delete sample[signal.key];});
-    recorded.forEach(function(sample){delete sample[signal.key];});
+    // Keep all captured samples intact. Clear only the live value until the
+    // PLC returns a fresh sample decoded with the updated type.
     updateSignalValue(signal,null);
     if(signal.address&&socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify({type:"addSignal",key:signal.key,plcType:signal.type,address:signal.address}));
    }else{
