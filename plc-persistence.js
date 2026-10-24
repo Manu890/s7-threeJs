@@ -175,6 +175,43 @@ const api = http.createServer(async (req, res) => {
     });
     return;
   }
+  if (req.method === "POST" && url.pathname === "/api/clear-recordings") {
+    let body = "";
+    req.on("data", (chunk) => {
+      body += chunk;
+      if (body.length > 4096) req.destroy();
+    });
+    req.on("end", async () => {
+      try {
+        const input = JSON.parse(body || "{}");
+        if (input.confirm !== "DELETE_ALL_RECORDINGS")
+          return json(res, 400, { error: 'To confirm, send {"confirm":"DELETE_ALL_RECORDINGS"}.' });
+        if (recordingEnabled)
+          return json(res, 409, { error: "Stop recording before clearing stored samples." });
+        if (!mongoConnected || !collection)
+          return json(res, 503, { error: "MongoDB is not connected; no recordings were deleted." });
+
+        // Finish any in-flight write and persist any queued samples before deleting.
+        while (flushing) await new Promise((resolve) => setTimeout(resolve, 10));
+        while (pending.length > 0 && mongoConnected && collection) {
+          await flushBatch();
+          if (flushing) await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+        if (!mongoConnected || !collection || pending.length > 0)
+          return json(res, 503, { error: "Could not flush pending samples; no recordings were deleted." });
+
+        const result = await collection.deleteMany({});
+        totalStored = 0;
+        lastError = null;
+        console.log(`🧹 Cleared ${result.deletedCount} stored PLC samples from ${DB_NAME}.`);
+        return json(res, 200, { ok: true, deletedCount: result.deletedCount, database: DB_NAME, collection: COLLECTION_NAME });
+      } catch (error) {
+        lastError = error.message;
+        return json(res, 500, { error: "Could not clear stored samples." });
+      }
+    });
+    return;
+  }
   if (req.method === "GET" && url.pathname === "/api/export.csv") {
     if (!mongoConnected || !collection)
       return json(res, 503, { error: "MongoDB is not connected yet." });
