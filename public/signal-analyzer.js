@@ -2019,6 +2019,18 @@
       document.getElementById("sampleStatus").textContent = "Could not load plot range: " + error.message;
     });
   });
+  document.getElementById("windowSelect").addEventListener("change", function () {
+    hoverTime = null;
+    if (historicalMode) {
+      inspectionViewTime = null;
+      loadHistoricalRange(true).catch(function (error) {
+        document.getElementById("sampleStatus").textContent =
+          "Could not reload selected historical time scale: " + error.message;
+      });
+      return;
+    }
+    drawAll();
+  });
   window.addEventListener("resize", drawAll);
   setInterval(function () {
     if (
