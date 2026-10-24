@@ -697,7 +697,12 @@
       span = Number(document.getElementById("windowSelect").value) * 1000,
       plotData = historicalMode ? historicalSamples : history,
       firstLiveSample = !historicalMode && plotData.length ? plotData[0].timestamp : now,
-      from = historicalMode ? now - span : Math.max(firstLiveSample, now - span);
+      requestedFrom = historicalMode ? now - span : Math.max(firstLiveSample, now - span),
+      firstHistoricalSample = historicalMode && plotData.length
+        ? Math.min.apply(null, plotData.map(function (sample) { return sample.timestamp; }))
+        : requestedFrom,
+      from = historicalMode ? firstHistoricalSample : requestedFrom,
+      plotSpan = historicalMode ? Math.max(1, now - from) : span;
     signals.forEach(function (s) {
       const row = traces.querySelector('[data-signal="' + CSS.escape(s.key) + '"]');
       if (!row) return;
@@ -758,7 +763,7 @@
       ctx.lineJoin = "round";
       ctx.beginPath();
       points.forEach(function (p, i) {
-        const x = ((p.timestamp - from) / span) * cw,
+        const x = ((p.timestamp - from) / plotSpan) * cw,
           y = ch - 8 - ((p[s.key] - min) / range) * (ch - 16);
         if (i === 0) ctx.moveTo(x, y);
         else {
@@ -770,7 +775,7 @@
       });
       ctx.stroke();
       if (hoverTime !== null && hoverTime >= from && hoverTime <= now) {
-        const x = ((hoverTime - from) / span) * cw;
+        const x = ((hoverTime - from) / plotSpan) * cw;
         ctx.strokeStyle = "#16a34a";
         ctx.lineWidth = 1.5;
         ctx.beginPath();
