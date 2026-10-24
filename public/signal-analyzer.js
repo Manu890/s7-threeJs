@@ -79,9 +79,7 @@
       params.set("to", String(inspectionViewTime));
     }
     document.getElementById("sampleStatus").textContent = "Loading selected time range from MongoDB…";
-    const response = await fetch("http://127.0.0.1:3002/api/plot?" + params.toString(), { cache: "no-store" });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error || "History query failed");
+    const result = await recordingController.loadPlot(params);
     if (requestId !== historyLoadRequest) return;
     historicalSamples = convertStoredSamples(result.samples);
     historicalMode = true;
@@ -488,6 +486,74 @@
     handlePlcReadErrors,
     updateSignalValue,
     draw: drawAll,
+  });
+  const recordingController = window.SignalAnalyzerRecording.create(function () {
+    return { recording };
+  }, {
+    clearLocalRecording: function (clearResult) {
+      history.length = 0;
+      recorded = [];
+      recordedSampleCount = 0;
+      historicalSamples = [];
+      historicalMode = false;
+      historicalOldestTimestamp = null;
+      historicalLatestTimestamp = null;
+      historyLoadRequest++;
+      inspectionViewTime = null;
+      inspectionScrollDirection = 0;
+      hoverTime = null;
+      chartFrozen = false;
+      frozenTimestamp = 0;
+      recordingEndedAt = 0;
+      document.getElementById("loadStoredBtn").textContent = "Load stored history";
+      document.getElementById("sampleStatus").textContent =
+        "Previous recordings cleared (" + Number(clearResult.deletedCount || 0).toLocaleString() + " samples deleted).";
+    },
+    startLocalRecording: function () {
+      recording = true;
+      recordingStartedAt = Date.now();
+      signals.forEach(function (s) {
+        if (!s.address) return;
+        s.lastReadAt = recordingStartedAt;
+        s.readError = false;
+        const label = traces.querySelector(`[data-signal="${CSS.escape(s.key)}"] .trace-label`);
+        if (label) {
+          label.classList.remove("signal-unreadable");
+          label.removeAttribute("data-error");
+        }
+      });
+      acquisition.send({ type: "startRecording", keys: signals.map(function (s) { return s.key; }) });
+      chartFrozen = false;
+      frozenTimestamp = 0;
+      hoverTime = null;
+      recorded = [];
+      recordedSampleCount = 0;
+      recordingEndedAt = 0;
+      history.length = 0;
+      const button = document.getElementById("recordBtn");
+      button.textContent = "■ Stop recording";
+      button.classList.add("danger");
+      document.getElementById("recordStatus").innerHTML =
+        '<span class="record-indicator">RECORDING</span> · 0 samples';
+    },
+    stopLocalRecording: function () {
+      recording = false;
+      acquisition.send({ type: "stopRecording" });
+      chartFrozen = true;
+      frozenTimestamp = lastTimestamp || Date.now();
+      hoverTime = null;
+      const button = document.getElementById("recordBtn");
+      button.textContent = "● Start recording";
+      button.classList.remove("danger");
+      recordingEndedAt = Date.now();
+      document.getElementById("recordStatus").textContent =
+        "Recording stopped · " + recordedSampleCount.toLocaleString() + " samples captured · chart frozen";
+    },
+    draw: drawAll,
+    showError: function (error) {
+      document.getElementById("recordStatus").textContent =
+        "Could not change recording state: " + error.message;
+    },
   });
 
 
@@ -896,108 +962,13 @@
   }
   windowSelect.addEventListener("change", function () { setTimeWindow(Number(this.value)); });
   timeZoom.addEventListener("input", function () { setTimeWindow(Math.pow(2, Number(this.value))); });
-  document.getElementById("recordBtn").addEventListener("click", async function () {
-    const button = this;
-    button.disabled = true;
-    const nextRecording = !recording;
-    try {
-      // Starting a new recording always begins with an empty MongoDB collection.
-      // Stop persistence first because the clear endpoint refuses to delete while recording.
-      if (nextRecording) {
-        const stopResponse = await fetch("http://127.0.0.1:3002/api/recording", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ enabled: false }),
-        });
-        const stopResult = await stopResponse.json();
-        if (!stopResponse.ok)
-          throw new Error(stopResult.error || "Could not pause MongoDB recording before clearing history.");
-
-        const clearResponse = await fetch("http://127.0.0.1:3002/api/clear-recordings", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ confirm: "DELETE_ALL_RECORDINGS" }),
-        });
-        const clearResult = await clearResponse.json();
-        if (!clearResponse.ok)
-          throw new Error(clearResult.error || "Could not clear previous stored samples.");
-
-        history.length = 0;
-        recorded = [];
-        recordedSampleCount = 0;
-        historicalSamples = [];
-        historicalMode = false;
-        historicalOldestTimestamp = null;
-        historicalLatestTimestamp = null;
-        historyLoadRequest++;
-        inspectionViewTime = null;
-        inspectionScrollDirection = 0;
-        hoverTime = null;
-        chartFrozen = false;
-        frozenTimestamp = 0;
-        recordingEndedAt = 0;
-        document.getElementById("loadStoredBtn").textContent = "Load stored history";
-        document.getElementById("sampleStatus").textContent =
-          "Previous recordings cleared (" + Number(clearResult.deletedCount || 0).toLocaleString() + " samples deleted).";
-      }
-
-      const response = await fetch("http://127.0.0.1:3002/api/recording", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled: nextRecording }),
-      });
-      const result = await response.json();
-      if (!response.ok)
-        throw new Error(result.error || "Could not change MongoDB recording state.");
-      recording = nextRecording;
-      if (recording) {
-        recordingStartedAt = Date.now();
-        signals.forEach(function (s) {
-          if (s.address) {
-            s.lastReadAt = recordingStartedAt;
-            s.readError = false;
-            const label = traces.querySelector(`[data-signal="${CSS.escape(s.key)}"] .trace-label`);
-            if (label) {
-              label.classList.remove("signal-unreadable");
-              label.removeAttribute("data-error");
-            }
-          }
-        });
-        acquisition.send({ type: "startRecording", keys: signals.map(function (s) { return s.key; }) });
-        chartFrozen = false;
-        frozenTimestamp = 0;
-        hoverTime = null;
-        recorded = [];
-        recordedSampleCount = 0;
-        recordingEndedAt = 0;
-        history.length = 0;
-        button.textContent = "■ Stop recording";
-        button.classList.add("danger");
-        document.getElementById("recordStatus").innerHTML =
-          '<span class="record-indicator">RECORDING</span> · 0 samples';
-      } else {
-        acquisition.send({ type: "stopRecording" });
-        chartFrozen = true;
-        frozenTimestamp = lastTimestamp || Date.now();
-        hoverTime = null;
-        button.textContent = "● Start recording";
-        button.classList.remove("danger");
-        recordingEndedAt = Date.now();
-        document.getElementById("recordStatus").textContent =
-          "Recording stopped · " + recordedSampleCount.toLocaleString() + " samples captured · chart frozen";
-      }
-      drawAll();
-    } catch (error) {
-      document.getElementById("recordStatus").textContent =
-        "Could not change recording state: " + error.message;
-    } finally {
-      button.disabled = false;
-    }
+  document.getElementById("recordBtn").addEventListener("click", function () {
+    recordingController.toggle(this);
   });
   document.getElementById("exportBtn").addEventListener("click", function () {
     // Export all stored MongoDB samples so the CSV starts at the same oldest
     // sample as the stored-history chart, regardless of the current UI session.
-    const url = "http://127.0.0.1:3002/api/export.csv";
+    const url = recordingController.exportUrl();
     const link = document.createElement("a");
     link.href = url;
     link.download = "plc-recording.csv";
@@ -1038,8 +1009,7 @@
   async function checkPersistence() {
     const status = document.getElementById("persistenceStatus");
     try {
-      const response = await fetch("http://127.0.0.1:3002/api/health", { cache: "no-store" });
-      const health = await response.json();
+      const health = await recordingController.getHealth();
       if (health.mongoConnected && health.plcConnected) {
         status.textContent = health.recordingEnabled
           ? "MongoDB: recording · buffered " + health.bufferedSamples
@@ -1047,14 +1017,11 @@
         status.style.color = "var(--green)";
       } else {
         status.textContent =
-          "MongoDB: " +
-          (health.mongoConnected ? "connected" : "offline") +
-          " · PLC stream: " +
-          (health.plcConnected ? "connected" : "offline");
+          "MongoDB: " + (health.mongoConnected ? "connected" : "offline") +
+          " · PLC stream: " + (health.plcConnected ? "connected" : "offline");
         status.style.color = "var(--amber)";
       }
-      status.title =
-        health.lastError || "Stored samples since service start: " + health.totalStored;
+      status.title = health.lastError || "Stored samples since service start: " + health.totalStored;
     } catch (e) {
       status.textContent = "MongoDB persistence: service not running";
       status.style.color = "var(--red)";
