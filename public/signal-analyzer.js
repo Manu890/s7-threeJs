@@ -850,11 +850,6 @@
       ticks.appendChild(cursorLabel);
     }
   }
-  // STEP 7 V5 project symbol discovery. Folder access stays in this browser tab.
-  const symbolSearchInput = document.getElementById("symbolSearchInput");
-  const symbolProjectStatus = document.getElementById("symbolProjectStatus");
-  const symbolResults = document.getElementById("symbolResults");
-  let projectSymbols = [];
   // STEP 7 parsing lives in signal-analyzer-step7.js; UI rendering stays here.
   const Step7Symbols = window.SignalAnalyzerStep7;
   const { normalizeSymbolType, splitSymbolRecord, normalizeStep7Address, step7DbfType,
