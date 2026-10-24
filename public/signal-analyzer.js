@@ -132,7 +132,7 @@
     const canvas = document.querySelector(".trace-canvas");
     const pixels = canvas ? Math.floor(canvas.getBoundingClientRect().width) : 1200;
     const params = new URLSearchParams({ seconds: String(seconds), pixels: String(Math.max(300, pixels)) });
-    const loadingFirstWindow = inspectionViewTime === null;
+    const loadingFirstWindow = latest || inspectionViewTime === null;
     if (loadingFirstWindow) params.set("oldest", "1");
     else {
       params.set("from", String(inspectionViewTime - seconds * 1000));
