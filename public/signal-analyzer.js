@@ -50,15 +50,45 @@
     function () {
       return {
         recording,
-        inspectionViewTime,
+        get inspectionViewTime() {
+          return inspectionViewTime;
+        },
+        set inspectionViewTime(value) {
+          inspectionViewTime = value;
+        },
         chartFrozen,
         frozenTimestamp,
         lastTimestamp,
-        inspectionDragging,
-        inspectionDragStartX,
-        inspectionDragStartViewTime,
-        inspectionScrollDirection,
-        hoverTime,
+        get inspectionDragging() {
+          return inspectionDragging;
+        },
+        set inspectionDragging(value) {
+          inspectionDragging = value;
+        },
+        get inspectionDragStartX() {
+          return inspectionDragStartX;
+        },
+        set inspectionDragStartX(value) {
+          inspectionDragStartX = value;
+        },
+        get inspectionDragStartViewTime() {
+          return inspectionDragStartViewTime;
+        },
+        set inspectionDragStartViewTime(value) {
+          inspectionDragStartViewTime = value;
+        },
+        get inspectionScrollDirection() {
+          return inspectionScrollDirection;
+        },
+        set inspectionScrollDirection(value) {
+          inspectionScrollDirection = value;
+        },
+        get hoverTime() {
+          return hoverTime;
+        },
+        set hoverTime(value) {
+          hoverTime = value;
+        },
         historicalMode,
         history,
         historicalSamples,
