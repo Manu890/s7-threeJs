@@ -110,46 +110,6 @@
       return Number.isFinite(sample.timestamp);
     });
   }
-  const excludedHistoricalSignalKeys = new Set(["status", "clock", "pos", "read"]);
-  function ensureHistoricalSignals(samples) {
-    const discovered = new Set();
-    (samples || []).forEach(function (storedSample) {
-      const data = storedSample && storedSample.data;
-      if (!data || typeof data !== "object") return;
-      Object.keys(data).forEach(function (key) {
-        if (
-          excludedHistoricalSignalKeys.has(key.toLowerCase()) ||
-          !/^[a-zA-Z_][a-zA-Z0-9_-]{0,39}$/.test(key) ||
-          signals.some(function (signal) {
-            return signal.key.toLowerCase() === key.toLowerCase();
-          })
-        ) return;
-        discovered.add(key);
-      });
-    });
-    discovered.forEach(function (key) {
-      const signal = {
-        key: key,
-        label: key,
-        address: "",
-        type: "R",
-        precision: 2,
-        symbolName: key,
-        operand: key,
-        dataType: "R",
-        comment: "Discovered from stored history",
-        color: palette[signals.length % palette.length],
-        builtin: false,
-        visible: true,
-      };
-      signals.push(signal);
-      addTrace(signal);
-    });
-    if (discovered.size) {
-      saveCustomSignals();
-      renderAllControls();
-    }
-  }
   function convertStoredSamples(samples) {
     return (samples || []).map(function (storedSample) {
       const sample = { timestamp: Number(storedSample.timestamp) || 0 };
@@ -183,7 +143,6 @@
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || "History query failed");
     if (requestId !== historyLoadRequest) return;
-    ensureHistoricalSignals(result.samples);
     historicalSamples = convertStoredSamples(result.samples);
     historicalMode = true;
     historicalOldestTimestamp = Number.isFinite(Number(result.oldest)) ? Number(result.oldest) : null;
@@ -194,10 +153,19 @@
       inspectionViewTime = Number(result.to);
     hoverTime = null;
     document.getElementById("loadStoredBtn").textContent = "Return to live";
-    document.getElementById("sampleStatus").textContent = historicalSamples.length
-      ? "Historical view · " + historicalSamples.length.toLocaleString() + " plotted points from " +
-        Number(result.scanned || historicalSamples.length).toLocaleString() + " stored samples"
-      : "No stored samples found in the selected time range.";
+    const configuredValues = historicalSamples.reduce(function (count, sample) {
+      return count + signals.filter(function (signal) {
+        return signal.visible && typeof sample[signal.key] === "number" && Number.isFinite(sample[signal.key]);
+      }).length;
+    }, 0);
+    document.getElementById("sampleStatus").textContent = !historicalSamples.length
+      ? "No stored samples found in the selected time range."
+      : !signals.length
+        ? "History loaded, but no signals are configured. Add the signal(s) you want to plot."
+        : !configuredValues
+          ? "History loaded, but stored samples contain no numeric values for the configured trace signals. Check that recording saved the configured signal keys."
+          : "Historical view · " + configuredValues.toLocaleString() + " configured signal values from " +
+            Number(result.scanned || historicalSamples.length).toLocaleString() + " stored samples.";
     drawAll();
   }
   function safeId(key) {
