@@ -43,6 +43,14 @@
       return Number.isFinite(sample.timestamp);
     });
   }
+  const timeNavigation = window.SignalAnalyzerTimeNavigation.create(function () {
+    return { recording, inspectionViewTime, chartFrozen, frozenTimestamp, lastTimestamp, inspectionDragging, inspectionDragStartX, inspectionDragStartViewTime, inspectionScrollDirection, hoverTime, historicalMode, history, historicalSamples, historicalOldestTimestamp, historicalLatestTimestamp };
+  }, {
+    getAvailableSamples,
+    draw: drawAll,
+    loadHistoricalRange,
+  });
+
   function convertStoredSamples(samples) {
     return (samples || []).map(function (storedSample) {
       const sample = { timestamp: Number(storedSample.timestamp) || 0 };
@@ -183,84 +191,7 @@
     wrap.appendChild(canvas);
     row.append(label, wrap);
     traces.appendChild(row);
-    canvas.addEventListener("mousedown", function (e) {
-      if (recording) return;
-      e.preventDefault();
-      if (inspectionViewTime === null)
-        inspectionViewTime = chartFrozen
-          ? frozenTimestamp || lastTimestamp || Date.now()
-          : lastTimestamp || Date.now();
-      inspectionDragging = true;
-      inspectionDragStartX = e.clientX;
-      inspectionDragStartViewTime = inspectionViewTime;
-      inspectionScrollDirection = 0;
-      canvas.style.cursor = "grabbing";
-    });
-    canvas.addEventListener("mousemove", function (e) {
-      const rect = canvas.getBoundingClientRect(),
-        x = e.clientX - rect.left;
-      const span = Number(document.getElementById("windowSelect").value) * 1000;
-      if (recording) {
-        inspectionScrollDirection = 0;
-        inspectionViewTime = null;
-        const displayNow = lastTimestamp || Date.now();
-        const firstLiveSample = history.length ? history[0].timestamp : displayNow;
-        const visibleFrom = Math.max(firstLiveSample, displayNow - span);
-        hoverTime = visibleFrom + (x / Math.max(1, rect.width)) * span;
-      } else {
-        if (inspectionDragging) {
-          const available = getAvailableSamples().map(function (p) { return p.timestamp; });
-          const earliest = available.length ? Math.min.apply(null, available) : 0;
-          const latest = available.length ? Math.max.apply(null, available) : lastTimestamp || Date.now();
-          inspectionViewTime =
-            inspectionDragStartViewTime -
-            ((e.clientX - inspectionDragStartX) / Math.max(1, rect.width)) * span;
-          if (!historicalMode) {
-            inspectionViewTime =
-              latest - earliest >= span
-                ? Math.max(earliest + span, Math.min(latest, inspectionViewTime))
-                : latest;
-          }
-          inspectionScrollDirection = 0;
-        } else if (
-          x <= Math.max(8, rect.width * 0.015) ||
-          x >= rect.width - Math.max(8, rect.width * 0.015)
-        ) {
-          if (inspectionViewTime === null)
-            inspectionViewTime = chartFrozen
-              ? frozenTimestamp || lastTimestamp || Date.now()
-              : lastTimestamp || Date.now();
-          inspectionScrollDirection = x <= Math.max(8, rect.width * 0.015) ? -1 : 1;
-        } else {
-          inspectionScrollDirection = 0;
-          if (inspectionViewTime === null)
-            inspectionViewTime = chartFrozen
-              ? frozenTimestamp || lastTimestamp || Date.now()
-              : lastTimestamp || Date.now();
-        }
-        const displayNow =
-          inspectionViewTime === null
-            ? chartFrozen
-              ? frozenTimestamp || lastTimestamp || Date.now()
-              : lastTimestamp || Date.now()
-            : inspectionViewTime;
-        const firstLiveSample = !historicalMode && history.length
-          ? history[0].timestamp
-          : displayNow;
-        const visibleFrom = historicalMode
-          ? displayNow - span
-          : Math.max(firstLiveSample, displayNow - span);
-        hoverTime = visibleFrom + (x / Math.max(1, rect.width)) * span;
-      }
-      drawAll();
-    });
-    canvas.addEventListener("mouseleave", function () {
-      if (!inspectionDragging) {
-        inspectionScrollDirection = 0;
-        hoverTime = null;
-        drawAll();
-      }
-    });
+    timeNavigation.attachCanvas(canvas);
   }
   function renderSignalList() {
     const list = document.getElementById("signalList");
@@ -1251,39 +1182,9 @@
       checkPersistence();
     }
   });
-  window.addEventListener("mouseup", function () {
-    const reloadHistorical = historicalMode && (inspectionDragging || inspectionScrollDirection !== 0);
-    inspectionDragging = false;
-    inspectionScrollDirection = 0;
-    document.querySelectorAll(".trace-canvas").forEach(function (canvas) { canvas.style.cursor = ""; });
-    if (reloadHistorical) loadHistoricalRange(false).catch(function (error) {
-      document.getElementById("sampleStatus").textContent = "Could not load plot range: " + error.message;
-    });
-  });
+  window.addEventListener("mouseup", function () { timeNavigation.onMouseUp(); });
   window.addEventListener("resize", drawAll);
-  setInterval(function () {
-    if (
-      recording ||
-      inspectionDragging ||
-      inspectionScrollDirection === 0 ||
-      inspectionViewTime === null
-    )
-      return;
-    const span = Number(document.getElementById("windowSelect").value) * 1000;
-    const available = getAvailableSamples().map(function (p) { return p.timestamp; });
-    const earliest = available.length ? Math.min.apply(null, available) : 0;
-    const latest = available.length ? Math.max.apply(null, available) : lastTimestamp || Date.now();
-    inspectionViewTime += inspectionScrollDirection * 50;
-    if (historicalMode) {
-      const firstWindowEnd = (historicalOldestTimestamp ?? earliest) + span;
-      const lastWindowEnd = historicalLatestTimestamp ?? latest;
-      inspectionViewTime = Math.max(firstWindowEnd, Math.min(lastWindowEnd, inspectionViewTime));
-    } else {
-      inspectionViewTime = Math.max(earliest + span, Math.min(latest, inspectionViewTime));
-    }
-    hoverTime = inspectionScrollDirection < 0 ? inspectionViewTime - span : inspectionViewTime;
-    drawAll();
-  }, 50);
+  setInterval(function () { timeNavigation.tick(); }, 50);
   setInterval(checkPersistence, 3000);
   checkPersistence();
   setInterval(function () {
