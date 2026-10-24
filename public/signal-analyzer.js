@@ -1817,23 +1817,18 @@
       value >= 86400 ? (value / 86400).toFixed(2) + " days" :
       value >= 3600 ? (value / 3600).toFixed(2) + " hours" :
       value >= 60 ? (value / 60).toFixed(2) + " min" : value + " s";
-    if (inspectionViewTime !== null) {
-      const span = value * 1000,
-        available = getAvailableSamples().map(function (p) { return p.timestamp; });
-      if (available.length) {
-        const earliest = Math.min.apply(null, available),
-          latest = Math.max.apply(null, available);
-        inspectionViewTime =
-          latest - earliest >= span
-            ? Math.max(earliest + span, Math.min(latest, inspectionViewTime))
-            : latest;
-      }
-      hoverTime = null;
+    hoverTime = null;
+    if (historicalMode) {
+      // A changed scale is a new request for the most recent stored window.
+      // Do not derive its bounds from samples returned for the previous scale.
+      inspectionViewTime = null;
+      loadHistoricalRange(true).catch(function (error) {
+        document.getElementById("sampleStatus").textContent =
+          "Could not load plot range: " + error.message;
+      });
+    } else {
+      drawAll();
     }
-    drawAll();
-    if (historicalMode) loadHistoricalRange(false).catch(function (error) {
-      document.getElementById("sampleStatus").textContent = "Could not load plot range: " + error.message;
-    });
   }
   windowSelect.addEventListener("change", function () { setTimeWindow(Number(this.value)); });
   timeZoom.addEventListener("input", function () { setTimeWindow(Math.pow(2, Number(this.value))); });
@@ -2018,18 +2013,6 @@
     if (reloadHistorical) loadHistoricalRange(false).catch(function (error) {
       document.getElementById("sampleStatus").textContent = "Could not load plot range: " + error.message;
     });
-  });
-  document.getElementById("windowSelect").addEventListener("change", function () {
-    hoverTime = null;
-    if (historicalMode) {
-      inspectionViewTime = null;
-      loadHistoricalRange(true).catch(function (error) {
-        document.getElementById("sampleStatus").textContent =
-          "Could not reload selected historical time scale: " + error.message;
-      });
-      return;
-    }
-    drawAll();
   });
   window.addEventListener("resize", drawAll);
   setInterval(function () {
