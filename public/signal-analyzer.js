@@ -109,25 +109,7 @@
   function safeId(key) {
     return key.replace(/[^a-zA-Z0-9_-]/g, "_");
   }
-  function reorderSignals(draggedKey, targetKey) {
-    if (!draggedKey || !targetKey || draggedKey === targetKey) return;
-    const from = signals.findIndex(function (s) {
-      return s.key === draggedKey;
-    });
-    const to = signals.findIndex(function (s) {
-      return s.key === targetKey;
-    });
-    if (from < 0 || to < 0) return;
-    const moved = signals.splice(from, 1)[0];
-    signals.splice(to, 0, moved);
-    signals.forEach(function (signal) {
-      const row = traces.querySelector('[data-signal="' + CSS.escape(signal.key) + '"]');
-      if (row) traces.appendChild(row);
-    });
-    saveCustomSignals();
-    renderAllControls();
-    drawAll();
-  }
+
   function addTrace(s) {
     const row = document.createElement("div");
     row.className = "trace-row";
@@ -148,7 +130,7 @@
     });
     row.addEventListener("drop", function (e) {
       e.preventDefault();
-      reorderSignals(e.dataTransfer.getData("text/plain"), s.key);
+      signalManager.reorderSignals(e.dataTransfer.getData("text/plain"), s.key);
     });
     const label = document.createElement("div");
     label.className = "trace-label";
@@ -190,130 +172,13 @@
     traces.appendChild(row);
     timeNavigation.attachCanvas(canvas);
   }
-  function renderSignalList() {
-    const list = document.getElementById("signalList");
-    list.replaceChildren();
-    signals.forEach(function (s) {
-      const row = document.createElement("div");
-      row.className = "signal-item";
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.checked = s.visible;
-      checkbox.setAttribute("aria-label", "Show " + s.label);
-      checkbox.addEventListener("change", function () {
-        s.visible = checkbox.checked;
-        saveCustomSignals();
-        drawAll();
-      });
-      const details = document.createElement("span");
-      details.style.minWidth = "0";
-      details.style.flex = "1";
-      const name = document.createElement("div");
-      name.className = "signal-name";
-      name.textContent = s.label;
-      const address = document.createElement("div");
-      address.className = "signal-address";
-      address.textContent = s.address || "key: " + s.key;
-      details.append(name, address);
-      const current = document.createElement("span");
-      current.className = "signal-current";
-      current.id = "list-" + safeId(s.key);
-      current.textContent = "—";
-      row.append(checkbox, details, current);
-      const remove = document.createElement("button");
-      remove.type = "button";
-      remove.textContent = "Remove";
-      remove.setAttribute("aria-label", "Remove " + s.label);
-      remove.addEventListener("click", function () {
-        removeSignal(s.key);
-      });
-      row.appendChild(remove);
-      list.appendChild(row);
-    });
-    document.getElementById("signalCount").textContent =
-      signals.length + " signal" + (signals.length === 1 ? "" : "s");
-  }
-  function renderAllControls() {
-    renderSignalList();
-  }
-  function normalizeSignalAddress(address) {
-    return String(address || "")
-      .toUpperCase()
-      .replace(/\s+/g, "")
-      .replace(/[,.:/]/g, "_");
-  }
-  function isDuplicateSignal(key, address) {
-    const normalizedKey = String(key || "").toLowerCase();
-    const normalizedAddress = normalizeSignalAddress(address);
-    return signals.some(function (s) {
-      return (
-        s.key.toLowerCase() === normalizedKey ||
-        (normalizedAddress && s.address && normalizeSignalAddress(s.address) === normalizedAddress)
-      );
-    });
-  }
-  function addSignal(config) {
-    if (isDuplicateSignal(config.key, config.address)) return false;
-    const s = {
-      key: config.key,
-      label: config.label,
-      address: config.address || "",
-      type: config.type || "B",
-      symbolName: config.symbolName || config.label || "",
-      operand: config.operand || config.address || "",
-      dataType: config.dataType || config.type || "",
-      comment: config.comment || "",
-      color: palette[signals.length % palette.length],
-      builtin: false,
-      visible: true,
-    };
-    signals.push(s);
-    addTrace(s);
-    saveCustomSignals();
-    renderAllControls();
-    if (s.address) acquisition.send({ type: "addSignal", key: s.key, plcType: s.type, address: s.address });
-    const last = history.length ? history[history.length - 1] : null;
-    if (last && last[s.key] !== undefined) updateSignalValue(s, last[s.key]);
-    drawAll();
-    return true;
-  }
-  function removeSignal(key) {
-    const idx = signals.findIndex(function (s) {
-      return s.key === key;
-    });
-    if (idx < 0) return;
-    signals.splice(idx, 1);
-    const row = traces.querySelector('[data-signal="' + CSS.escape(key) + '"]');
-    if (row) row.remove();
-    history.forEach(function (sample) {
-      delete sample[key];
-    });
-    recorded.forEach(function (sample) {
-      delete sample[key];
-    });
-    saveCustomSignals();
-    renderAllControls();
-    drawAll();
-  }
-  function removeAllSignals() {
-    signals.splice(0, signals.length);
-    traces.replaceChildren();
-    history.forEach(function (sample) {
-      Object.keys(sample).forEach(function (key) {
-        if (key !== "timestamp") delete sample[key];
-      });
-    });
-    recorded.forEach(function (sample) {
-      Object.keys(sample).forEach(function (key) {
-        if (key !== "timestamp") delete sample[key];
-      });
-    });
-    saveCustomSignals();
-    renderAllControls();
-    drawAll();
-    document.getElementById("sampleStatus").textContent =
-      "All signals removed. Add signals using the form.";
-  }
+
+
+
+
+
+
+
   function handlePlcReadErrors(errors) {
     if (!Array.isArray(errors)) return;
     const byKey = new Map();
@@ -562,6 +427,20 @@
       historicalMode, historicalSamples, history, hoverTime };
   }, safeId);
   function drawAll() { chartRenderer.draw(); }
+
+  const signalManager = window.SignalAnalyzerSignals.create(function () {
+    return { signals, palette, traces, history, recorded };
+  }, {
+    safeId,
+    save: saveCustomSignals,
+    addTrace,
+    draw: drawAll,
+    updateSignalValue,
+    sendSignal: function (signal) {
+      acquisition.send({ type: "addSignal", key: signal.key, plcType: signal.type, address: signal.address });
+    },
+  });
+
   // STEP 7 parsing lives in signal-analyzer-step7.js; UI rendering stays here.
   const Step7Symbols = window.SignalAnalyzerStep7;
   const { normalizeSymbolType, splitSymbolRecord, normalizeStep7Address, step7DbfType,
@@ -648,7 +527,7 @@
           symbolProjectStatus.textContent = "Already monitored: " + s.name + " (" + address + ").";
           return;
         }
-        const ok = addSignal({
+        const ok = signalManager.addSignal({
           key: key,
           label: s.name,
           address: address,
@@ -900,7 +779,7 @@
       else if (/^PI[WB]/i.test(address)) selectedType = /^PIB/i.test(address) ? "B" : "I";
       else if (/^PID/i.test(address)) selectedType = "DI";
     }
-    const ok = addSignal({ key: key, label: label, address: address, type: selectedType });
+    const ok = signalManager.addSignal({ key: key, label: label, address: address, type: selectedType });
     if (ok) {
       document.getElementById("signalNameInput").value = "";
       document.getElementById("signalKeyInput").value = "";
@@ -912,7 +791,7 @@
   });
   document.getElementById("removeAllSignalsBtn").addEventListener("click", function () {
     if (!signals.length) return;
-    removeAllSignals();
+    signalManager.removeAllSignals();
   });
   const signalKeyInput = document.getElementById("signalKeyInput");
   function updateSignalKeyPlaceholder() {
@@ -1065,7 +944,7 @@
         recordedSampleCount.toLocaleString() +
         " samples";
   }, 500);
-  renderAllControls();
+  signalManager.renderAllControls();
   signals.forEach(addTrace);
   acquisition.connect();
   drawAll();
