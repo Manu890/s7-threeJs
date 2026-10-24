@@ -94,6 +94,8 @@
   let lastTimestamp = 0;
   let historicalMode = false;
   let historicalSamples = [];
+  let historicalOldestTimestamp = null;
+  let historicalLatestTimestamp = null;
   let historyLoadRequest = 0;
   let socket = null;
   let hoverTime = null;
@@ -130,7 +132,8 @@
     const canvas = document.querySelector(".trace-canvas");
     const pixels = canvas ? Math.floor(canvas.getBoundingClientRect().width) : 1200;
     const params = new URLSearchParams({ seconds: String(seconds), pixels: String(Math.max(300, pixels)) });
-    if (latest || inspectionViewTime === null) params.set("latest", "1");
+    const loadingFirstWindow = inspectionViewTime === null;
+    if (loadingFirstWindow) params.set("oldest", "1");
     else {
       params.set("from", String(inspectionViewTime - seconds * 1000));
       params.set("to", String(inspectionViewTime));
@@ -142,7 +145,11 @@
     if (requestId !== historyLoadRequest) return;
     historicalSamples = convertStoredSamples(result.samples);
     historicalMode = true;
-    if (result.to && (latest || inspectionViewTime === null))
+    historicalOldestTimestamp = Number.isFinite(Number(result.oldest)) ? Number(result.oldest) : null;
+    historicalLatestTimestamp = Number.isFinite(Number(result.latest)) ? Number(result.latest) : null;
+    if (result.from && loadingFirstWindow)
+      inspectionViewTime = Number(result.from) + seconds * 1000;
+    else if (result.to && inspectionViewTime === null)
       inspectionViewTime = Number(result.to);
     hoverTime = null;
     document.getElementById("loadStoredBtn").textContent = "Return to live";
@@ -2033,8 +2040,13 @@
     const earliest = available.length ? Math.min.apply(null, available) : 0;
     const latest = available.length ? Math.max.apply(null, available) : lastTimestamp || Date.now();
     inspectionViewTime += inspectionScrollDirection * 50;
-    if (!historicalMode)
+    if (historicalMode) {
+      const firstWindowEnd = (historicalOldestTimestamp ?? earliest) + span;
+      const lastWindowEnd = historicalLatestTimestamp ?? latest;
+      inspectionViewTime = Math.max(firstWindowEnd, Math.min(lastWindowEnd, inspectionViewTime));
+    } else {
       inspectionViewTime = Math.max(earliest + span, Math.min(latest, inspectionViewTime));
+    }
     hoverTime = inspectionScrollDirection < 0 ? inspectionViewTime - span : inspectionViewTime;
     drawAll();
   }, 50);
