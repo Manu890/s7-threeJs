@@ -292,7 +292,18 @@
               ? frozenTimestamp || lastTimestamp || Date.now()
               : lastTimestamp || Date.now()
             : inspectionViewTime;
-        hoverTime = displayNow - (1 - x / rect.width) * span;
+        if (historicalMode && historicalSamples.length) {
+          const timestamps = historicalSamples
+            .map(function (sample) {
+              return sample.timestamp;
+            })
+            .filter(Number.isFinite);
+          const first = timestamps.length ? Math.min.apply(null, timestamps) : displayNow - span;
+          const last = timestamps.length ? Math.max.apply(null, timestamps) : displayNow;
+          hoverTime = first + (x / Math.max(1, rect.width)) * (last - first);
+        } else {
+          hoverTime = displayNow - (1 - x / rect.width) * span;
+        }
       }
       drawAll();
     });
