@@ -133,7 +133,7 @@
     const pixels = canvas ? Math.floor(canvas.getBoundingClientRect().width) : 1200;
     const params = new URLSearchParams({ seconds: String(seconds), pixels: String(Math.max(300, pixels)) });
     const loadingFirstWindow = latest || inspectionViewTime === null;
-    if (loadingFirstWindow) params.set("latest", "1");
+    if (loadingFirstWindow) params.set("oldest", "1");
     else {
       params.set("from", String(inspectionViewTime - seconds * 1000));
       params.set("to", String(inspectionViewTime));
@@ -147,9 +147,7 @@
     historicalMode = true;
     historicalOldestTimestamp = Number.isFinite(Number(result.oldest)) ? Number(result.oldest) : null;
     historicalLatestTimestamp = Number.isFinite(Number(result.latest)) ? Number(result.latest) : null;
-    if (result.to && loadingFirstWindow)
-      inspectionViewTime = Number(result.to);
-    else if (result.from && loadingFirstWindow)
+    if (result.from && loadingFirstWindow)
       inspectionViewTime = Number(result.from) + seconds * 1000;
     else if (result.to && inspectionViewTime === null)
       inspectionViewTime = Number(result.to);
