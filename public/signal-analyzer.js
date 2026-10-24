@@ -120,9 +120,14 @@
     historicalLatestTimestamp = Number.isFinite(Number(result.latest))
       ? Number(result.latest)
       : null;
-    if (result.from && loadingFirstWindow)
-      inspectionViewTime = Number(result.from) + seconds * 1000;
-    else if (result.to && inspectionViewTime === null) inspectionViewTime = Number(result.to);
+    if (loadingFirstWindow) {
+      const lastLoadedSample = historicalSamples.length
+        ? historicalSamples[historicalSamples.length - 1].timestamp
+        : 0;
+      if (lastLoadedSample) inspectionViewTime = lastLoadedSample;
+      else if (result.from) inspectionViewTime = Number(result.from) + seconds * 1000;
+      else if (result.to) inspectionViewTime = Number(result.to);
+    } else if (result.to && inspectionViewTime === null) inspectionViewTime = Number(result.to);
     hoverTime = null;
     document.getElementById("loadStoredBtn").textContent = "Return to live";
     const configuredValues = historicalSamples.reduce(function (count, sample) {
