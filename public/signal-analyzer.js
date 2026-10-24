@@ -1969,63 +1969,6 @@
     link.click();
     link.remove();
   });
-  document.getElementById("clearBtn").addEventListener("click", async function () {
-    const button = this;
-    if (!window.confirm("Clear all stored PLC recordings from MongoDB and clear the chart history? This cannot be undone.")) return;
-    button.disabled = true;
-    button.textContent = "Clearing…";
-    const recordButton = document.getElementById("recordBtn");
-    try {
-      // Stop persistence first so the clear endpoint can safely empty the collection.
-      const stopResponse = await fetch("http://127.0.0.1:3002/api/recording", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled: false }),
-      });
-      const stopResult = await stopResponse.json();
-      if (!stopResponse.ok) throw new Error(stopResult.error || "Could not stop recording.");
-
-      recording = false;
-      if (socket && socket.readyState === WebSocket.OPEN)
-        socket.send(JSON.stringify({ type: "stopRecording" }));
-      recordButton.textContent = "● Start recording";
-      recordButton.classList.remove("danger");
-      document.getElementById("recordStatus").textContent = "Recording stopped";
-
-      const clearResponse = await fetch("http://127.0.0.1:3002/api/clear-recordings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirm: "DELETE_ALL_RECORDINGS" }),
-      });
-      const clearResult = await clearResponse.json();
-      if (!clearResponse.ok) throw new Error(clearResult.error || "Could not clear stored recordings.");
-
-      history.length = 0;
-      recorded = [];
-      recordedSampleCount = 0;
-      historicalSamples = [];
-      historicalMode = false;
-      historicalOldestTimestamp = null;
-      historicalLatestTimestamp = null;
-      historyLoadRequest++;
-      inspectionViewTime = null;
-      inspectionScrollDirection = 0;
-      hoverTime = null;
-      chartFrozen = false;
-      frozenTimestamp = 0;
-      document.getElementById("loadStoredBtn").textContent = "Load stored history";
-      document.getElementById("sampleStatus").textContent =
-        "All stored recordings cleared (" + Number(clearResult.deletedCount || 0).toLocaleString() + " samples deleted).";
-      drawAll();
-      checkPersistence();
-    } catch (error) {
-      document.getElementById("sampleStatus").textContent =
-        "Could not clear stored history: " + error.message;
-    } finally {
-      button.disabled = false;
-      button.textContent = "Clear history";
-    }
-  });
   function exportCSV(rows, filename) {
     if (!rows.length) {
       document.getElementById("sampleStatus").textContent = "No samples available to export yet.";
