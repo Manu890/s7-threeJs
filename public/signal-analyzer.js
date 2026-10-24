@@ -1919,14 +1919,9 @@
     }
   });
   document.getElementById("exportBtn").addEventListener("click", function () {
-    // Export from MongoDB, not the browser's rolling graph buffer.
-    const from = recordingStartedAt || 0;
-    const to = recording ? Date.now() : recordingEndedAt || Date.now();
-    const url =
-      "http://127.0.0.1:3002/api/export.csv?from=" +
-      encodeURIComponent(String(from)) +
-      "&to=" +
-      encodeURIComponent(String(to));
+    // Export all stored MongoDB samples so the CSV starts at the same oldest
+    // sample as the stored-history chart, regardless of the current UI session.
+    const url = "http://127.0.0.1:3002/api/export.csv";
     const link = document.createElement("a");
     link.href = url;
     link.download = "plc-recording.csv";
