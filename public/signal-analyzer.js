@@ -30,7 +30,6 @@
   let historicalOldestTimestamp = null;
   let historicalLatestTimestamp = null;
   let historyLoadRequest = 0;
-  let socket = null;
   let hoverTime = null;
   let inspectionViewTime = null;
   let inspectionScrollDirection = 0;
@@ -274,10 +273,7 @@
     addTrace(s);
     saveCustomSignals();
     renderAllControls();
-    if (s.address && socket && socket.readyState === WebSocket.OPEN)
-      socket.send(
-        JSON.stringify({ type: "addSignal", key: s.key, plcType: s.type, address: s.address })
-      );
+    if (s.address) acquisition.send({ type: "addSignal", key: s.key, plcType: s.type, address: s.address });
     const last = history.length ? history[history.length - 1] : null;
     if (last && last[s.key] !== undefined) updateSignalValue(s, last[s.key]);
     drawAll();
@@ -466,15 +462,7 @@
       const lastSamples = recording ? recorded : history;
       const last = lastSamples.length ? lastSamples[lastSamples.length - 1] : null;
       updateSignalValue(signal, last && last[signal.key] !== undefined ? last[signal.key] : null);
-      if (signal.address && socket && socket.readyState === WebSocket.OPEN)
-        socket.send(
-          JSON.stringify({
-            type: "addSignal",
-            key: signal.key,
-            plcType: signal.type,
-            address: signal.address,
-          })
-        );
+      if (signal.address) acquisition.send({ type: "addSignal", key: signal.key, plcType: signal.type, address: signal.address });
     } else {
       const last = history.length ? history[history.length - 1] : null;
       if (last && last[signal.key] !== undefined) updateSignalValue(signal, last[signal.key]);
@@ -493,91 +481,16 @@
     document.getElementById("connectionDot").className = "dot " + (ok ? "online" : "offline");
     document.getElementById("connectionText").textContent = text;
   }
-  function connect() {
-    const protocol = location.protocol === "https:" ? "wss:" : "ws:";
-    socket = new WebSocket(
-      protocol + "//" + (location.hostname || "localhost") + ":8080?client=analyzer"
-    );
-    socket.onopen = function () {
-      setConnection(true, "Connected · " + socket.url);
-      signals
-        .filter(function (s) {
-          return !s.builtin && s.address;
-        })
-        .forEach(function (s) {
-          socket.send(
-            JSON.stringify({ type: "addSignal", key: s.key, plcType: s.type, address: s.address })
-          );
-        });
-      if (recording)
-        socket.send(
-          JSON.stringify({
-            type: "startRecording",
-            keys: signals.map(function (s) {
-              return s.key;
-            }),
-          })
-        );
-    };
-    socket.onmessage = function (event) {
-      let msg;
-      try {
-        msg = JSON.parse(event.data);
-      } catch (e) {
-        return;
-      }
-      if (!msg.data || typeof msg.data !== "object") return;
-      const timestamp = Number(msg.timestamp) || Date.now();
-      lastTimestamp = timestamp;
-      const readErrors = Array.isArray(msg.errors) ? msg.errors : [];
-      const failedKeys = new Set(
-        readErrors
-          .map(function (error) {
-            return error && error.key;
-          })
-          .filter(Boolean)
-      );
-      handlePlcReadErrors(readErrors);
-      const sample = { timestamp: timestamp };
-      signals.forEach(function (s) {
-        const raw = msg.data[s.key];
-        let value = null;
-        if (!failedKeys.has(s.key) && raw !== null && raw !== undefined && raw !== "") {
-          if (typeof raw === "number") value = Number.isFinite(raw) ? raw : null;
-          else if (typeof raw === "boolean") value = raw ? 1 : 0;
-          else if (typeof raw === "string") {
-            const numeric = Number(raw);
-            value = raw.trim() !== "" && Number.isFinite(numeric) ? numeric : raw;
-          }
-        }
-        sample[s.key] = value;
-        updateSignalValue(s, value === null ? "—" : value);
-      });
-      if (recording && !chartFrozen) {
-        history.push(sample);
-        if (history.length > maxSamples) history.shift();
-      }
-      if (recording) {
-        recorded.push(Object.assign({}, sample));
-        // Keep the browser memory bounded; MongoDB is the long-term recording store.
-        if (recorded.length > maxSamples) recorded.shift();
-        recordedSampleCount++;
-      }
-      document.getElementById("sampleStatus").textContent =
-        "Samples buffered: " +
-        history.length +
-        " · Last update: " +
-        new Date(timestamp).toLocaleTimeString();
-      drawAll();
-    };
-    socket.onclose = function () {
-      setConnection(false, "Disconnected · reconnecting…");
-      setTimeout(connect, 2000);
-    };
-    socket.onerror = function () {
-      setConnection(false, "WebSocket connection error");
-    };
-  }
+  const acquisition = window.SignalAnalyzerAcquisition.create(function () {
+    return { signals, recording, chartFrozen, history, recorded, recordedSampleCount, lastTimestamp, maxSamples };
+  }, {
+    setConnection,
+    handlePlcReadErrors,
+    updateSignalValue,
+    draw: drawAll,
+  });
+
+
   const chartRenderer = window.SignalAnalyzerChart.create(function () {
     return { signals, traces, chartFrozen, frozenTimestamp, lastTimestamp, inspectionViewTime,
       historicalMode, historicalSamples, history, hoverTime };
@@ -1050,15 +963,7 @@
             }
           }
         });
-        if (socket && socket.readyState === WebSocket.OPEN)
-          socket.send(
-            JSON.stringify({
-              type: "startRecording",
-              keys: signals.map(function (s) {
-                return s.key;
-              }),
-            })
-          );
+        acquisition.send({ type: "startRecording", keys: signals.map(function (s) { return s.key; }) });
         chartFrozen = false;
         frozenTimestamp = 0;
         hoverTime = null;
@@ -1071,8 +976,7 @@
         document.getElementById("recordStatus").innerHTML =
           '<span class="record-indicator">RECORDING</span> · 0 samples';
       } else {
-        if (socket && socket.readyState === WebSocket.OPEN)
-          socket.send(JSON.stringify({ type: "stopRecording" }));
+        acquisition.send({ type: "stopRecording" });
         chartFrozen = true;
         frozenTimestamp = lastTimestamp || Date.now();
         hoverTime = null;
@@ -1196,6 +1100,6 @@
   }, 500);
   renderAllControls();
   signals.forEach(addTrace);
-  connect();
+  acquisition.connect();
   drawAll();
 })();
