@@ -30,7 +30,9 @@
           const displayNow = state.lastTimestamp || Date.now();
           const firstLiveSample = state.history.length ? state.history[0].timestamp : displayNow;
           const visibleFrom = Math.max(firstLiveSample, displayNow - span);
-          state.hoverTime = visibleFrom + (x / Math.max(1, rect.width)) * span;
+          state.hoverTime =
+            visibleFrom +
+            (x / Math.max(1, rect.width)) * Math.max(0, displayNow - visibleFrom);
         } else {
           if (state.inspectionDragging) {
             const available = actions.getAvailableSamples().map(function (sample) {
@@ -79,7 +81,9 @@
           const visibleFrom = state.historicalMode
             ? displayNow - span
             : Math.max(firstLiveSample, displayNow - span);
-          state.hoverTime = visibleFrom + (x / Math.max(1, rect.width)) * span;
+          state.hoverTime =
+            visibleFrom +
+            (x / Math.max(1, rect.width)) * Math.max(0, displayNow - visibleFrom);
         }
         actions.draw();
       });
