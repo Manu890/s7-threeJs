@@ -271,7 +271,9 @@
         inspectionScrollDirection = 0;
         inspectionViewTime = null;
         const displayNow = lastTimestamp || Date.now();
-        hoverTime = displayNow - (1 - x / rect.width) * span;
+        const firstLiveSample = history.length ? history[0].timestamp : displayNow;
+        const visibleFrom = Math.max(firstLiveSample, displayNow - span);
+        hoverTime = visibleFrom + (x / Math.max(1, rect.width)) * span;
       } else {
         if (inspectionDragging) {
           const available = getAvailableSamples().map(function (p) { return p.timestamp; });
@@ -309,18 +311,13 @@
               ? frozenTimestamp || lastTimestamp || Date.now()
               : lastTimestamp || Date.now()
             : inspectionViewTime;
-        if (historicalMode && historicalSamples.length) {
-          const timestamps = historicalSamples
-            .map(function (sample) {
-              return sample.timestamp;
-            })
-            .filter(Number.isFinite);
-          const first = timestamps.length ? Math.min.apply(null, timestamps) : displayNow - span;
-          const last = timestamps.length ? Math.max.apply(null, timestamps) : displayNow;
-          hoverTime = first + (x / Math.max(1, rect.width)) * (last - first);
-        } else {
-          hoverTime = displayNow - (1 - x / rect.width) * span;
-        }
+        const firstLiveSample = !historicalMode && history.length
+          ? history[0].timestamp
+          : displayNow;
+        const visibleFrom = historicalMode
+          ? displayNow - span
+          : Math.max(firstLiveSample, displayNow - span);
+        hoverTime = visibleFrom + (x / Math.max(1, rect.width)) * span;
       }
       drawAll();
     });
