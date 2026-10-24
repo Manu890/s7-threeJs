@@ -1856,6 +1856,46 @@
     button.disabled = true;
     const nextRecording = !recording;
     try {
+      // Starting a new recording always begins with an empty MongoDB collection.
+      // Stop persistence first because the clear endpoint refuses to delete while recording.
+      if (nextRecording) {
+        const stopResponse = await fetch("http://127.0.0.1:3002/api/recording", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ enabled: false }),
+        });
+        const stopResult = await stopResponse.json();
+        if (!stopResponse.ok)
+          throw new Error(stopResult.error || "Could not pause MongoDB recording before clearing history.");
+
+        const clearResponse = await fetch("http://127.0.0.1:3002/api/clear-recordings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ confirm: "DELETE_ALL_RECORDINGS" }),
+        });
+        const clearResult = await clearResponse.json();
+        if (!clearResponse.ok)
+          throw new Error(clearResult.error || "Could not clear previous stored samples.");
+
+        history.length = 0;
+        recorded = [];
+        recordedSampleCount = 0;
+        historicalSamples = [];
+        historicalMode = false;
+        historicalOldestTimestamp = null;
+        historicalLatestTimestamp = null;
+        historyLoadRequest++;
+        inspectionViewTime = null;
+        inspectionScrollDirection = 0;
+        hoverTime = null;
+        chartFrozen = false;
+        frozenTimestamp = 0;
+        recordingEndedAt = 0;
+        document.getElementById("loadStoredBtn").textContent = "Load stored history";
+        document.getElementById("sampleStatus").textContent =
+          "Previous recordings cleared (" + Number(clearResult.deletedCount || 0).toLocaleString() + " samples deleted).";
+      }
+
       const response = await fetch("http://127.0.0.1:3002/api/recording", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
