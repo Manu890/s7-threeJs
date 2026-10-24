@@ -28,7 +28,7 @@
           state.inspectionScrollDirection = 0;
           state.inspectionViewTime = null;
           const displayNow = state.lastTimestamp || Date.now();
-          const firstLiveSample = state.history.length ? state.history[0].timestamp : displayNow;
+          const firstLiveSample = state.history.length ? state.history[0].timestamp : displayNow - span;
           const visibleFrom = Math.max(firstLiveSample, displayNow - span);
           state.hoverTime =
             visibleFrom + (x / Math.max(1, rect.width)) * Math.max(0, displayNow - visibleFrom);
@@ -76,7 +76,9 @@
                 : state.lastTimestamp || Date.now()
               : state.inspectionViewTime;
           const firstLiveSample =
-            !state.historicalMode && state.history.length ? state.history[0].timestamp : displayNow;
+            !state.historicalMode && state.history.length
+              ? state.history[0].timestamp
+              : displayNow - span;
           const visibleFrom = state.historicalMode
             ? displayNow - span
             : Math.max(firstLiveSample, displayNow - span);
