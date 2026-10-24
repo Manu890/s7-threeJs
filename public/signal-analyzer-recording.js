@@ -21,15 +21,24 @@
         let clearResult = null;
         if (nextRecording) {
           // Pause persistence before clearing: the endpoint rejects deletion while recording.
-          await post("/recording", { enabled: false },
-            "Could not pause MongoDB recording before clearing history.");
-          clearResult = await post("/clear-recordings", { confirm: "DELETE_ALL_RECORDINGS" },
-            "Could not clear previous stored samples.");
+          await post(
+            "/recording",
+            { enabled: false },
+            "Could not pause MongoDB recording before clearing history."
+          );
+          clearResult = await post(
+            "/clear-recordings",
+            { confirm: "DELETE_ALL_RECORDINGS" },
+            "Could not clear previous stored samples."
+          );
           actions.clearLocalRecording(clearResult);
         }
 
-        await post("/recording", { enabled: nextRecording },
-          "Could not change MongoDB recording state.");
+        await post(
+          "/recording",
+          { enabled: nextRecording },
+          "Could not change MongoDB recording state."
+        );
         if (nextRecording) actions.startLocalRecording();
         else actions.stopLocalRecording();
         actions.draw();
@@ -52,7 +61,9 @@
       return result;
     }
 
-    function exportUrl() { return apiBase + "/export.csv"; }
+    function exportUrl() {
+      return apiBase + "/export.csv";
+    }
 
     return { toggle, getHealth, loadPlot, exportUrl };
   }

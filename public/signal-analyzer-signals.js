@@ -4,8 +4,12 @@
     function reorderSignals(draggedKey, targetKey) {
       const state = getState();
       if (!draggedKey || !targetKey || draggedKey === targetKey) return;
-      const from = state.signals.findIndex(function (signal) { return signal.key === draggedKey; });
-      const to = state.signals.findIndex(function (signal) { return signal.key === targetKey; });
+      const from = state.signals.findIndex(function (signal) {
+        return signal.key === draggedKey;
+      });
+      const to = state.signals.findIndex(function (signal) {
+        return signal.key === targetKey;
+      });
       if (from < 0 || to < 0) return;
       const moved = state.signals.splice(from, 1)[0];
       state.signals.splice(to, 0, moved);
@@ -53,7 +57,9 @@
         remove.type = "button";
         remove.textContent = "Remove";
         remove.setAttribute("aria-label", "Remove " + signal.label);
-        remove.addEventListener("click", function () { removeSignal(signal.key); });
+        remove.addEventListener("click", function () {
+          removeSignal(signal.key);
+        });
         row.appendChild(remove);
         list.appendChild(row);
       });
@@ -61,10 +67,15 @@
         state.signals.length + " signal" + (state.signals.length === 1 ? "" : "s");
     }
 
-    function renderAllControls() { renderSignalList(); }
+    function renderAllControls() {
+      renderSignalList();
+    }
 
     function normalizeSignalAddress(address) {
-      return String(address || "").toUpperCase().replace(/\s+/g, "").replace(/[,.:/]/g, "_");
+      return String(address || "")
+        .toUpperCase()
+        .replace(/\s+/g, "")
+        .replace(/[,.:/]/g, "_");
     }
 
     function isDuplicateSignal(key, address) {
@@ -72,8 +83,12 @@
       const normalizedKey = String(key || "").toLowerCase();
       const normalizedAddress = normalizeSignalAddress(address);
       return state.signals.some(function (signal) {
-        return signal.key.toLowerCase() === normalizedKey ||
-          (normalizedAddress && signal.address && normalizeSignalAddress(signal.address) === normalizedAddress);
+        return (
+          signal.key.toLowerCase() === normalizedKey ||
+          (normalizedAddress &&
+            signal.address &&
+            normalizeSignalAddress(signal.address) === normalizedAddress)
+        );
       });
     }
 
@@ -81,11 +96,17 @@
       const state = getState();
       if (isDuplicateSignal(config.key, config.address)) return false;
       const signal = {
-        key: config.key, label: config.label, address: config.address || "",
-        type: config.type || "B", symbolName: config.symbolName || config.label || "",
-        operand: config.operand || config.address || "", dataType: config.dataType || config.type || "",
-        comment: config.comment || "", color: state.palette[state.signals.length % state.palette.length],
-        builtin: false, visible: true,
+        key: config.key,
+        label: config.label,
+        address: config.address || "",
+        type: config.type || "B",
+        symbolName: config.symbolName || config.label || "",
+        operand: config.operand || config.address || "",
+        dataType: config.dataType || config.type || "",
+        comment: config.comment || "",
+        color: state.palette[state.signals.length % state.palette.length],
+        builtin: false,
+        visible: true,
       };
       state.signals.push(signal);
       actions.addTrace(signal);
@@ -93,20 +114,27 @@
       renderAllControls();
       if (signal.address) actions.sendSignal(signal);
       const last = state.history.length ? state.history[state.history.length - 1] : null;
-      if (last && last[signal.key] !== undefined) actions.updateSignalValue(signal, last[signal.key]);
+      if (last && last[signal.key] !== undefined)
+        actions.updateSignalValue(signal, last[signal.key]);
       actions.draw();
       return true;
     }
 
     function removeSignal(key) {
       const state = getState();
-      const index = state.signals.findIndex(function (signal) { return signal.key === key; });
+      const index = state.signals.findIndex(function (signal) {
+        return signal.key === key;
+      });
       if (index < 0) return;
       state.signals.splice(index, 1);
       const row = state.traces.querySelector('[data-signal="' + CSS.escape(key) + '"]');
       if (row) row.remove();
-      state.history.forEach(function (sample) { delete sample[key]; });
-      state.recorded.forEach(function (sample) { delete sample[key]; });
+      state.history.forEach(function (sample) {
+        delete sample[key];
+      });
+      state.recorded.forEach(function (sample) {
+        delete sample[key];
+      });
       actions.save();
       renderAllControls();
       actions.draw();
@@ -118,16 +146,26 @@
       state.traces.replaceChildren();
       [state.history, state.recorded].forEach(function (samples) {
         samples.forEach(function (sample) {
-          Object.keys(sample).forEach(function (key) { if (key !== "timestamp") delete sample[key]; });
+          Object.keys(sample).forEach(function (key) {
+            if (key !== "timestamp") delete sample[key];
+          });
         });
       });
       actions.save();
       renderAllControls();
       actions.draw();
-      document.getElementById("sampleStatus").textContent = "All signals removed. Add signals using the form.";
+      document.getElementById("sampleStatus").textContent =
+        "All signals removed. Add signals using the form.";
     }
 
-    return { reorderSignals, renderSignalList, renderAllControls, addSignal, removeSignal, removeAllSignals };
+    return {
+      reorderSignals,
+      renderSignalList,
+      renderAllControls,
+      addSignal,
+      removeSignal,
+      removeAllSignals,
+    };
   }
   window.SignalAnalyzerSignals = { create };
 })();

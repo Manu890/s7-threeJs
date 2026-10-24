@@ -12,34 +12,58 @@
     }
 
     function connect() {
-      if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) return;
+      if (
+        socket &&
+        (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)
+      )
+        return;
       const protocol = location.protocol === "https:" ? "wss:" : "ws:";
-      socket = new WebSocket(protocol + "//" + (location.hostname || "localhost") + ":8080?client=analyzer");
+      socket = new WebSocket(
+        protocol + "//" + (location.hostname || "localhost") + ":8080?client=analyzer"
+      );
       socket.onopen = function () {
         actions.setConnection(true, "Connected · " + socket.url);
         const state = getState();
-        state.signals.filter(function (signal) {
-          return !signal.builtin && signal.address;
-        }).forEach(function (signal) {
-          send({ type: "addSignal", key: signal.key, plcType: signal.type, address: signal.address });
-        });
-        if (state.recording) send({
-          type: "startRecording",
-          keys: state.signals.map(function (signal) { return signal.key; })
-        });
+        state.signals
+          .filter(function (signal) {
+            return !signal.builtin && signal.address;
+          })
+          .forEach(function (signal) {
+            send({
+              type: "addSignal",
+              key: signal.key,
+              plcType: signal.type,
+              address: signal.address,
+            });
+          });
+        if (state.recording)
+          send({
+            type: "startRecording",
+            keys: state.signals.map(function (signal) {
+              return signal.key;
+            }),
+          });
       };
 
       socket.onmessage = function (event) {
         let message;
-        try { message = JSON.parse(event.data); } catch (error) { return; }
+        try {
+          message = JSON.parse(event.data);
+        } catch (error) {
+          return;
+        }
         if (!message.data || typeof message.data !== "object") return;
         const state = getState();
         const timestamp = Number(message.timestamp) || Date.now();
         state.lastTimestamp = timestamp;
         const readErrors = Array.isArray(message.errors) ? message.errors : [];
-        const failedKeys = new Set(readErrors.map(function (error) {
-          return error && error.key;
-        }).filter(Boolean));
+        const failedKeys = new Set(
+          readErrors
+            .map(function (error) {
+              return error && error.key;
+            })
+            .filter(Boolean)
+        );
         actions.handlePlcReadErrors(readErrors);
         const sample = { timestamp: timestamp };
         state.signals.forEach(function (signal) {
@@ -66,7 +90,9 @@
           state.recordedSampleCount++;
         }
         document.getElementById("sampleStatus").textContent =
-          "Samples buffered: " + state.history.length + " · Last update: " +
+          "Samples buffered: " +
+          state.history.length +
+          " · Last update: " +
           new Date(timestamp).toLocaleTimeString();
         actions.draw();
       };
@@ -84,7 +110,13 @@
       };
     }
 
-    return { connect, send, isOpen: function () { return !!socket && socket.readyState === WebSocket.OPEN; } };
+    return {
+      connect,
+      send,
+      isOpen: function () {
+        return !!socket && socket.readyState === WebSocket.OPEN;
+      },
+    };
   }
 
   window.SignalAnalyzerAcquisition = { create };

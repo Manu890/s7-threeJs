@@ -1,12 +1,12 @@
 // STEP 7 V5 project parsing and folder-scanning helpers.
 // Kept independent from the analyzer UI so symbol-file support can evolve separately.
 (function () {
-function normalizeSignalAddress(address) {
-  return String(address || "")
-    .toUpperCase()
-    .replace(/\s+/g, "")
-    .replace(/[,.:/]/g, "_");
-}
+  function normalizeSignalAddress(address) {
+    return String(address || "")
+      .toUpperCase()
+      .replace(/\s+/g, "")
+      .replace(/[,.:/]/g, "_");
+  }
 
   function normalizeSymbolType(value) {
     const t = String(value || "")

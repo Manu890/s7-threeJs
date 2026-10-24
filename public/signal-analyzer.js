@@ -12,8 +12,10 @@
     "#f5a9d5",
   ];
   const signals = [];
-  const { saveCustomSignals, restoreCustomSignals } =
-    window.SignalAnalyzerSignalConfig.create(signals, palette);
+  const { saveCustomSignals, restoreCustomSignals } = window.SignalAnalyzerSignalConfig.create(
+    signals,
+    palette
+  );
   restoreCustomSignals();
   const history = [];
   const maxSamples = 5000;
@@ -38,63 +40,102 @@
   let inspectionDragStartViewTime = 0;
   const traces = document.getElementById("traces");
   function getAvailableSamples() {
-    return (historicalMode ? historicalSamples : history.concat(recorded)).filter(function (sample) {
-      return Number.isFinite(sample.timestamp);
-    });
+    return (historicalMode ? historicalSamples : history.concat(recorded)).filter(
+      function (sample) {
+        return Number.isFinite(sample.timestamp);
+      }
+    );
   }
-  const timeNavigation = window.SignalAnalyzerTimeNavigation.create(function () {
-    return { recording, inspectionViewTime, chartFrozen, frozenTimestamp, lastTimestamp, inspectionDragging, inspectionDragStartX, inspectionDragStartViewTime, inspectionScrollDirection, hoverTime, historicalMode, history, historicalSamples, historicalOldestTimestamp, historicalLatestTimestamp };
-  }, {
-    getAvailableSamples,
-    draw: drawAll,
-    loadHistoricalRange,
-  });
+  const timeNavigation = window.SignalAnalyzerTimeNavigation.create(
+    function () {
+      return {
+        recording,
+        inspectionViewTime,
+        chartFrozen,
+        frozenTimestamp,
+        lastTimestamp,
+        inspectionDragging,
+        inspectionDragStartX,
+        inspectionDragStartViewTime,
+        inspectionScrollDirection,
+        hoverTime,
+        historicalMode,
+        history,
+        historicalSamples,
+        historicalOldestTimestamp,
+        historicalLatestTimestamp,
+      };
+    },
+    {
+      getAvailableSamples,
+      draw: drawAll,
+      loadHistoricalRange,
+    }
+  );
 
   function convertStoredSamples(samples) {
-    return (samples || []).map(function (storedSample) {
-      const sample = { timestamp: Number(storedSample.timestamp) || 0 };
-      signals.forEach(function (signal) {
-        const raw = storedSample.data ? storedSample.data[signal.key] : undefined;
-        if (raw === undefined || raw === null || raw === "") sample[signal.key] = null;
-        else if (typeof raw === "number") sample[signal.key] = Number.isFinite(raw) ? raw : null;
-        else if (typeof raw === "boolean") sample[signal.key] = raw ? 1 : 0;
-        else if (typeof raw === "string") {
-          const numeric = Number(raw);
-          sample[signal.key] = raw.trim() !== "" && Number.isFinite(numeric) ? numeric : raw;
-        } else sample[signal.key] = String(raw);
+    return (samples || [])
+      .map(function (storedSample) {
+        const sample = { timestamp: Number(storedSample.timestamp) || 0 };
+        signals.forEach(function (signal) {
+          const raw = storedSample.data ? storedSample.data[signal.key] : undefined;
+          if (raw === undefined || raw === null || raw === "") sample[signal.key] = null;
+          else if (typeof raw === "number") sample[signal.key] = Number.isFinite(raw) ? raw : null;
+          else if (typeof raw === "boolean") sample[signal.key] = raw ? 1 : 0;
+          else if (typeof raw === "string") {
+            const numeric = Number(raw);
+            sample[signal.key] = raw.trim() !== "" && Number.isFinite(numeric) ? numeric : raw;
+          } else sample[signal.key] = String(raw);
+        });
+        return sample;
+      })
+      .filter(function (sample) {
+        return sample.timestamp > 0;
       });
-      return sample;
-    }).filter(function (sample) { return sample.timestamp > 0; });
   }
   async function loadHistoricalRange(latest) {
     const requestId = ++historyLoadRequest;
     const seconds = Number(document.getElementById("windowSelect").value) || 300;
     const canvas = document.querySelector(".trace-canvas");
     const pixels = canvas ? Math.floor(canvas.getBoundingClientRect().width) : 1200;
-    const params = new URLSearchParams({ seconds: String(seconds), pixels: String(Math.max(300, pixels)) });
+    const params = new URLSearchParams({
+      seconds: String(seconds),
+      pixels: String(Math.max(300, pixels)),
+    });
     const loadingFirstWindow = latest || inspectionViewTime === null;
     if (loadingFirstWindow) params.set("oldest", "1");
     else {
       params.set("from", String(inspectionViewTime - seconds * 1000));
       params.set("to", String(inspectionViewTime));
     }
-    document.getElementById("sampleStatus").textContent = "Loading selected time range from MongoDB…";
+    document.getElementById("sampleStatus").textContent =
+      "Loading selected time range from MongoDB…";
     const result = await recordingController.loadPlot(params);
     if (requestId !== historyLoadRequest) return;
     historicalSamples = convertStoredSamples(result.samples);
     historicalMode = true;
-    historicalOldestTimestamp = Number.isFinite(Number(result.oldest)) ? Number(result.oldest) : null;
-    historicalLatestTimestamp = Number.isFinite(Number(result.latest)) ? Number(result.latest) : null;
+    historicalOldestTimestamp = Number.isFinite(Number(result.oldest))
+      ? Number(result.oldest)
+      : null;
+    historicalLatestTimestamp = Number.isFinite(Number(result.latest))
+      ? Number(result.latest)
+      : null;
     if (result.from && loadingFirstWindow)
       inspectionViewTime = Number(result.from) + seconds * 1000;
-    else if (result.to && inspectionViewTime === null)
-      inspectionViewTime = Number(result.to);
+    else if (result.to && inspectionViewTime === null) inspectionViewTime = Number(result.to);
     hoverTime = null;
     document.getElementById("loadStoredBtn").textContent = "Return to live";
     const configuredValues = historicalSamples.reduce(function (count, sample) {
-      return count + signals.filter(function (signal) {
-        return signal.visible && typeof sample[signal.key] === "number" && Number.isFinite(sample[signal.key]);
-      }).length;
+      return (
+        count +
+        signals.filter(function (signal) {
+          return (
+            signal.visible &&
+            typeof sample[signal.key] === "number" &&
+            Number.isFinite(sample[signal.key])
+          );
+        }).length
+      );
     }, 0);
     document.getElementById("sampleStatus").textContent = !historicalSamples.length
       ? "No stored samples found in the selected time range."
@@ -102,8 +143,11 @@
         ? "History loaded, but no signals are configured. Add the signal(s) you want to plot."
         : !configuredValues
           ? "History loaded, but stored samples contain no numeric values for the configured trace signals. Check that recording saved the configured signal keys."
-          : "Historical view · " + configuredValues.toLocaleString() + " configured signal values from " +
-            Number(result.scanned || historicalSamples.length).toLocaleString() + " stored samples.";
+          : "Historical view · " +
+            configuredValues.toLocaleString() +
+            " configured signal values from " +
+            Number(result.scanned || historicalSamples.length).toLocaleString() +
+            " stored samples.";
     drawAll();
   }
   function safeId(key) {
@@ -172,12 +216,6 @@
     traces.appendChild(row);
     timeNavigation.attachCanvas(canvas);
   }
-
-
-
-
-
-
 
   function handlePlcReadErrors(errors) {
     if (!Array.isArray(errors)) return;
@@ -325,7 +363,13 @@
       const lastSamples = recording ? recorded : history;
       const last = lastSamples.length ? lastSamples[lastSamples.length - 1] : null;
       updateSignalValue(signal, last && last[signal.key] !== undefined ? last[signal.key] : null);
-      if (signal.address) acquisition.send({ type: "addSignal", key: signal.key, plcType: signal.type, address: signal.address });
+      if (signal.address)
+        acquisition.send({
+          type: "addSignal",
+          key: signal.key,
+          plcType: signal.type,
+          address: signal.address,
+        });
     } else {
       const last = history.length ? history[history.length - 1] : null;
       if (last && last[signal.key] !== undefined) updateSignalValue(signal, last[signal.key]);
@@ -344,108 +388,160 @@
     document.getElementById("connectionDot").className = "dot " + (ok ? "online" : "offline");
     document.getElementById("connectionText").textContent = text;
   }
-  const acquisition = window.SignalAnalyzerAcquisition.create(function () {
-    return { signals, recording, chartFrozen, history, recorded, recordedSampleCount, lastTimestamp, maxSamples };
-  }, {
-    setConnection,
-    handlePlcReadErrors,
-    updateSignalValue,
-    draw: drawAll,
-  });
-  const recordingController = window.SignalAnalyzerRecording.create(function () {
-    return { recording };
-  }, {
-    clearLocalRecording: function (clearResult) {
-      history.length = 0;
-      recorded = [];
-      recordedSampleCount = 0;
-      historicalSamples = [];
-      historicalMode = false;
-      historicalOldestTimestamp = null;
-      historicalLatestTimestamp = null;
-      historyLoadRequest++;
-      inspectionViewTime = null;
-      inspectionScrollDirection = 0;
-      hoverTime = null;
-      chartFrozen = false;
-      frozenTimestamp = 0;
-      recordingEndedAt = 0;
-      document.getElementById("loadStoredBtn").textContent = "Load stored history";
-      document.getElementById("sampleStatus").textContent =
-        "Previous recordings cleared (" + Number(clearResult.deletedCount || 0).toLocaleString() + " samples deleted).";
+  const acquisition = window.SignalAnalyzerAcquisition.create(
+    function () {
+      return {
+        signals,
+        recording,
+        chartFrozen,
+        history,
+        recorded,
+        recordedSampleCount,
+        lastTimestamp,
+        maxSamples,
+      };
     },
-    startLocalRecording: function () {
-      recording = true;
-      recordingStartedAt = Date.now();
-      signals.forEach(function (s) {
-        if (!s.address) return;
-        s.lastReadAt = recordingStartedAt;
-        s.readError = false;
-        const label = traces.querySelector(`[data-signal="${CSS.escape(s.key)}"] .trace-label`);
-        if (label) {
-          label.classList.remove("signal-unreadable");
-          label.removeAttribute("data-error");
-        }
-      });
-      acquisition.send({ type: "startRecording", keys: signals.map(function (s) { return s.key; }) });
-      chartFrozen = false;
-      frozenTimestamp = 0;
-      hoverTime = null;
-      recorded = [];
-      recordedSampleCount = 0;
-      recordingEndedAt = 0;
-      history.length = 0;
-      const button = document.getElementById("recordBtn");
-      button.textContent = "■ Stop recording";
-      button.classList.add("danger");
-      document.getElementById("recordStatus").innerHTML =
-        '<span class="record-indicator">RECORDING</span> · 0 samples';
+    {
+      setConnection,
+      handlePlcReadErrors,
+      updateSignalValue,
+      draw: drawAll,
+    }
+  );
+  const recordingController = window.SignalAnalyzerRecording.create(
+    function () {
+      return { recording };
     },
-    stopLocalRecording: function () {
-      recording = false;
-      acquisition.send({ type: "stopRecording" });
-      chartFrozen = true;
-      frozenTimestamp = lastTimestamp || Date.now();
-      hoverTime = null;
-      const button = document.getElementById("recordBtn");
-      button.textContent = "● Start recording";
-      button.classList.remove("danger");
-      recordingEndedAt = Date.now();
-      document.getElementById("recordStatus").textContent =
-        "Recording stopped · " + recordedSampleCount.toLocaleString() + " samples captured · chart frozen";
-    },
-    draw: drawAll,
-    showError: function (error) {
-      document.getElementById("recordStatus").textContent =
-        "Could not change recording state: " + error.message;
-    },
-  });
-
+    {
+      clearLocalRecording: function (clearResult) {
+        history.length = 0;
+        recorded = [];
+        recordedSampleCount = 0;
+        historicalSamples = [];
+        historicalMode = false;
+        historicalOldestTimestamp = null;
+        historicalLatestTimestamp = null;
+        historyLoadRequest++;
+        inspectionViewTime = null;
+        inspectionScrollDirection = 0;
+        hoverTime = null;
+        chartFrozen = false;
+        frozenTimestamp = 0;
+        recordingEndedAt = 0;
+        document.getElementById("loadStoredBtn").textContent = "Load stored history";
+        document.getElementById("sampleStatus").textContent =
+          "Previous recordings cleared (" +
+          Number(clearResult.deletedCount || 0).toLocaleString() +
+          " samples deleted).";
+      },
+      startLocalRecording: function () {
+        recording = true;
+        recordingStartedAt = Date.now();
+        signals.forEach(function (s) {
+          if (!s.address) return;
+          s.lastReadAt = recordingStartedAt;
+          s.readError = false;
+          const label = traces.querySelector(`[data-signal="${CSS.escape(s.key)}"] .trace-label`);
+          if (label) {
+            label.classList.remove("signal-unreadable");
+            label.removeAttribute("data-error");
+          }
+        });
+        acquisition.send({
+          type: "startRecording",
+          keys: signals.map(function (s) {
+            return s.key;
+          }),
+        });
+        chartFrozen = false;
+        frozenTimestamp = 0;
+        hoverTime = null;
+        recorded = [];
+        recordedSampleCount = 0;
+        recordingEndedAt = 0;
+        history.length = 0;
+        const button = document.getElementById("recordBtn");
+        button.textContent = "■ Stop recording";
+        button.classList.add("danger");
+        document.getElementById("recordStatus").innerHTML =
+          '<span class="record-indicator">RECORDING</span> · 0 samples';
+      },
+      stopLocalRecording: function () {
+        recording = false;
+        acquisition.send({ type: "stopRecording" });
+        chartFrozen = true;
+        frozenTimestamp = lastTimestamp || Date.now();
+        hoverTime = null;
+        const button = document.getElementById("recordBtn");
+        button.textContent = "● Start recording";
+        button.classList.remove("danger");
+        recordingEndedAt = Date.now();
+        document.getElementById("recordStatus").textContent =
+          "Recording stopped · " +
+          recordedSampleCount.toLocaleString() +
+          " samples captured · chart frozen";
+      },
+      draw: drawAll,
+      showError: function (error) {
+        document.getElementById("recordStatus").textContent =
+          "Could not change recording state: " + error.message;
+      },
+    }
+  );
 
   const chartRenderer = window.SignalAnalyzerChart.create(function () {
-    return { signals, traces, chartFrozen, frozenTimestamp, lastTimestamp, inspectionViewTime,
-      historicalMode, historicalSamples, history, hoverTime };
+    return {
+      signals,
+      traces,
+      chartFrozen,
+      frozenTimestamp,
+      lastTimestamp,
+      inspectionViewTime,
+      historicalMode,
+      historicalSamples,
+      history,
+      hoverTime,
+    };
   }, safeId);
-  function drawAll() { chartRenderer.draw(); }
+  function drawAll() {
+    chartRenderer.draw();
+  }
 
-  const signalManager = window.SignalAnalyzerSignals.create(function () {
-    return { signals, palette, traces, history, recorded };
-  }, {
-    safeId,
-    save: saveCustomSignals,
-    addTrace,
-    draw: drawAll,
-    updateSignalValue,
-    sendSignal: function (signal) {
-      acquisition.send({ type: "addSignal", key: signal.key, plcType: signal.type, address: signal.address });
+  const signalManager = window.SignalAnalyzerSignals.create(
+    function () {
+      return { signals, palette, traces, history, recorded };
     },
-  });
+    {
+      safeId,
+      save: saveCustomSignals,
+      addTrace,
+      draw: drawAll,
+      updateSignalValue,
+      sendSignal: function (signal) {
+        acquisition.send({
+          type: "addSignal",
+          key: signal.key,
+          plcType: signal.type,
+          address: signal.address,
+        });
+      },
+    }
+  );
 
   // STEP 7 parsing lives in signal-analyzer-step7.js; UI rendering stays here.
   const Step7Symbols = window.SignalAnalyzerStep7;
-  const { normalizeSymbolType, splitSymbolRecord, normalizeStep7Address, step7DbfType,
-    parseDbfSymbolFile, resolveProjectAddress, parseStep7DbStructure, readStep7DbtMemo,
-    parseStep7SubblkDbf, walkStep7Folder } = Step7Symbols;
+  const {
+    normalizeSymbolType,
+    splitSymbolRecord,
+    normalizeStep7Address,
+    step7DbfType,
+    parseDbfSymbolFile,
+    resolveProjectAddress,
+    parseStep7DbStructure,
+    readStep7DbtMemo,
+    parseStep7SubblkDbf,
+    walkStep7Folder,
+  } = Step7Symbols;
   const symbolSearchInput = document.getElementById("symbolSearchInput");
   const symbolProjectStatus = document.getElementById("symbolProjectStatus");
   const symbolResults = document.getElementById("symbolResults");
@@ -459,13 +555,18 @@
     // "show every parsed field belonging to that data block".
     const dbSymbolQuery = query.match(/^(.+)\.$/);
     const directDbQuery = query.match(/^db\s*0*(\d+)\.$/i);
-    const dbRoot = dbSymbolQuery && !directDbQuery
-      ? projectSymbols.find(function (s) {
-          const name = String(s.name || "").trim().toLowerCase();
-          const symbolName = String(s.symbolName || "").trim().toLowerCase();
-          return name === dbSymbolQuery[1].trim() || symbolName === dbSymbolQuery[1].trim();
-        })
-      : null;
+    const dbRoot =
+      dbSymbolQuery && !directDbQuery
+        ? projectSymbols.find(function (s) {
+            const name = String(s.name || "")
+              .trim()
+              .toLowerCase();
+            const symbolName = String(s.symbolName || "")
+              .trim()
+              .toLowerCase();
+            return name === dbSymbolQuery[1].trim() || symbolName === dbSymbolQuery[1].trim();
+          })
+        : null;
     const dbAddress = dbRoot
       ? String(dbRoot.address || dbRoot.operand || "").match(/^DB\s*0*(\d+)(?:$|[,.:/])/i)
       : null;
@@ -636,10 +737,14 @@
     if (!candidate || !projectSymbols.length) return;
 
     const symbolName = function (symbol) {
-      return String(symbol.name || "").trim().toLowerCase();
+      return String(symbol.name || "")
+        .trim()
+        .toLowerCase();
     };
     const symbolAlias = function (symbol) {
-      return String(symbol.symbolName || "").trim().toLowerCase();
+      return String(symbol.symbolName || "")
+        .trim()
+        .toLowerCase();
     };
     let resolved = projectSymbols.find(function (symbol) {
       return symbolName(symbol) === candidate || symbolAlias(symbol) === candidate;
@@ -779,7 +884,12 @@
       else if (/^PI[WB]/i.test(address)) selectedType = /^PIB/i.test(address) ? "B" : "I";
       else if (/^PID/i.test(address)) selectedType = "DI";
     }
-    const ok = signalManager.addSignal({ key: key, label: label, address: address, type: selectedType });
+    const ok = signalManager.addSignal({
+      key: key,
+      label: label,
+      address: address,
+      type: selectedType,
+    });
     if (ok) {
       document.getElementById("signalNameInput").value = "";
       document.getElementById("signalKeyInput").value = "";
@@ -804,10 +914,13 @@
   function setTimeWindow(value) {
     value = Math.max(1, Math.min(259200, Math.round(Number(value) || 30)));
     const valueText =
-      value >= 86400 ? (value / 86400).toFixed(2) + " days" :
-      value >= 3600 ? (value / 3600).toFixed(2) + " hours" :
-      value >= 60 ? (value / 60).toFixed(2) + " min" :
-      value + " second" + (value === 1 ? "" : "s");
+      value >= 86400
+        ? (value / 86400).toFixed(2) + " days"
+        : value >= 3600
+          ? (value / 3600).toFixed(2) + " hours"
+          : value >= 60
+            ? (value / 60).toFixed(2) + " min"
+            : value + " second" + (value === 1 ? "" : "s");
     let option = Array.from(windowSelect.options).find(function (item) {
       return Number(item.value) === value;
     });
@@ -823,9 +936,13 @@
     windowSelect.value = String(value);
     timeZoom.value = String(Math.log2(value));
     timeZoomValue.textContent =
-      value >= 86400 ? (value / 86400).toFixed(2) + " days" :
-      value >= 3600 ? (value / 3600).toFixed(2) + " hours" :
-      value >= 60 ? (value / 60).toFixed(2) + " min" : value + " s";
+      value >= 86400
+        ? (value / 86400).toFixed(2) + " days"
+        : value >= 3600
+          ? (value / 3600).toFixed(2) + " hours"
+          : value >= 60
+            ? (value / 60).toFixed(2) + " min"
+            : value + " s";
     hoverTime = null;
     if (historicalMode) {
       // A changed scale is a new request for the most recent stored window.
@@ -839,8 +956,12 @@
       drawAll();
     }
   }
-  windowSelect.addEventListener("change", function () { setTimeWindow(Number(this.value)); });
-  timeZoom.addEventListener("input", function () { setTimeWindow(Math.pow(2, Number(this.value))); });
+  windowSelect.addEventListener("change", function () {
+    setTimeWindow(Number(this.value));
+  });
+  timeZoom.addEventListener("input", function () {
+    setTimeWindow(Math.pow(2, Number(this.value)));
+  });
   document.getElementById("recordBtn").addEventListener("click", function () {
     recordingController.toggle(this);
   });
@@ -896,11 +1017,14 @@
         status.style.color = "var(--green)";
       } else {
         status.textContent =
-          "MongoDB: " + (health.mongoConnected ? "connected" : "offline") +
-          " · PLC stream: " + (health.plcConnected ? "connected" : "offline");
+          "MongoDB: " +
+          (health.mongoConnected ? "connected" : "offline") +
+          " · PLC stream: " +
+          (health.plcConnected ? "connected" : "offline");
         status.style.color = "var(--amber)";
       }
-      status.title = health.lastError || "Stored samples since service start: " + health.totalStored;
+      status.title =
+        health.lastError || "Stored samples since service start: " + health.totalStored;
     } catch (e) {
       status.textContent = "MongoDB persistence: service not running";
       status.style.color = "var(--red)";
@@ -925,16 +1049,21 @@
     try {
       await loadHistoricalRange(true);
     } catch (error) {
-      document.getElementById("sampleStatus").textContent = "Could not load stored history: " + error.message;
+      document.getElementById("sampleStatus").textContent =
+        "Could not load stored history: " + error.message;
     } finally {
       button.disabled = false;
       button.textContent = historicalMode ? "Return to live" : "Load stored history";
       checkPersistence();
     }
   });
-  window.addEventListener("mouseup", function () { timeNavigation.onMouseUp(); });
+  window.addEventListener("mouseup", function () {
+    timeNavigation.onMouseUp();
+  });
   window.addEventListener("resize", drawAll);
-  setInterval(function () { timeNavigation.tick(); }, 50);
+  setInterval(function () {
+    timeNavigation.tick();
+  }, 50);
   setInterval(checkPersistence, 3000);
   checkPersistence();
   setInterval(function () {

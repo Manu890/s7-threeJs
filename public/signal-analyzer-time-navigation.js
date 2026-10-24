@@ -33,15 +33,21 @@
           state.hoverTime = visibleFrom + (x / Math.max(1, rect.width)) * span;
         } else {
           if (state.inspectionDragging) {
-            const available = actions.getAvailableSamples().map(function (sample) { return sample.timestamp; });
+            const available = actions.getAvailableSamples().map(function (sample) {
+              return sample.timestamp;
+            });
             const earliest = available.length ? Math.min.apply(null, available) : 0;
-            const latest = available.length ? Math.max.apply(null, available) : state.lastTimestamp || Date.now();
-            state.inspectionViewTime = state.inspectionDragStartViewTime -
+            const latest = available.length
+              ? Math.max.apply(null, available)
+              : state.lastTimestamp || Date.now();
+            state.inspectionViewTime =
+              state.inspectionDragStartViewTime -
               ((event.clientX - state.inspectionDragStartX) / Math.max(1, rect.width)) * span;
             if (!state.historicalMode) {
-              state.inspectionViewTime = latest - earliest >= span
-                ? Math.max(earliest + span, Math.min(latest, state.inspectionViewTime))
-                : latest;
+              state.inspectionViewTime =
+                latest - earliest >= span
+                  ? Math.max(earliest + span, Math.min(latest, state.inspectionViewTime))
+                  : latest;
             }
             state.inspectionScrollDirection = 0;
           } else if (
@@ -62,14 +68,17 @@
                 : state.lastTimestamp || Date.now();
             }
           }
-          const displayNow = state.inspectionViewTime === null
-            ? (state.chartFrozen ? state.frozenTimestamp || state.lastTimestamp || Date.now()
-              : state.lastTimestamp || Date.now())
-            : state.inspectionViewTime;
-          const firstLiveSample = !state.historicalMode && state.history.length
-            ? state.history[0].timestamp : displayNow;
+          const displayNow =
+            state.inspectionViewTime === null
+              ? state.chartFrozen
+                ? state.frozenTimestamp || state.lastTimestamp || Date.now()
+                : state.lastTimestamp || Date.now()
+              : state.inspectionViewTime;
+          const firstLiveSample =
+            !state.historicalMode && state.history.length ? state.history[0].timestamp : displayNow;
           const visibleFrom = state.historicalMode
-            ? displayNow - span : Math.max(firstLiveSample, displayNow - span);
+            ? displayNow - span
+            : Math.max(firstLiveSample, displayNow - span);
           state.hoverTime = visibleFrom + (x / Math.max(1, rect.width)) * span;
         }
         actions.draw();
@@ -87,8 +96,8 @@
 
     function onMouseUp() {
       const state = getState();
-      const reloadHistorical = state.historicalMode &&
-        (state.inspectionDragging || state.inspectionScrollDirection !== 0);
+      const reloadHistorical =
+        state.historicalMode && (state.inspectionDragging || state.inspectionScrollDirection !== 0);
       state.inspectionDragging = false;
       state.inspectionScrollDirection = 0;
       document.querySelectorAll(".trace-canvas").forEach(function (canvas) {
@@ -104,22 +113,39 @@
 
     function tick() {
       const state = getState();
-      if (state.recording || state.inspectionDragging ||
-          state.inspectionScrollDirection === 0 || state.inspectionViewTime === null) return;
+      if (
+        state.recording ||
+        state.inspectionDragging ||
+        state.inspectionScrollDirection === 0 ||
+        state.inspectionViewTime === null
+      )
+        return;
       const span = Number(document.getElementById("windowSelect").value) * 1000;
-      const available = actions.getAvailableSamples().map(function (sample) { return sample.timestamp; });
+      const available = actions.getAvailableSamples().map(function (sample) {
+        return sample.timestamp;
+      });
       const earliest = available.length ? Math.min.apply(null, available) : 0;
-      const latest = available.length ? Math.max.apply(null, available) : state.lastTimestamp || Date.now();
+      const latest = available.length
+        ? Math.max.apply(null, available)
+        : state.lastTimestamp || Date.now();
       state.inspectionViewTime += state.inspectionScrollDirection * 50;
       if (state.historicalMode) {
         const firstWindowEnd = (state.historicalOldestTimestamp ?? earliest) + span;
         const lastWindowEnd = state.historicalLatestTimestamp ?? latest;
-        state.inspectionViewTime = Math.max(firstWindowEnd, Math.min(lastWindowEnd, state.inspectionViewTime));
+        state.inspectionViewTime = Math.max(
+          firstWindowEnd,
+          Math.min(lastWindowEnd, state.inspectionViewTime)
+        );
       } else {
-        state.inspectionViewTime = Math.max(earliest + span, Math.min(latest, state.inspectionViewTime));
+        state.inspectionViewTime = Math.max(
+          earliest + span,
+          Math.min(latest, state.inspectionViewTime)
+        );
       }
-      state.hoverTime = state.inspectionScrollDirection < 0
-        ? state.inspectionViewTime - span : state.inspectionViewTime;
+      state.hoverTime =
+        state.inspectionScrollDirection < 0
+          ? state.inspectionViewTime - span
+          : state.inspectionViewTime;
       actions.draw();
     }
 
