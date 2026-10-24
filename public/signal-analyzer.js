@@ -709,15 +709,9 @@
       plotData = historicalMode ? historicalSamples : history,
       firstLiveSample = !historicalMode && plotData.length ? plotData[0].timestamp : viewNow,
       requestedFrom = historicalMode ? viewNow - span : Math.max(firstLiveSample, viewNow - span),
-      firstHistoricalSample = historicalMode && plotData.length
-        ? Math.min.apply(null, plotData.map(function (sample) { return sample.timestamp; }))
-        : requestedFrom,
-      lastHistoricalSample = historicalMode && plotData.length
-        ? Math.max.apply(null, plotData.map(function (sample) { return sample.timestamp; }))
-        : viewNow,
-      from = historicalMode ? firstHistoricalSample : requestedFrom,
-      now = historicalMode ? lastHistoricalSample : viewNow,
-      plotSpan = historicalMode ? Math.max(1, now - from) : span;
+      from = requestedFrom,
+      now = viewNow,
+      plotSpan = span;
     signals.forEach(function (s) {
       const row = traces.querySelector('[data-signal="' + CSS.escape(s.key) + '"]');
       if (!row) return;
