@@ -31,8 +31,7 @@
           const firstLiveSample = state.history.length ? state.history[0].timestamp : displayNow;
           const visibleFrom = Math.max(firstLiveSample, displayNow - span);
           state.hoverTime =
-            visibleFrom +
-            (x / Math.max(1, rect.width)) * Math.max(0, displayNow - visibleFrom);
+            visibleFrom + (x / Math.max(1, rect.width)) * Math.max(0, displayNow - visibleFrom);
         } else {
           if (state.inspectionDragging) {
             const available = actions.getAvailableSamples().map(function (sample) {
@@ -82,8 +81,7 @@
             ? displayNow - span
             : Math.max(firstLiveSample, displayNow - span);
           state.hoverTime =
-            visibleFrom +
-            (x / Math.max(1, rect.width)) * Math.max(0, displayNow - visibleFrom);
+            visibleFrom + (x / Math.max(1, rect.width)) * Math.max(0, displayNow - visibleFrom);
         }
         actions.draw();
       });
