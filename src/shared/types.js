@@ -41,21 +41,21 @@
  */
 
 export const MessageTypes = {
-    DATA: 'data',
-    STATUS: 'status',
-    WRITE: 'write',
-    WRITE_RESPONSE: 'writeResponse',
-    PING: 'ping',
-    PONG: 'pong',
-    GET_STATS: 'getStats',
-    STATS: 'stats',
-    ERROR: 'error'
+  DATA: "data",
+  STATUS: "status",
+  WRITE: "write",
+  WRITE_RESPONSE: "writeResponse",
+  PING: "ping",
+  PONG: "pong",
+  GET_STATS: "getStats",
+  STATS: "stats",
+  ERROR: "error",
 };
 
 export const ConnectionState = {
-    CONNECTING: 'connecting',
-    CONNECTED: 'connected',
-    DISCONNECTED: 'disconnected',
-    RECONNECTING: 'reconnecting',
-    ERROR: 'error'
+  CONNECTING: "connecting",
+  CONNECTED: "connected",
+  DISCONNECTED: "disconnected",
+  RECONNECTING: "reconnecting",
+  ERROR: "error",
 };

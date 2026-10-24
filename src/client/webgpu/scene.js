@@ -56,12 +56,7 @@ export class SceneWebGPU {
     this.scene.background = new Color(0x0a0a0a);
 
     // Camera
-    this.camera = new PerspectiveCamera(
-      75,
-      window.innerWidth / window.innerHeight,
-      0.1,
-      1000
-    );
+    this.camera = new PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     this.camera.position.set(6, 5, 8);
 
     // Renderer
@@ -146,9 +141,7 @@ export class SceneWebGPU {
 
     // TSL: Pulsating color
     const pulseEffect = oscSine(timerLocal(2.0));
-    sphereMaterial.colorNode = color(0x764ba2).mul(
-      float(1.0).add(pulseEffect.mul(0.3))
-    );
+    sphereMaterial.colorNode = color(0x764ba2).mul(float(1.0).add(pulseEffect.mul(0.3)));
 
     // TSL: Dynamic emissive
     sphereMaterial.emissiveNode = color(0x764ba2).mul(
@@ -187,19 +180,17 @@ export class SceneWebGPU {
   updateData(data) {
     // IMPORTANT: Animations now depend on pos (DB1001.BYTE2), not clock
     // Save original pos value (0-255) for position calculation
-    const rawPos = data.pos !== undefined 
-      ? data.pos 
-      : (data.byte2 !== undefined ? data.byte2 : 127);
-    
+    const rawPos = data.pos !== undefined ? data.pos : data.byte2 !== undefined ? data.byte2 : 127;
+
     this.plcData = {
       position:
         data.status !== undefined
           ? (data.status - 127.5) / 25.5
           : data.byte1 !== undefined
-          ? (data.byte1 - 127.5) / 25.5
-          : 0,
-      speed: rawPos / 25.5,  // For rotation (0-10)
-      rawPos: rawPos          // Original value (0-255) for position
+            ? (data.byte1 - 127.5) / 25.5
+            : 0,
+      speed: rawPos / 25.5, // For rotation (0-10)
+      rawPos: rawPos, // Original value (0-255) for position
     };
 
     // Update TSL uniforms
@@ -220,7 +211,7 @@ export class SceneWebGPU {
     const scalePos = 15; // position on scene
     // 0 = -scalePos, 127 = 0, 255 = scalePos
     const rawPos = this.plcData.rawPos || 127; // Use original value (0-255)
-    
+
     let cubeX;
     if (rawPos <= 127) {
       // From 0 to 127: from -15 to 0
@@ -229,10 +220,10 @@ export class SceneWebGPU {
       // From 127 to 255: from 0 to +15
       cubeX = ((rawPos - 127) / 128) * scalePos;
     }
-    
+
     this.targetPosition.set(cubeX, 0.5, 0);
     this.mainCube.position.lerp(this.targetPosition, 0.1);
-    
+
     // Rotate based on speed (also depends on pos)
     this.mainCube.rotation.y += this.plcData.speed * 0.01;
     this.mainCube.rotation.x = Math.sin(now * 0.001) * 0.2;
