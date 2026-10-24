@@ -11,7 +11,7 @@
         span = Number(document.getElementById("windowSelect").value) * 1000,
         plotData = state.historicalMode ? state.historicalSamples : state.history,
         firstLiveSample =
-          !state.historicalMode && plotData.length ? plotData[0].timestamp : viewNow,
+          !state.historicalMode && plotData.length ? plotData[0].timestamp : viewNow - span,
         requestedFrom = state.historicalMode
           ? viewNow - span
           : Math.max(firstLiveSample, viewNow - span),
@@ -66,7 +66,18 @@
           .sort(function (a, b) {
             return a.timestamp - b.timestamp;
           });
-        if (!points.length) return;
+        if (!points.length) {
+          if (state.hoverTime !== null && state.hoverTime >= from && state.hoverTime <= now) {
+            const x = ((state.hoverTime - from) / plotSpan) * cw;
+            ctx.strokeStyle = "#16a34a";
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(Math.round(x) + 0.5, 0);
+            ctx.lineTo(Math.round(x) + 0.5, ch);
+            ctx.stroke();
+          }
+          return;
+        }
         const values = points.map(function (p) {
             return p[s.key];
           }),
