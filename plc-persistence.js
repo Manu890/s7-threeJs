@@ -245,9 +245,15 @@ const api = http.createServer(async (req, res) => {
       const seconds = Math.max(1, Math.min(259200, Number(url.searchParams.get("seconds")) || 300));
       const requestedPixels = Math.max(100, Math.min(3000, Number(url.searchParams.get("pixels")) || 1200));
       const maxBuckets = Math.max(50, Math.min(1500, Math.floor(requestedPixels / 2)));
-      if (url.searchParams.get("latest") === "1" || !Number.isFinite(to) || to <= 0) {
-        const latest = await collection.find({}).sort({ timestampMs: -1 }).limit(1).next();
-        if (!latest) return json(res, 200, { count: 0, from: null, to: null, samples: [] });
+      const oldestRequested = url.searchParams.get("oldest") === "1";
+      const oldest = await collection.find({}).sort({ timestampMs: 1 }).limit(1).next();
+      const latest = await collection.find({}).sort({ timestampMs: -1 }).limit(1).next();
+      if (!oldest || !latest)
+        return json(res, 200, { count: 0, from: null, to: null, oldest: null, latest: null, samples: [] });
+      if (oldestRequested) {
+        from = oldest.timestampMs;
+        to = from + seconds * 1000;
+      } else if (url.searchParams.get("latest") === "1" || !Number.isFinite(to) || to <= 0) {
         to = latest.timestampMs;
         if (!Number.isFinite(from) || from <= 0) from = to - seconds * 1000;
       }
@@ -304,6 +310,8 @@ const api = http.createServer(async (req, res) => {
         scanned,
         from: first.timestampMs,
         to: last.timestampMs,
+        oldest: oldest.timestampMs,
+        latest: latest.timestampMs,
         samples,
       });
     } catch (error) {
