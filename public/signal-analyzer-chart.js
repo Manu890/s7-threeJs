@@ -17,7 +17,7 @@
           : Math.max(firstLiveSample, viewNow - span),
         from = requestedFrom,
         now = viewNow,
-        plotSpan = span;
+        plotSpan = now - from || span;
       state.signals.forEach(function (s) {
         const row = state.traces.querySelector('[data-signal="' + CSS.escape(s.key) + '"]');
         if (!row) return;
