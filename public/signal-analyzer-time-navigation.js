@@ -28,10 +28,12 @@
           state.inspectionScrollDirection = 0;
           state.inspectionViewTime = null;
           const displayNow = state.lastTimestamp || Date.now();
-          const firstLiveSample = state.history.length ? state.history[0].timestamp : displayNow - span;
-          const visibleFrom = Math.max(firstLiveSample, displayNow - span);
-          state.hoverTime =
-            visibleFrom + (x / Math.max(1, rect.width)) * Math.max(0, displayNow - visibleFrom);
+          const sweepOrigin =
+            state.recordingStartedAt ||
+            (state.history.length ? state.history[0].timestamp : displayNow);
+          const visibleFrom =
+            sweepOrigin + Math.floor(Math.max(0, displayNow - sweepOrigin) / span) * span;
+          state.hoverTime = visibleFrom + (x / Math.max(1, rect.width)) * span;
         } else {
           if (state.inspectionDragging) {
             const available = actions.getAvailableSamples().map(function (sample) {
