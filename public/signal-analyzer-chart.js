@@ -94,8 +94,13 @@
         points.forEach(function (p, i) {
           const x = ((p.timestamp - from) / plotSpan) * cw,
             y = ch - 8 - ((p[s.key] - min) / range) * (ch - 16);
-          if (i === 0) ctx.moveTo(x, y);
-          else {
+          if (i === 0) {
+            // Extend the first captured value to the plot's left boundary.
+            // At 1–2 second scales, even one PLC polling interval is a visible
+            // gap when the first timestamp is slightly later than sweep start.
+            ctx.moveTo(0, y);
+            if (x > 0) ctx.lineTo(x, y);
+          } else {
             const prev = points[i - 1],
               prevY = ch - 8 - ((prev[s.key] - min) / range) * (ch - 16);
             ctx.lineTo(x, prevY);
