@@ -767,8 +767,7 @@
           });
         })
       : matchingSymbols;
-    const matches = sortedMatches;
-    if (!matches.length) {
+    if (!sortedMatches.length) {
       const empty = document.createElement("div");
       empty.className = "help-text";
       empty.textContent = query
@@ -849,8 +848,6 @@
       list.appendChild(row);
     });
     symbolResults.appendChild(list);
-
-    renderRows();
 
     if (sortedMatches.length > maxResults) {
       const note = document.createElement("div");
