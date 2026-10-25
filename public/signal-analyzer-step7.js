@@ -228,7 +228,7 @@
         f
           ? decoder
               .decode(bytes.slice(base + f.offset, base + f.offset + f.length))
-              .replace(/\\0/g, "")
+              .replace(/\0/g, "")
               .trim()
           : "";
       const name = get(nameField),
@@ -236,12 +236,12 @@
       if (!name || !address) continue;
       const type = step7DbfType(get(typeField));
       rows.push({
-        _SKZ: name.replace(/\\0/g, "").trim(),
-        name: name.replace(/\\0/g, "").trim(),
+        _SKZ: name.replace(/\0/g, "").trim(),
+        name: name.replace(/\0/g, "").trim(),
         address: address,
         type: type,
         comment: get(commentField),
-        symbolName: name.replace(/\\0/g, "").trim(),
+        symbolName: name.replace(/\0/g, "").trim(),
         operand: get(addressField),
         dataType: get(typeField),
       });
