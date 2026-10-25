@@ -606,13 +606,28 @@
   const symbolResults = document.getElementById("symbolResults");
   let projectSymbols = [];
   function displayProjectSymbolName(symbol) {
-    const name = String(symbol.name || "").trim();
+    const name = String(symbol.name || symbol.symbolName || "").trim();
     const address = normalizeStep7Address(symbol.address || symbol.operand || "")
       .toUpperCase()
       .replace(/\s+/g, "");
-    const field = address.match(/^DB0*(\d+),DB([XBWD])(\d+)(?:\.(\d+))?$/);
+    // STEP 7 exports are inconsistent about whether DB field types are written
+    // as DBW/DBD or WORD/INT/REAL. Normalize both forms before looking up the
+    // symbolic DB root, otherwise a parsed field such as res01 is displayed
+    // without its containing symbol name.
+    const field = address.match(
+      /^DB0*(\d+),(?:(?:DB)?(X|B|W|D)|BOOL|BYTE|CHAR|SINT|USINT|WORD|INT|UINT|DWORD|DINT|UDINT|REAL|TIME|DATE|S5TIME)(\d+)(?:\.(\d+))?$/
+    );
     if (!field) return name;
 
+    const typeToken = address.match(/^DB0*\d+,((?:DB)?[A-Z]+)\d+(?:\.\d+)?$/);
+    const rawType = typeToken ? typeToken[1].replace(/^DB/, "") : "";
+    const typeToArea = {
+      X: "X", BOOL: "X",
+      B: "B", BYTE: "B", CHAR: "B", SINT: "B", USINT: "B",
+      W: "W", WORD: "W", INT: "W", UINT: "W", S5TIME: "W", DATE: "W",
+      D: "D", DWORD: "D", DINT: "D", UDINT: "D", REAL: "D", TIME: "D",
+    };
+    const area = typeToArea[rawType] || field[2];
     const dbNumber = Number(field[1]);
     const dbRoot = projectSymbols.find(function (candidate) {
       const rootAddress = normalizeStep7Address(candidate.address || candidate.operand || "")
@@ -624,7 +639,7 @@
     if (rootName && name) return rootName + "." + name;
 
     // If the DB has no matching symbolic root, show a readable canonical address.
-    return "DB" + dbNumber + ".DB" + field[2] + field[3] +
+    return "DB" + dbNumber + ".DB" + area + field[3] +
       (field[4] === undefined ? "" : "." + field[4]);
   }
   function renderProjectSymbols() {
