@@ -77,15 +77,21 @@
                 ? state.frozenTimestamp || state.lastTimestamp || Date.now()
                 : state.lastTimestamp || Date.now()
               : state.inspectionViewTime;
-          const firstLiveSample =
-            !state.historicalMode && state.history.length
-              ? state.history[0].timestamp
-              : displayNow - span;
-          const visibleFrom = state.historicalMode
-            ? displayNow - span
-            : Math.max(firstLiveSample, displayNow - span);
+          const keepSweepWindow =
+            !state.historicalMode &&
+            (state.recording || state.chartFrozen) &&
+            state.recordingStartedAt > 0;
+          const sweepOrigin =
+            state.recordingStartedAt ||
+            (state.history.length ? state.history[0].timestamp : displayNow);
+          // Match the renderer's exact time-to-pixel window. Always map the
+          // pointer across the full selected span; clipping to the first sample
+          // makes the cursor drift away from the mouse near the chart edges.
+          const visibleFrom = keepSweepWindow
+            ? sweepOrigin + Math.floor(Math.max(0, displayNow - sweepOrigin) / span) * span
+            : displayNow - span;
           state.hoverTime =
-            visibleFrom + (x / Math.max(1, rect.width)) * Math.max(0, displayNow - visibleFrom);
+            visibleFrom + (x / Math.max(1, rect.width)) * span;
         }
         actions.draw();
       });
