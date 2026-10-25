@@ -682,8 +682,16 @@
       row.appendChild(info);
       function selectSymbol() {
         const nameInput = document.getElementById("signalNameInput");
+        const keyInput = document.getElementById("signalKeyInput");
         nameInput.value = displayName;
         nameInput.dispatchEvent(new Event("input", { bubbles: true }));
+
+        // A DB field without a symbolic root is displayed as a canonical
+        // address (for example DB601.DBD10). It cannot be resolved from its
+        // display name, so use the result's source address as the PLC input.
+        if (!keyInput.value.trim() && /^DB\d+\.DB[XBWD]\d+(?:\.\d+)?$/i.test(displayName)) {
+          keyInput.value = s.address || s.operand || displayName;
+        }
         nameInput.focus();
       }
       row.addEventListener("click", selectSymbol);
