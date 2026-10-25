@@ -647,6 +647,10 @@
       addressQuery = query.toUpperCase().replace(/\s+/g, "");
     symbolResults.replaceChildren();
 
+    // Keep the suggestion panel empty until the user actually types a query.
+    // In particular, focusing an empty input must not render the full project symbol list.
+    if (!query) return;
+
     // A trailing dot after a DB symbol (for example db_visu_add.) means
     // "show every parsed field belonging to that data block".
     const dbSymbolQuery = query.match(/^(.+)\.$/);
