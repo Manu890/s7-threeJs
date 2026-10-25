@@ -783,11 +783,19 @@
       { label: "_DATATYP", value: function (symbol) { return symbol.dataType || symbol.type || ""; } },
       { label: "_COMMENT", value: function (symbol) { return symbol.comment || ""; } },
     ];
+    const columnTemplate = "minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, .8fr) minmax(0, 1.6fr)";
     const header = document.createElement("div");
-    header.textContent = "Matching symbols";
+    header.setAttribute("aria-hidden", "true");
     header.style.cssText =
-      "padding:6px 8px;box-sizing:border-box;background:#eaf0f6;" +
+      "display:grid;grid-template-columns:" + columnTemplate +
+      ";gap:8px;padding:5px 6px;box-sizing:border-box;background:#eaf0f6;" +
       "border:1px solid #d4dbe2;border-bottom:0;font:600 11px Consolas,'Courier New',monospace;color:#263442";
+    columns.forEach(function (column) {
+      const cell = document.createElement("div");
+      cell.textContent = column.label;
+      cell.style.cssText = "min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+      header.appendChild(cell);
+    });
     symbolResults.appendChild(header);
 
     const list = document.createElement("div");
@@ -804,17 +812,16 @@
       row.setAttribute("aria-selected", "false");
       row.tabIndex = 0;
       row.style.cssText =
-        "display:block;width:100%;padding:7px 8px;box-sizing:border-box;" +
-        "cursor:pointer;border-bottom:1px solid #edf0f3";
-      columns.forEach(function (column, index) {
-        const value = String(column.value(symbol) || "").trim();
-        if (!value) return;
+        "display:grid;grid-template-columns:" + columnTemplate +
+        ";gap:8px;min-height:24px;padding:4px 6px;box-sizing:border-box;" +
+        "align-items:center;cursor:pointer;border-bottom:1px solid #edf0f3";
+      columns.forEach(function (column) {
         const cell = document.createElement("div");
-        cell.textContent = index === 0 ? value : column.label + ": " + value;
-        cell.title = column.label + ": " + value;
-        cell.style.cssText = index === 0
-          ? "font-weight:600;color:#172b3d;overflow-wrap:anywhere;margin-bottom:3px"
-          : "font-size:11px;color:#526273;overflow-wrap:anywhere;white-space:normal;margin-top:2px";
+        const value = String(column.value(symbol) || "").trim();
+        cell.textContent = value;
+        cell.title = value;
+        cell.style.cssText =
+          "min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
         row.appendChild(cell);
       });
       row.title = columns.map(function (column) {
