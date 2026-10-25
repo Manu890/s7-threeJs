@@ -593,6 +593,24 @@
   const symbolProjectStatus = document.getElementById("symbolProjectStatus");
   const symbolResults = document.getElementById("symbolResults");
   let projectSymbols = [];
+  function displayProjectSymbolName(symbol) {
+    const name = String(symbol.name || "").trim();
+    const address = normalizeStep7Address(symbol.address || symbol.operand || "")
+      .toUpperCase()
+      .replace(/\s+/g, "");
+    const field = address.match(/^DB0*(\d+),DB[XBWD](\d+)(?:\.\d+)?$/);
+    if (!field) return name;
+
+    const dbNumber = Number(field[1]);
+    const dbRoot = projectSymbols.find(function (candidate) {
+      const rootAddress = normalizeStep7Address(candidate.address || candidate.operand || "")
+        .toUpperCase()
+        .replace(/\s+/g, "");
+      return /^DB0*\d+$/.test(rootAddress) && Number(rootAddress.slice(2)) === dbNumber;
+    });
+    const rootName = dbRoot && String(dbRoot.name || dbRoot.symbolName || "").trim();
+    return rootName && name ? rootName + "." + name : name;
+  }
   function renderProjectSymbols() {
     const query = document.getElementById("signalNameInput").value.trim().toLowerCase(),
       addressQuery = query.toUpperCase().replace(/\s+/g, "");
@@ -650,7 +668,8 @@
       info.style.cssText = "min-width:0;flex:1;overflow-wrap:anywhere";
       const name = document.createElement("strong");
       name.style.cssText = "display:block;font-size:12px";
-      name.textContent = s.name;
+      const displayName = displayProjectSymbolName(s);
+      name.textContent = displayName;
       const meta = document.createElement("small");
       meta.style.cssText =
         "display:block;color:var(--muted);font:10px ui-monospace,Consolas,monospace";
@@ -659,7 +678,7 @@
       row.appendChild(info);
       function selectSymbol() {
         const nameInput = document.getElementById("signalNameInput");
-        nameInput.value = s.name;
+        nameInput.value = displayName;
         nameInput.dispatchEvent(new Event("input", { bubbles: true }));
         nameInput.focus();
       }
