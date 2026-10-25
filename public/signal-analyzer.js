@@ -590,12 +590,11 @@
     parseStep7SubblkDbf,
     walkStep7Folder,
   } = Step7Symbols;
-  const symbolSearchInput = document.getElementById("symbolSearchInput");
   const symbolProjectStatus = document.getElementById("symbolProjectStatus");
   const symbolResults = document.getElementById("symbolResults");
   let projectSymbols = [];
-  function renderProjectSymbols(queryOverride) {
-    const query = (queryOverride === undefined ? symbolSearchInput.value : queryOverride).trim().toLowerCase(),
+  function renderProjectSymbols() {
+    const query = document.getElementById("signalNameInput").value.trim().toLowerCase(),
       addressQuery = query.toUpperCase().replace(/\s+/g, "");
     symbolResults.replaceChildren();
 
@@ -724,7 +723,6 @@
       const result = await walkStep7Folder(root);
       projectSymbols = result.symbols;
       fillSignalNameFromProjectAddress();
-      symbolSearchInput.disabled = false;
       renderProjectSymbols();
       let status =
         "Project: " +
@@ -840,8 +838,7 @@
     .getElementById("signalNameInput")
     .addEventListener("input", function () {
       fillSignalAddressFromProjectName();
-      const query = this.value.trim();
-      renderProjectSymbols(query || undefined);
+      renderProjectSymbols();
     });
   document
     .getElementById("signalNameInput")
@@ -849,7 +846,6 @@
   document
     .getElementById("signalNameInput")
     .addEventListener("blur", fillSignalAddressFromProjectName);
-  symbolSearchInput.addEventListener("input", renderProjectSymbols);
   document.getElementById("addSignalForm").addEventListener("submit", function (e) {
     e.preventDefault();
     const error = document.getElementById("signalFormError");
