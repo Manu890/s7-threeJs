@@ -72,7 +72,8 @@
         const gridValueLabels = row.querySelectorAll(".trace-grid-values span");
         if (!points.length) {
           gridValueLabels.forEach(function (tick) {
-            tick.textContent = "—";
+            tick.textContent = "";
+            tick.removeAttribute("title");
           });
           if (state.hoverTime !== null && state.hoverTime >= from && state.hoverTime <= now) {
             const x = ((state.hoverTime - from) / plotSpan) * cw;
@@ -91,13 +92,31 @@
           min = Math.min.apply(null, values),
           max = Math.max.apply(null, values),
           range = max - min || 1;
-        gridValueLabels.forEach(function (tick, index) {
-          const gridValue = max - ((max - min) * index) / 4;
-          tick.textContent = Number.isFinite(gridValue)
-            ? Number(gridValue.toPrecision(6)).toString()
-            : "—";
-          tick.title = String(gridValue);
-        });
+        if (points.length < 2) {
+          // During startup, show only the current value at the bottom of the
+          // scale. Repeating a single sample across every grid label suggests
+          // a range that has not actually been observed yet.
+          gridValueLabels.forEach(function (tick) {
+            tick.textContent = "";
+            tick.removeAttribute("title");
+          });
+          const bottomLabel = gridValueLabels[gridValueLabels.length - 1];
+          if (bottomLabel) {
+            bottomLabel.textContent = Number.isFinite(values[0])
+              ? Number(values[0].toPrecision(6)).toString()
+              : "";
+            if (bottomLabel.textContent) bottomLabel.title = String(values[0]);
+          }
+        } else {
+          gridValueLabels.forEach(function (tick, index) {
+            const gridValue = max - ((max - min) * index) / 4;
+            tick.textContent = Number.isFinite(gridValue)
+              ? Number(gridValue.toPrecision(6)).toString()
+              : "";
+            if (Number.isFinite(gridValue)) tick.title = String(gridValue);
+            else tick.removeAttribute("title");
+          });
+        }
         ctx.strokeStyle = s.color;
         ctx.lineWidth = 1.7;
         ctx.lineJoin = "round";
