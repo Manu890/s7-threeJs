@@ -605,6 +605,10 @@
   const symbolProjectStatus = document.getElementById("symbolProjectStatus");
   const symbolResults = document.getElementById("symbolResults");
   let projectSymbols = [];
+  let loadProjectDbStructures = null;
+  const loadedDbStructures = new Set();
+  const loadingDbStructures = new Set();
+  let projectStatusBase = "";
   function displayProjectSymbolName(symbol) {
     const name = String(symbol.name || symbol.symbolName || "").trim();
     const address = normalizeStep7Address(symbol.address || symbol.operand || "")
@@ -676,6 +680,58 @@
         ? Number(dbAddress[1])
         : null;
     const dbMode = Number.isInteger(requestedDb);
+
+    // SUBBLK.DBF/.DBT is intentionally parsed lazily: only a query ending in
+    // a dot (for example db_visu_add. or DB601.) should trigger DB structure loading.
+    if (
+      dbMode &&
+      dbSymbolQuery &&
+      loadProjectDbStructures &&
+      !loadedDbStructures.has(requestedDb) &&
+      !loadingDbStructures.has(requestedDb)
+    ) {
+      loadingDbStructures.add(requestedDb);
+      symbolProjectStatus.textContent =
+        projectStatusBase + " Loading DB" + requestedDb + " structure on demand…";
+      loadProjectDbStructures(requestedDb)
+        .then(function (fields) {
+          const existing = new Set(
+            projectSymbols.map(function (symbol) {
+              return normalizeStep7Address(symbol.address || symbol.operand || "")
+                .toUpperCase()
+                .replace(/\\s+/g, "");
+            })
+          );
+          let addedCount = 0;
+          (fields || []).forEach(function (symbol) {
+            const address = normalizeStep7Address(symbol.address || symbol.operand || "")
+              .toUpperCase()
+              .replace(/\\s+/g, "");
+            if (!symbol.name || !address || existing.has(address)) return;
+            existing.add(address);
+            projectSymbols.push(symbol);
+            addedCount++;
+          });
+          loadedDbStructures.add(requestedDb);
+          const input = document.getElementById("signalNameInput");
+          if (input.value.trim().toLowerCase() === query) renderProjectSymbols();
+          symbolProjectStatus.textContent =
+            projectStatusBase +
+            " On demand: DB" +
+            requestedDb +
+            " structure checked; " +
+            addedCount +
+            " new field(s) added.";
+        })
+        .catch(function (error) {
+          symbolProjectStatus.textContent =
+            projectStatusBase + " Could not load DB" + requestedDb + " structure: " + error.message;
+        })
+        .finally(function () {
+          loadingDbStructures.delete(requestedDb);
+        });
+    }
+
     const matchingSymbols = dbMode
       ? projectSymbols.filter(function (s) {
           const address = normalizeStep7Address(s.address || s.operand || "")
@@ -789,6 +845,9 @@
       symbolProjectStatus.textContent = "Scanning " + root.name + " for symbol tables…";
       const result = await walkStep7Folder(root);
       projectSymbols = result.symbols;
+      loadProjectDbStructures = result.loadDbStructures || null;
+      loadedDbStructures.clear();
+      loadingDbStructures.clear();
       fillSignalNameFromProjectAddress();
       renderProjectSymbols();
       let status =
@@ -800,13 +859,8 @@
         result.files +
         " candidate files scanned · SUBBLK.DBF: " +
         result.subblkFiles +
-        " file(s), " +
-        result.subblkRows +
-        " rows, " +
-        result.subblkMemos +
-        " readable memo(s), " +
-        result.subblkStructures +
-        " text structure(s) decoded.";
+        " file(s) found; parsing deferred until a DB name/address followed by a dot is entered.";
+
       if (result.binaryCandidates.length)
         status +=
           " Some DBF files were not recognized: " +
@@ -816,6 +870,7 @@
       if (!projectSymbols.length)
         status +=
           " No supported symbol records were readable. Check that the selected folder contains the extracted project and its hrs\\YDBs folders.";
+      projectStatusBase = status;
       symbolProjectStatus.textContent = status;
     } catch (err) {
       if (err && err.name === "AbortError") {
