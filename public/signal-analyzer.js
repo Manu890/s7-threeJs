@@ -538,6 +538,8 @@
     return {
       signals,
       traces,
+      recording,
+      recordingStartedAt,
       chartFrozen,
       frozenTimestamp,
       lastTimestamp,
