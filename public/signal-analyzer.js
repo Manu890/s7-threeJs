@@ -782,7 +782,7 @@
     const keyInput = document.getElementById("signalKeyInput");
     const candidate = keyInput.value.trim();
     if (!candidate) return;
-    const resolved = resolveProjectAddress(candidate);
+    const resolved = resolveProjectAddress(candidate, projectSymbols);
     if (resolved) nameInput.value = resolved.name || "";
   }
   document
@@ -873,7 +873,7 @@
       /^(?:DB\d+\s*[,.:/]\s*[A-Z]+\s*\d+(?:\.\d+){0,2}|(?:PI|PQ|PE|PA|M|I|E|Q|A|T|C)[A-Z]*\s*\d+(?:\.\d+){0,2})$/i;
     if (plcAddressPattern.test(key)) {
       address = normalizeStep7Address(key);
-      const resolved = resolveProjectAddress(address);
+      const resolved = resolveProjectAddress(address, projectSymbols);
       if (resolved) {
         label = label || resolved.name;
         document.getElementById("signalNameInput").value = label;
