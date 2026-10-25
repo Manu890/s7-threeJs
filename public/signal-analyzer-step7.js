@@ -52,6 +52,7 @@
     );
     if (asc)
       return {
+        _SKZ: asc[1].replace(/[.\s]+$/, "").trim(),
         name: asc[1].replace(/[.\s]+$/, "").trim(),
         address: asc[2].trim(),
         type: asc[3] || "",
@@ -111,6 +112,7 @@
           )
       ) || "";
     return {
+      _SKZ: name,
       name: name,
       address: cells[addressIndex],
       type: type,
@@ -234,6 +236,7 @@
       if (!name || !address) continue;
       const type = step7DbfType(get(typeField));
       rows.push({
+        _SKZ: name.replace(/\\0/g, "").trim(),
         name: name.replace(/\\0/g, "").trim(),
         address: address,
         type: type,
@@ -335,6 +338,7 @@
         }
         const addr = "DB" + db + ",DBX" + offset + "." + bit;
         out.push({
+          _SKZ: name,
           name: name,
           address: addr,
           type: "BOOL",
@@ -359,6 +363,7 @@
       const prefix = size === 1 ? "DBB" : size === 2 ? "DBW" : size === 4 ? "DBD" : "DBB",
         addr = "DB" + db + "," + prefix + offset;
       out.push({
+        _SKZ: name,
         name: name,
         address: addr,
         type: type,
