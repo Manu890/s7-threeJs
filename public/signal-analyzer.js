@@ -699,14 +699,14 @@
             projectSymbols.map(function (symbol) {
               return normalizeStep7Address(symbol.address || symbol.operand || "")
                 .toUpperCase()
-                .replace(/\\s+/g, "");
+                .replace(/\s+/g, "");
             })
           );
           let addedCount = 0;
           (fields || []).forEach(function (symbol) {
             const address = normalizeStep7Address(symbol.address || symbol.operand || "")
               .toUpperCase()
-              .replace(/\\s+/g, "");
+              .replace(/\s+/g, "");
             if (!symbol.name || !address || existing.has(address)) return;
             existing.add(address);
             projectSymbols.push(symbol);
@@ -936,7 +936,7 @@
         resolved = projectSymbols.find(function (symbol) {
           const address = normalizeStep7Address(symbol.address || symbol.operand || "")
             .toUpperCase()
-            .replace(/\\s+/g, "");
+            .replace(/\s+/g, "");
           return (
             (symbolName(symbol) === fieldName || symbolAlias(symbol) === fieldName) &&
             address.startsWith(dbPrefix)
