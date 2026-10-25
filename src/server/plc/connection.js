@@ -11,6 +11,7 @@ export class PLCConnection {
     this.conn = new nodes7();
     this.isConnected = false;
     this.variables = {};
+    this.activeReadVariables = [];
     this.onConnectCallback = null;
     this.onDisconnectCallback = null;
     this.onErrorCallback = null;
@@ -41,6 +42,7 @@ export class PLCConnection {
 
     this.conn.removeItems();
     this.conn.setTranslationCB((name) => this.variables[name]);
+    this.activeReadVariables = selected;
 
     if (selected.length > 0) {
       this.conn.addItems(selected);
@@ -59,9 +61,15 @@ export class PLCConnection {
     if (!Object.prototype.hasOwnProperty.call(this.variables, name)) {
       throw new Error(`Variable ${name} is not registered`);
     }
+    if (this.activeReadVariables.includes(name)) return;
+
+    // Rebuild the complete read list rather than relying on nodes7 to append
+    // an item to an already-built read block during an active poll.
+    this.activeReadVariables.push(name);
+    this.conn.removeItems();
     this.conn.setTranslationCB((itemName) => this.variables[itemName]);
-    this.conn.addItems([name]);
-    console.log(`📡 Added ${name} to the active S7 read list`);
+    this.conn.addItems(this.activeReadVariables);
+    console.log(`📡 S7 read list updated: ${this.activeReadVariables.join(", ")}`);
   }
 
   /**
