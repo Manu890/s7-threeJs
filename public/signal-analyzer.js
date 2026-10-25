@@ -686,13 +686,14 @@
         nameInput.value = displayName;
         nameInput.dispatchEvent(new Event("input", { bubbles: true }));
 
-        // A DB field without a symbolic root is displayed as a canonical
-        // address (for example DB601.DBD10). It cannot be resolved from its
-        // display name, so use the result's source address as the PLC input.
-        if (/^DB\d+\.DB[XBWD]\d+(?:\.\d+)?$/i.test(displayName)) {
-          // The clicked result is the user's explicit selection. Always replace
-          // any stale key/address with this result's actual STEP 7 operand.
-          keyInput.value = s.address || s.operand || displayName;
+        // The clicked result is the user's explicit symbol selection.
+        // Always use its source operand, whether the display name is symbolic
+        // (for example db_visu_add.res01) or a canonical address (DB601.DBD10).
+        // Resolving only from the display name can fail for parsed DB fields,
+        // leaving a stale/empty key and making Add signal appear to do nothing.
+        const sourceAddress = String(s.address || s.operand || "").trim();
+        if (sourceAddress) {
+          keyInput.value = normalizeStep7Address(sourceAddress);
           keyInput.dispatchEvent(new Event("change", { bubbles: true }));
         }
         nameInput.focus();
