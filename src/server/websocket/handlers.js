@@ -158,6 +158,11 @@ export class MessageHandlers {
 
     try {
       this.plcConnection.addVariable(message.key, address, message.plcType);
+      // Signals added after recording starts must be added to the active nodes7
+      // read list immediately; registration alone only stores the address map.
+      if (this.polling.recordingRequested) {
+        this.plcConnection.addReadVariable(message.key);
+      }
       wsServer.send(ws, {
         type: "addSignalResponse",
         success: true,
