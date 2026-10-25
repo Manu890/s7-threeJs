@@ -162,6 +162,7 @@
       reorderSignals,
       renderSignalList,
       renderAllControls,
+      isDuplicateSignal,
       addSignal,
       removeSignal,
       removeAllSignals,
