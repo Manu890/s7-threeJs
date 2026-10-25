@@ -769,55 +769,6 @@
             });
           })
         : matchingSymbols.slice(0, 150);
-    matches.forEach((s) => {
-      const row = document.createElement("div");
-      row.style.cssText =
-        "display:flex;gap:6px;align-items:center;padding:6px;background:#0b131e;border:1px solid #263447;border-radius:6px;cursor:pointer";
-      row.tabIndex = 0;
-      row.setAttribute("role", "button");
-      row.title = "Select " + s.name;
-      const info = document.createElement("span");
-      info.style.cssText = "min-width:0;flex:1;overflow-wrap:anywhere";
-      const name = document.createElement("strong");
-      name.style.cssText = "display:block;font-size:12px";
-      const displayName = displayProjectSymbolName(s);
-      name.textContent = displayName;
-      const meta = document.createElement("small");
-      meta.style.cssText =
-        "display:block;color:var(--muted);font:10px ui-monospace,Consolas,monospace";
-      meta.textContent = s.address + (s.type ? " · " + s.type : "");
-      info.append(name, meta);
-      row.appendChild(info);
-      function selectSymbol() {
-        const nameInput = document.getElementById("signalNameInput");
-        const keyInput = document.getElementById("signalKeyInput");
-        nameInput.value = displayName;
-        nameInput.dispatchEvent(new Event("input", { bubbles: true }));
-
-        // The clicked result is the user's explicit symbol selection.
-        // Always use its source operand, whether the display name is symbolic
-        // (for example db_visu_add.res01) or a canonical address (DB601.DBD10).
-        // Resolving only from the display name can fail for parsed DB fields,
-        // leaving a stale/empty key and making Add signal appear to do nothing.
-        const sourceAddress = String(s.address || s.operand || "").trim();
-        if (sourceAddress) {
-          // The selected row already supplied the full display name above.
-          // Dispatching "change" here invokes fillSignalNameFromProjectAddress,
-          // which replaces a qualified name such as db_visu_add.res01 with the
-          // leaf-only parsed name res01. Set the address directly instead.
-          keyInput.value = normalizeStep7Address(sourceAddress);
-        }
-        nameInput.focus();
-      }
-      row.addEventListener("click", selectSymbol);
-      row.addEventListener("keydown", function (event) {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          selectSymbol();
-        }
-      });
-      symbolResults.appendChild(row);
-    });
     if (!matches.length) {
       const empty = document.createElement("div");
       empty.className = "help-text";
@@ -825,8 +776,44 @@
         ? "No matching symbols."
         : "No readable symbols found in this project.";
       symbolResults.appendChild(empty);
+      return;
     }
-    if (matches.length > 0 && matches.length >= 150) {
+
+    // Use one native, scrollable select instead of building a wrapper tree
+    // (div/span/strong/small) for every match. Native options are much cheaper
+    // to lay out and the browser handles scrolling and keyboard navigation.
+    const list = document.createElement("select");
+    list.size = Math.min(10, matches.length);
+    list.setAttribute("aria-label", "Matching STEP 7 symbols");
+    list.style.cssText =
+      "display:block;width:100%;max-width:100%;min-height:100px;max-height:220px;" +
+      "overflow:auto;padding:2px;background:#fff;color:#263442;" +
+      "border:1px solid #d4dbe2;border-radius:4px;font:12px Consolas,'Courier New',monospace";
+    matches.forEach(function (s, index) {
+      const displayName = displayProjectSymbolName(s);
+      const option = document.createElement("option");
+      option.value = String(index);
+      option.textContent =
+        displayName + "    [" + String(s.address || s.operand || "") +
+        (s.type ? " · " + s.type : "") + "]";
+      option.title = displayName + " — " + String(s.address || s.operand || "");
+      list.appendChild(option);
+    });
+    list.addEventListener("change", function () {
+      const s = matches[Number(list.value)];
+      if (!s) return;
+      const displayName = displayProjectSymbolName(s);
+      const nameInput = document.getElementById("signalNameInput");
+      const keyInput = document.getElementById("signalKeyInput");
+      nameInput.value = displayName;
+      nameInput.dispatchEvent(new Event("input", { bubbles: true }));
+      const sourceAddress = String(s.address || s.operand || "").trim();
+      if (sourceAddress) keyInput.value = normalizeStep7Address(sourceAddress);
+      nameInput.focus();
+    });
+    symbolResults.appendChild(list);
+
+    if (matches.length >= 150) {
       const note = document.createElement("div");
       note.className = "help-text";
       note.textContent = "Showing first 150 matches. Search to narrow the list.";
