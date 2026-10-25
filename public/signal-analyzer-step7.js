@@ -588,13 +588,13 @@
               const blockValue = row.BLKNUMBER || row.BLKNR || row.NUMBER || row.BLOCKNR || "";
               const blockName = row.BLKNAME || row.NAME || row.BLOCKNAME || "";
               const match =
-                String(blockName + " " + blockValue).match(/\\bDB\\s*0*(\\d+)\\b/i) ||
-                String(blockValue).match(/^\\s*0*(\\d+)\\s*$/);
+                String(blockName + " " + blockValue).match(/\bDB\s*0*(\d+)\b/i) ||
+                String(blockValue).match(/^\s*0*(\d+)\s*$/);
               if (!match || Number(match[1]) !== dbNumber) continue;
               const body = Object.keys(row)
                 .filter((k) => /_TEXT$/.test(k))
                 .map((k) => row[k])
-                .join("\\n");
+                .join("\n");
               if (!body || !/STRUCT/i.test(body)) continue;
               const fields = parseStep7DbStructure(body, "DB" + dbNumber + ".DB");
               if (fields.length) added.push(...fields);
