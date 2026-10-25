@@ -742,11 +742,10 @@
       : projectSymbols.filter(function (s) {
           // Search exclusively the normalized _SKZ field populated by the
           // STEP 7 parser. Never fall back to name, address, type, or comment.
-          const symbolName = String(s._SKZ || "").trim().toLowerCase();
-          // DB fields should not leak into broad searches such as "db",
-          // even if they were loaded earlier by an explicit DB-root query.
-          const displayName = displayProjectSymbolName(s).trim();
-          if (displayName.includes(".") && !query.includes(".")) return false;
+          const symbolName = String(s._SKZ || "").replace(/\0/g, "").trim().toLowerCase();
+          // Filter by the source _SKZ value itself. A derived display label or
+          // DB address must not hide a top-level symbol whose _SKZ starts "db".
+          if (symbolName.includes(".") && !query.includes(".")) return false;
           return symbolName.startsWith(query);
         });
     const nameInput = document.getElementById("signalNameInput");
@@ -869,16 +868,31 @@
       loadingDbStructures.clear();
       fillSignalNameFromProjectAddress();
       renderProjectSymbols();
+      const namedSymbols = projectSymbols.filter(function (symbol) {
+        return String(symbol._SKZ || "").replace(/\0/g, "").trim();
+      });
+      const dbPrefixSymbols = namedSymbols.filter(function (symbol) {
+        return String(symbol._SKZ || "").replace(/\0/g, "").trim().toLowerCase().startsWith("db");
+      });
       let status =
         "Project: " +
         root.name +
         " · " +
         projectSymbols.length +
         " unique symbols parsed · " +
+        namedSymbols.length +
+        " with _SKZ names · " +
+        dbPrefixSymbols.length +
+        " _SKZ names start with \"db\" · " +
         result.files +
         " candidate files scanned · SUBBLK.DBF: " +
         result.subblkFiles +
         " file(s) found; parsing deferred until a DB name/address followed by a dot is entered.";
+      if (dbPrefixSymbols.length) {
+        status += " Examples: " + dbPrefixSymbols.slice(0, 5).map(function (symbol) {
+          return String(symbol._SKZ || "").replace(/\0/g, "").trim();
+        }).join(", ") + ".";
+      }
 
       if (result.binaryCandidates.length)
         status +=
