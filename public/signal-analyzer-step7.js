@@ -532,7 +532,8 @@
         /SYMBOL.*\.DBF$/.test(upper) ||
         /SYMLIST\.DBF$/.test(upper);
       const likelyStructure = ["AWL", "SCL", "DB", "UDT"].includes(ext);
-      if (!likelySymbol && !likelyStructure && upper !== "SUBBLK.DBF") continue;
+      // SUBBLK.DBF is collected above but must not be parsed during project load.
+      if (!likelySymbol && !likelyStructure) continue;
       try {
         const file = await entry.getFile();
         if (likelyStructure) {
