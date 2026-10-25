@@ -149,10 +149,14 @@
           Math.min(lastWindowEnd, state.inspectionViewTime)
         );
       } else {
-        state.inspectionViewTime = Math.max(
-          earliest + span,
-          Math.min(latest, state.inspectionViewTime)
-        );
+        // When the captured recording is shorter than the selected chart span,
+        // earliest + span is later than the newest sample. Clamping to that
+        // impossible lower bound moves the frozen view past every point, making
+        // the trace disappear when edge-hover navigation ticks.
+        state.inspectionViewTime =
+          latest - earliest >= span
+            ? Math.max(earliest + span, Math.min(latest, state.inspectionViewTime))
+            : latest;
       }
       state.hoverTime =
         state.inspectionScrollDirection < 0
