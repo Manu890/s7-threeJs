@@ -11,13 +11,15 @@
         span = Number(document.getElementById("windowSelect").value) * 1000,
         plotData = state.historicalMode ? state.historicalSamples : state.history,
         isLiveRecording = state.recording && !state.chartFrozen && !state.historicalMode,
+        keepSweepWindow = !state.historicalMode && (isLiveRecording || state.chartFrozen) && state.recordingStartedAt > 0,
         sweepOrigin = state.recordingStartedAt || (state.history.length ? state.history[0].timestamp : liveNow),
-        // During live recording, keep a fixed time window and sweep from left
-        // to right. Start a new sweep when the selected window has elapsed.
-        from = isLiveRecording
-          ? sweepOrigin + Math.floor(Math.max(0, liveNow - sweepOrigin) / span) * span
+        // Keep the same full-width sweep window after Stop is pressed. If the
+        // frozen view is re-anchored to the last sample, the trace jumps to
+        // the right edge instead of remaining where it was during recording.
+        from = keepSweepWindow
+          ? sweepOrigin + Math.floor(Math.max(0, viewNow - sweepOrigin) / span) * span
           : viewNow - span,
-        now = isLiveRecording ? from + span : viewNow,
+        now = keepSweepWindow ? from + span : viewNow,
         plotSpan = span;
       state.signals.forEach(function (s) {
         const row = state.traces.querySelector('[data-signal="' + CSS.escape(s.key) + '"]');
