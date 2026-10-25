@@ -687,7 +687,18 @@
               .includes(query) ||
             normalizeStep7Address(s.address).replace(/\s+/g, "").includes(addressQuery)
         );
-    const matches = dbMode ? matchingSymbols : matchingSymbols.slice(0, 150);
+    const nameInput = document.getElementById("signalNameInput");
+    const showAllAlphabetically = !query && document.activeElement === nameInput;
+    const matches = dbMode
+      ? matchingSymbols
+      : showAllAlphabetically
+        ? matchingSymbols.slice().sort(function (a, b) {
+            return displayProjectSymbolName(a).localeCompare(displayProjectSymbolName(b), undefined, {
+              sensitivity: "base",
+              numeric: true,
+            });
+          })
+        : matchingSymbols.slice(0, 150);
     matches.forEach((s) => {
       const row = document.createElement("div");
       row.style.cssText =
@@ -879,6 +890,11 @@
       if (error) error.textContent = "";
     }
   }
+  document
+    .getElementById("signalNameInput")
+    .addEventListener("focus", function () {
+      if (!this.value.trim()) renderProjectSymbols();
+    });
   document
     .getElementById("signalNameInput")
     .addEventListener("input", function () {
