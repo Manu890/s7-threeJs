@@ -243,6 +243,7 @@
     info.append(title, address, value, settingsButton);
     const gridValues = document.createElement("div");
     gridValues.className = "trace-grid-values";
+    gridValues.style.color = s.color;
     gridValues.setAttribute("aria-label", "Horizontal grid values");
     for (let i = 0; i < 5; i++) {
       const tick = document.createElement("span");
