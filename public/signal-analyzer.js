@@ -740,17 +740,15 @@
           return new RegExp("^DB0*" + requestedDb + "(?:[,.:/]|$)").test(address);
         })
       : projectSymbols.filter(function (s) {
-          const displayName = displayProjectSymbolName(s).trim().toLowerCase();
-          // A DB field must never leak into broad searches such as "db",
-          // even if that field was loaded earlier by an explicit DB-root query.
-          // Nested names become searchable only after the user types a dot.
+          // Search only the parsed symbol-name column (_SKZ in STEP 7 DBF
+          // symbol tables). Addresses, data types, and comments are metadata,
+          // not searchable text.
+          const symbolKey = String(s.symbolName || s.name || "").trim().toLowerCase();
+          // DB fields should not leak into broad searches such as "db",
+          // even if they were loaded earlier by an explicit DB-root query.
+          const displayName = displayProjectSymbolName(s).trim();
           if (displayName.includes(".") && !query.includes(".")) return false;
-          return (
-            (s.name + " " + s.address + " " + s.type + " " + s.comment)
-              .toLowerCase()
-              .includes(query) ||
-            normalizeStep7Address(s.address).replace(/\s+/g, "").includes(addressQuery)
-          );
+          return symbolKey.includes(query);
         });
     const nameInput = document.getElementById("signalNameInput");
     const showAllAlphabetically = !query && document.activeElement === nameInput;
