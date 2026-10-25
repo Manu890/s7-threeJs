@@ -793,6 +793,27 @@
       "px;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;" +
       "background:#fff;color:#263442;border:1px solid #d4dbe2;" +
       "border-radius:4px;font:12px Consolas,'Courier New',monospace;outline-offset:2px";
+    const columns = [
+      { label: "_SKZ", value: function (symbol) { return symbol.symbolName || symbol.name || ""; } },
+      { label: "_OPIEC", value: function (symbol) { return symbol.operand || symbol.address || ""; } },
+      { label: "_DATATYP", value: function (symbol) { return symbol.dataType || symbol.type || ""; } },
+      { label: "_COMMENT", value: function (symbol) { return symbol.comment || ""; } },
+    ];
+    const columnTemplate = "minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, .8fr) minmax(0, 1.6fr)";
+    const header = document.createElement("div");
+    header.setAttribute("aria-hidden", "true");
+    header.style.cssText =
+      "display:grid;grid-template-columns:" + columnTemplate +
+      ";gap:8px;padding:5px 6px;box-sizing:border-box;background:#eaf0f6;" +
+      "border:1px solid #d4dbe2;border-bottom:0;font:600 11px Consolas,'Courier New',monospace;color:#263442";
+    columns.forEach(function (column) {
+      const cell = document.createElement("div");
+      cell.textContent = column.label;
+      cell.style.cssText = "min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+      header.appendChild(cell);
+    });
+    symbolResults.appendChild(header);
+
     const spacer = document.createElement("div");
     spacer.style.cssText = "position:relative;width:1px;height:" +
       (matches.length * rowHeight) + "px;pointer-events:none";
@@ -828,14 +849,25 @@
           return;
         }
         const s = matches[index];
-        const displayName = displayProjectSymbolName(s);
-        const address = String(s.address || s.operand || "");
         row.hidden = false;
         row.dataset.index = String(index);
-        row.textContent = displayName + "    [" + address +
-          (s.type ? " · " + s.type : "") + "]";
-        row.title = displayName + " — " + address;
+        row.replaceChildren();
+        row.style.display = "grid";
+        row.style.gridTemplateColumns = columnTemplate;
+        row.style.gap = "8px";
         row.style.transform = "translateY(" + (index * rowHeight) + "px)";
+        columns.forEach(function (column) {
+          const cell = document.createElement("div");
+          const value = String(column.value(s) || "").trim();
+          cell.textContent = value;
+          cell.title = value;
+          cell.style.cssText =
+            "min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+          row.appendChild(cell);
+        });
+        row.title = columns.map(function (column) {
+          return column.label + ": " + String(column.value(s) || "").trim();
+        }).join(" · ");
         row.setAttribute("aria-selected", index === selectedIndex ? "true" : "false");
         row.style.background = index === selectedIndex ? "#dcecff" : "#fff";
         row.style.color = "#263442";
@@ -848,7 +880,7 @@
       row.style.cssText =
         "position:absolute;left:0;right:0;top:0;height:" + rowHeight +
         "px;line-height:" + rowHeight + "px;padding:0 6px;box-sizing:border-box;" +
-        "white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer";
+        "white-space:nowrap;overflow:hidden;cursor:pointer;align-items:center";
       row.addEventListener("click", function () {
         const index = Number(row.dataset.index);
         if (!Number.isInteger(index)) return;
