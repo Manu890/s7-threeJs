@@ -10,14 +10,12 @@
       const viewNow = state.inspectionViewTime === null ? liveNow : state.inspectionViewTime,
         span = Number(document.getElementById("windowSelect").value) * 1000,
         plotData = state.historicalMode ? state.historicalSamples : state.history,
-        firstLiveSample =
-          !state.historicalMode && plotData.length ? plotData[0].timestamp : viewNow - span,
-        requestedFrom = state.historicalMode
-          ? viewNow - span
-          : Math.max(firstLiveSample, viewNow - span),
-        from = requestedFrom,
+        // Keep the selected time window fixed in live mode too. Anchoring the
+        // left edge to the first sample makes a new recording stretch across
+        // the whole chart before the selected window has elapsed.
+        from = viewNow - span,
         now = viewNow,
-        plotSpan = now - from || span;
+        plotSpan = span;
       state.signals.forEach(function (s) {
         const row = state.traces.querySelector('[data-signal="' + CSS.escape(s.key) + '"]');
         if (!row) return;
