@@ -759,9 +759,6 @@
       const displayName = displayProjectSymbolName(s);
       return displayName.indexOf(".") === -1;
     });
-    // Keep the result set small for quick rendering, including DB field searches.
-    // Users can narrow broad queries by typing more of the symbol name.
-    const maxVisibleMatches = 50;
     const sortedMatches = showAllAlphabetically
       ? topLevelSymbols.slice().sort(function (a, b) {
           return displayProjectSymbolName(a).localeCompare(displayProjectSymbolName(b), undefined, {
@@ -770,7 +767,7 @@
           });
         })
       : matchingSymbols;
-    const matches = sortedMatches.slice(0, maxVisibleMatches);
+    const matches = sortedMatches;
     if (!matches.length) {
       const empty = document.createElement("div");
       empty.className = "help-text";
@@ -781,29 +778,36 @@
       return;
     }
 
-    // Use one native, scrollable select instead of building a wrapper tree
-    // (div/span/strong/small) for every match. Native options are much cheaper
-    // to lay out and the browser handles scrolling and keyboard navigation.
-    const list = document.createElement("select");
-    list.size = Math.min(10, matches.length);
+    // Virtualize the list: keep only the visible rows plus a small buffer in
+    // the DOM, while the scroll spacer represents the full result set.
+    const rowHeight = 24;
+    const viewportHeight = 220;
+    const bufferRows = 4;
+    const list = document.createElement("div");
+    list.setAttribute("role", "listbox");
     list.setAttribute("aria-label", "Matching STEP 7 symbols");
+    list.tabIndex = 0;
     list.style.cssText =
-      "display:block;width:100%;max-width:100%;min-height:100px;max-height:220px;" +
-      "overflow:auto;padding:2px;background:#fff;color:#263442;" +
-      "border:1px solid #d4dbe2;border-radius:4px;font:12px Consolas,'Courier New',monospace";
-    matches.forEach(function (s, index) {
-      const displayName = displayProjectSymbolName(s);
-      const option = document.createElement("option");
-      option.value = String(index);
-      option.textContent =
-        displayName + "    [" + String(s.address || s.operand || "") +
-        (s.type ? " · " + s.type : "") + "]";
-      option.title = displayName + " — " + String(s.address || s.operand || "");
-      list.appendChild(option);
-    });
-    list.addEventListener("change", function () {
-      const s = matches[Number(list.value)];
+      "display:block;position:relative;width:100%;height:" +
+      Math.min(viewportHeight, matches.length * rowHeight) +
+      "px;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;" +
+      "background:#fff;color:#263442;border:1px solid #d4dbe2;" +
+      "border-radius:4px;font:12px Consolas,'Courier New',monospace;outline-offset:2px";
+    const spacer = document.createElement("div");
+    spacer.style.cssText = "position:relative;width:1px;height:" +
+      (matches.length * rowHeight) + "px;pointer-events:none";
+    list.appendChild(spacer);
+
+    const visibleRows = Math.min(
+      matches.length,
+      Math.ceil(Math.min(viewportHeight, matches.length * rowHeight) / rowHeight) + bufferRows * 2
+    );
+    const rows = [];
+    let selectedIndex = -1;
+    function selectSymbol(index) {
+      const s = matches[index];
       if (!s) return;
+      selectedIndex = index;
       const displayName = displayProjectSymbolName(s);
       const nameInput = document.getElementById("signalNameInput");
       const keyInput = document.getElementById("signalKeyInput");
@@ -812,15 +816,76 @@
       const sourceAddress = String(s.address || s.operand || "").trim();
       if (sourceAddress) keyInput.value = normalizeStep7Address(sourceAddress);
       nameInput.focus();
+    }
+    function renderRows() {
+      const firstVisible = Math.floor(list.scrollTop / rowHeight);
+      const firstRow = Math.max(0, firstVisible - bufferRows);
+      rows.forEach(function (row, offset) {
+        const index = firstRow + offset;
+        if (index >= matches.length) {
+          row.hidden = true;
+          row.removeAttribute("data-index");
+          return;
+        }
+        const s = matches[index];
+        const displayName = displayProjectSymbolName(s);
+        const address = String(s.address || s.operand || "");
+        row.hidden = false;
+        row.dataset.index = String(index);
+        row.textContent = displayName + "    [" + address +
+          (s.type ? " · " + s.type : "") + "]";
+        row.title = displayName + " — " + address;
+        row.style.transform = "translateY(" + (index * rowHeight) + "px)";
+        row.setAttribute("aria-selected", index === selectedIndex ? "true" : "false");
+        row.style.background = index === selectedIndex ? "#dcecff" : "#fff";
+        row.style.color = "#263442";
+      });
+    }
+    for (let i = 0; i < visibleRows; i++) {
+      const row = document.createElement("div");
+      row.setAttribute("role", "option");
+      row.setAttribute("aria-selected", "false");
+      row.style.cssText =
+        "position:absolute;left:0;right:0;top:0;height:" + rowHeight +
+        "px;line-height:" + rowHeight + "px;padding:0 6px;box-sizing:border-box;" +
+        "white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer";
+      row.addEventListener("click", function () {
+        const index = Number(row.dataset.index);
+        if (!Number.isInteger(index)) return;
+        selectedIndex = index;
+        renderRows();
+        selectSymbol(index);
+      });
+      rows.push(row);
+      list.appendChild(row);
+    }
+    list.addEventListener("scroll", renderRows, { passive: true });
+    list.addEventListener("keydown", function (event) {
+      if (event.key !== "ArrowDown" && event.key !== "ArrowUp" &&
+          event.key !== "Home" && event.key !== "End" && event.key !== "Enter") return;
+      event.preventDefault();
+      if (event.key === "Enter") {
+        if (selectedIndex >= 0) selectSymbol(selectedIndex);
+        return;
+      }
+      if (event.key === "Home") selectedIndex = 0;
+      else if (event.key === "End") selectedIndex = matches.length - 1;
+      else if (event.key === "ArrowDown") selectedIndex = Math.min(matches.length - 1, selectedIndex + 1);
+      else selectedIndex = Math.max(0, selectedIndex < 0 ? 0 : selectedIndex - 1);
+      const top = selectedIndex * rowHeight;
+      if (top < list.scrollTop) list.scrollTop = top;
+      else if (top + rowHeight > list.scrollTop + list.clientHeight)
+        list.scrollTop = top + rowHeight - list.clientHeight;
+      renderRows();
     });
     symbolResults.appendChild(list);
+    renderRows();
 
-    if (matchingSymbols.length > maxVisibleMatches) {
+    if (matches.length > visibleRows) {
       const note = document.createElement("div");
       note.className = "help-text";
       note.textContent =
-        "Showing first " + maxVisibleMatches + " of " +
-        matchingSymbols.length.toLocaleString() + " matches. Type more to narrow the list.";
+        matches.length.toLocaleString() + " matches. Scroll to browse; type more to narrow the list.";
       symbolResults.appendChild(note);
     }
   }
