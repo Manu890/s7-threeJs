@@ -51,6 +51,20 @@ export class PLCConnection {
   }
 
   /**
+   * Add one registered variable to the active S7 read list without removing
+   * the variables already being polled. Used when a signal is added mid-recording.
+   * @param {string} name - WebSocket data key
+   */
+  addReadVariable(name) {
+    if (!Object.prototype.hasOwnProperty.call(this.variables, name)) {
+      throw new Error(`Variable ${name} is not registered`);
+    }
+    this.conn.setTranslationCB((itemName) => this.variables[itemName]);
+    this.conn.addItems([name]);
+    console.log(`📡 Added ${name} to the active S7 read list`);
+  }
+
+  /**
    * Register an additional PLC variable while the bridge is running.
    * Registration stores the address mapping only; it does not activate S7 reads.
    * @param {string} name - WebSocket data key
