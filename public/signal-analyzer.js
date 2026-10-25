@@ -748,7 +748,7 @@
           // even if they were loaded earlier by an explicit DB-root query.
           const displayName = displayProjectSymbolName(s).trim();
           if (displayName.includes(".") && !query.includes(".")) return false;
-          return symbolKey.includes(query);
+          return symbolKey.startsWith(query);
         });
     const nameInput = document.getElementById("signalNameInput");
     const showAllAlphabetically = !query && document.activeElement === nameInput;
