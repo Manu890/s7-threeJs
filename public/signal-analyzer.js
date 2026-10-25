@@ -864,6 +864,7 @@
   document.getElementById("addSignalForm").addEventListener("submit", function (e) {
     e.preventDefault();
     const error = document.getElementById("signalFormError");
+    try {
     let label = document.getElementById("signalNameInput").value.trim();
     let key = document.getElementById("signalKeyInput").value.trim();
     let address = "";
@@ -960,6 +961,10 @@
     } else {
       error.textContent =
         "This signal is already in the chart. Each data key or PLC address can only be added once.";
+    }
+    } catch (err) {
+      console.error("Signal Analyzer: adding signal failed", err);
+      error.textContent = "Could not add signal: " + (err && err.message ? err.message : String(err));
     }
   });
   document.getElementById("removeAllSignalsBtn").addEventListener("click", function () {
