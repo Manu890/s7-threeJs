@@ -86,26 +86,39 @@ export class PLCConnection {
       throw new Error("A PLC address is required for real PLC signals");
     }
 
-    // Keep the PLC data type when translating a generic DBD address.
-    // REAL must be decoded as IEEE-754 float, not unsigned DWORD.
+    // Convert analyzer/STEP 7 address spellings to nodes7 operands.
+    // nodes7 expects e.g. DB601,WORD0 or DB601,REAL10; DB601_DBW0 is not
+    // a valid nodes7 operand and is rejected as an unknown data type.
     const type = String(plcType || "")
       .trim()
       .toUpperCase();
-    const normalizedAddress = address
-      .trim()
-      .replace(
-        /^(DB\d+),DBD(\d+)$/i,
-        (_match, db, offset) =>
-          db +
-          "," +
-          (type === "R" || type === "REAL"
-            ? "REAL"
-            : type === "DI" || type === "DINT"
-              ? "DINT"
-              : "DWORD") +
-          offset
-      );
-    if (this.variables[name] === normalizedAddress) {
+    const rawAddress = address.trim().replace(/\\s+/g, "");
+    const dbAddress = rawAddress.match(
+      /^DB(\\d+)(?:_|,|[.:/])(DBX|DBB|DBW|DBD)(\\d+(?:\\.\\d+)?)$/i
+    );
+    let normalizedAddress = rawAddress;
+    if (dbAddress) {
+      const db = "DB" + dbAddress[1];
+      const area = dbAddress[2].toUpperCase();
+      const offset = dbAddress[3];
+      let operandType;
+      if (area === "DBX") {
+        operandType = "X";
+      } else if (area === "DBB") {
+        operandType = "BYTE";
+      } else if (area === "DBW") {
+        operandType =
+          ["I", "INT", "SINT16"].includes(type) ? "INT" :
+          ["W", "WORD", "UINT"].includes(type) ? "WORD" :
+          "WORD";
+      } else {
+        operandType =
+          ["R", "REAL", "RR", "RREAL"].includes(type) ? "REAL" :
+          ["DI", "DINT", "RDINT"].includes(type) ? "DINT" :
+          "DWORD";
+      }
+      normalizedAddress = db + "," + operandType + offset;
+    }    if (this.variables[name] === normalizedAddress) {
       return;
     }
 
