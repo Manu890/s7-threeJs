@@ -48,7 +48,7 @@
     if (!text || /^(symbol|name)[,;\t]/i.test(text) || /^\s*#/.test(text)) return null;
     // STEP 7 ASC: length,symbol. address datatype comment
     const asc = text.match(
-      /^\s*\d+\s*,\s*([^,]+?)\s+((?:DB\d+\s*[,.:/]\s*)?[A-Z]+\s*\d+(?:\.\d+){0,2}|(?:PI|PQ|PE|PA|M|I|E|Q|A|T|C)[A-Z]*\s*\d+(?:\.\d+){0,2})\s+([A-Z][A-Z0-9_]*)?(?:\s+(.*))?$/i
+      /^\s*\d+\s*,\s*([^,]+?)\s+((?:DB\s*\d+(?:\s*[,.:/]\s*[A-Z]+\s*\d+(?:\.\d+){0,2})?)|(?:[A-Z]+\s*\d+(?:\.\d+){0,2})|(?:PI|PQ|PE|PA|M|I|E|Q|A|T|C)[A-Z]*\s*\d+(?:\.\d+){0,2})\s+([A-Z][A-Z0-9_]*)?(?:\s+(.*))?$/i
     );
     if (asc)
       return {
@@ -88,7 +88,7 @@
     );
     if (cells.length < 2) return null;
     const addressIndex = cells.findIndex((v) =>
-      /^(?:DB\d+\s*[,.:/]\s*[A-Z]+\s*\d+(?:\.\d+){0,2}|(?:PI|PQ|PE|PA|M|I|E|Q|A|T|C)[A-Z]*\s*\d+(?:\.\d+){0,2})$/i.test(
+      /^(?:DB\s*\d+(?:\s*[,.:/]\s*[A-Z]+\s*\d+(?:\.\d+){0,2})?|(?:PI|PQ|PE|PA|M|I|E|Q|A|T|C)[A-Z]*\s*\d+(?:\.\d+){0,2})$/i.test(
         v
       )
     );
