@@ -740,12 +740,9 @@
           return new RegExp("^DB0*" + requestedDb + "(?:[,.:/]|$)").test(address);
         })
       : projectSymbols.filter(function (s) {
-          // Search only the parsed symbol-name column (_SKZ in STEP 7 DBF
-          // symbol tables). Addresses, data types, and comments are metadata,
-          // not searchable text.
-          // Search exclusively the parsed STEP 7 symbol-name field (_SKZ).
-          // Do not fall back to the generic name property.
-          const symbolName = String(s.symbolName || "").trim().toLowerCase();
+          // Search exclusively the normalized _SKZ field populated by the
+          // STEP 7 parser. Never fall back to name, address, type, or comment.
+          const symbolName = String(s._SKZ || "").trim().toLowerCase();
           // DB fields should not leak into broad searches such as "db",
           // even if they were loaded earlier by an explicit DB-root query.
           const displayName = displayProjectSymbolName(s).trim();
@@ -782,7 +779,7 @@
     // Render every match in a native scrollable list sized to about ten rows.
     const matches = sortedMatches;
     const columns = [
-      { label: "_SKZ", value: function (symbol) { return symbol.symbolName || symbol.name || ""; } },
+      { label: "_SKZ", value: function (symbol) { return symbol._SKZ || ""; } },
       { label: "_OPIEC", value: function (symbol) { return symbol.operand || symbol.address || ""; } },
       { label: "_DATATYP", value: function (symbol) { return symbol.dataType || symbol.type || ""; } },
       { label: "_COMMENT", value: function (symbol) { return symbol.comment || ""; } },
