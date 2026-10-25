@@ -689,8 +689,11 @@
         // A DB field without a symbolic root is displayed as a canonical
         // address (for example DB601.DBD10). It cannot be resolved from its
         // display name, so use the result's source address as the PLC input.
-        if (!keyInput.value.trim() && /^DB\d+\.DB[XBWD]\d+(?:\.\d+)?$/i.test(displayName)) {
+        if (/^DB\d+\.DB[XBWD]\d+(?:\.\d+)?$/i.test(displayName)) {
+          // The clicked result is the user's explicit selection. Always replace
+          // any stale key/address with this result's actual STEP 7 operand.
           keyInput.value = s.address || s.operand || displayName;
+          keyInput.dispatchEvent(new Event("change", { bubbles: true }));
         }
         nameInput.focus();
       }
