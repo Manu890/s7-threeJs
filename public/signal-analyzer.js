@@ -598,7 +598,7 @@
     const address = normalizeStep7Address(symbol.address || symbol.operand || "")
       .toUpperCase()
       .replace(/\s+/g, "");
-    const field = address.match(/^DB0*(\d+),DB[XBWD](\d+)(?:\.\d+)?$/);
+    const field = address.match(/^DB0*(\d+),DB([XBWD])(\d+)(?:\.(\d+))?$/);
     if (!field) return name;
 
     const dbNumber = Number(field[1]);
@@ -609,7 +609,11 @@
       return /^DB0*\d+$/.test(rootAddress) && Number(rootAddress.slice(2)) === dbNumber;
     });
     const rootName = dbRoot && String(dbRoot.name || dbRoot.symbolName || "").trim();
-    return rootName && name ? rootName + "." + name : name;
+    if (rootName && name) return rootName + "." + name;
+
+    // If the DB has no matching symbolic root, show a readable canonical address.
+    return "DB" + dbNumber + ".DB" + field[2] + field[3] +
+      (field[4] === undefined ? "" : "." + field[4]);
   }
   function renderProjectSymbols() {
     const query = document.getElementById("signalNameInput").value.trim().toLowerCase(),
