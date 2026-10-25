@@ -743,12 +743,20 @@
           // Search only the parsed symbol-name column (_SKZ in STEP 7 DBF
           // symbol tables). Addresses, data types, and comments are metadata,
           // not searchable text.
-          const symbolKey = String(s.symbolName || s.name || "").trim().toLowerCase();
+          const symbolNames = [s.symbolName, s.name]
+            .map(function (value) {
+              return String(value || "").trim().toLowerCase();
+            })
+            .filter(Boolean);
           // DB fields should not leak into broad searches such as "db",
           // even if they were loaded earlier by an explicit DB-root query.
           const displayName = displayProjectSymbolName(s).trim();
           if (displayName.includes(".") && !query.includes(".")) return false;
-          return symbolKey.startsWith(query);
+          // Some STEP 7 parsers expose both a display name and an _SKZ alias.
+          // Match either name so a populated alias cannot hide a DB symbol.
+          return symbolNames.some(function (symbolName) {
+            return symbolName.startsWith(query);
+          });
         });
     const nameInput = document.getElementById("signalNameInput");
     const showAllAlphabetically = !query && document.activeElement === nameInput;
