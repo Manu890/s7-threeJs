@@ -720,8 +720,11 @@
         // leaving a stale/empty key and making Add signal appear to do nothing.
         const sourceAddress = String(s.address || s.operand || "").trim();
         if (sourceAddress) {
+          // The selected row already supplied the full display name above.
+          // Dispatching "change" here invokes fillSignalNameFromProjectAddress,
+          // which replaces a qualified name such as db_visu_add.res01 with the
+          // leaf-only parsed name res01. Set the address directly instead.
           keyInput.value = normalizeStep7Address(sourceAddress);
-          keyInput.dispatchEvent(new Event("change", { bubbles: true }));
         }
         nameInput.focus();
       }
