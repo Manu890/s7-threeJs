@@ -689,10 +689,17 @@
         );
     const nameInput = document.getElementById("signalNameInput");
     const showAllAlphabetically = !query && document.activeElement === nameInput;
+    // On an empty focused input, list only top-level symbols. DB fields such
+    // as db_visu_add.res01 should appear only after the user types the root
+    // name followed by a dot (db_visu_add.).
+    const topLevelSymbols = matchingSymbols.filter(function (s) {
+      const displayName = displayProjectSymbolName(s);
+      return displayName.indexOf(".") === -1;
+    });
     const matches = dbMode
       ? matchingSymbols
       : showAllAlphabetically
-        ? matchingSymbols.slice().sort(function (a, b) {
+        ? topLevelSymbols.slice().sort(function (a, b) {
             return displayProjectSymbolName(a).localeCompare(displayProjectSymbolName(b), undefined, {
               sensitivity: "base",
               numeric: true,
