@@ -759,16 +759,18 @@
       const displayName = displayProjectSymbolName(s);
       return displayName.indexOf(".") === -1;
     });
-    const matches = dbMode
-      ? matchingSymbols
-      : showAllAlphabetically
-        ? topLevelSymbols.slice().sort(function (a, b) {
-            return displayProjectSymbolName(a).localeCompare(displayProjectSymbolName(b), undefined, {
-              sensitivity: "base",
-              numeric: true,
-            });
-          })
-        : matchingSymbols.slice(0, 150);
+    // Keep the result set small for quick rendering, including DB field searches.
+    // Users can narrow broad queries by typing more of the symbol name.
+    const maxVisibleMatches = 50;
+    const sortedMatches = showAllAlphabetically
+      ? topLevelSymbols.slice().sort(function (a, b) {
+          return displayProjectSymbolName(a).localeCompare(displayProjectSymbolName(b), undefined, {
+            sensitivity: "base",
+            numeric: true,
+          });
+        })
+      : matchingSymbols;
+    const matches = sortedMatches.slice(0, maxVisibleMatches);
     if (!matches.length) {
       const empty = document.createElement("div");
       empty.className = "help-text";
@@ -813,10 +815,12 @@
     });
     symbolResults.appendChild(list);
 
-    if (matches.length >= 150) {
+    if (matchingSymbols.length > maxVisibleMatches) {
       const note = document.createElement("div");
       note.className = "help-text";
-      note.textContent = "Showing first 150 matches. Search to narrow the list.";
+      note.textContent =
+        "Showing first " + maxVisibleMatches + " of " +
+        matchingSymbols.length.toLocaleString() + " matches. Type more to narrow the list.";
       symbolResults.appendChild(note);
     }
   }
