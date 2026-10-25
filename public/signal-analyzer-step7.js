@@ -555,44 +555,70 @@
         console.warn("Could not inspect STEP 7 symbol file", item.path, err);
       }
     }
-    let subblkRows = 0,
-      subblkMemos = 0,
-      subblkStructures = 0;
-    for (const item of subblkFiles) {
-      try {
-        const directory = item.path.includes("/")
-          ? item.path.slice(0, item.path.lastIndexOf("/") + 1)
-          : "";
-        const companion = files.find(
-          (f) => f.path.toUpperCase() === (directory + "SUBBLK.DBT").toUpperCase()
-        );
-        const parsed = await parseStep7SubblkDbf(
-          await item.entry.getFile(),
-          companion && companion.entry
-        );
-        subblkRows += parsed.rows.length;
-        subblkMemos += parsed.memoCount;
-        for (const row of parsed.rows) {
-          const blockValue = row.BLKNUMBER || row.BLKNR || row.NUMBER || row.BLOCKNR || "";
-          const blockName = row.BLKNAME || row.NAME || row.BLOCKNAME || "";
-          const match =
-            String(blockName + " " + blockValue).match(/\bDB\s*0*(\d+)\b/i) ||
-            String(blockValue).match(/^\s*0*(\d+)\s*$/);
-          if (!match) continue;
-          const dbNumber = Number(match[1]);
-          const body = Object.keys(row)
-            .filter((k) => /_TEXT$/.test(k))
-            .map((k) => row[k])
-            .join("\n");
-          if (!body || !/STRUCT/i.test(body)) continue;
-          const fields = parseStep7DbStructure(body, "DB" + dbNumber + ".DB");
-          if (fields.length) {
-            found.push(...fields);
-            subblkStructures++;
+    // SUBBLK.DBF and its memo file can be large. Keep their file handles,
+    // but defer parsing until the user explicitly requests a DB's fields by
+    // typing a symbol/address followed by a dot in the analyzer input.
+    const parsedDbStructures = new Set();
+    const pendingDbStructureLoads = new Map();
+    async function loadDbStructures(requestedDb) {
+      const dbNumber = Number(requestedDb);
+      if (!Number.isInteger(dbNumber) || dbNumber < 0) return [];
+      if (parsedDbStructures.has(dbNumber)) {
+        return found.filter(function (symbol) {
+          const address = normalizeSignalAddress(symbol.address || symbol.operand || "");
+          return new RegExp("^DB0*" + dbNumber + "(?:_|$)").test(address);
+        });
+      }
+      if (pendingDbStructureLoads.has(dbNumber)) return pendingDbStructureLoads.get(dbNumber);
+      const task = (async function () {
+        const added = [];
+        for (const item of subblkFiles) {
+          try {
+            const directory = item.path.includes("/")
+              ? item.path.slice(0, item.path.lastIndexOf("/") + 1)
+              : "";
+            const companion = files.find(
+              (f) => f.path.toUpperCase() === (directory + "SUBBLK.DBT").toUpperCase()
+            );
+            const parsed = await parseStep7SubblkDbf(
+              await item.entry.getFile(),
+              companion && companion.entry
+            );
+            for (const row of parsed.rows) {
+              const blockValue = row.BLKNUMBER || row.BLKNR || row.NUMBER || row.BLOCKNR || "";
+              const blockName = row.BLKNAME || row.NAME || row.BLOCKNAME || "";
+              const match =
+                String(blockName + " " + blockValue).match(/\\bDB\\s*0*(\\d+)\\b/i) ||
+                String(blockValue).match(/^\\s*0*(\\d+)\\s*$/);
+              if (!match || Number(match[1]) !== dbNumber) continue;
+              const body = Object.keys(row)
+                .filter((k) => /_TEXT$/.test(k))
+                .map((k) => row[k])
+                .join("\\n");
+              if (!body || !/STRUCT/i.test(body)) continue;
+              const fields = parseStep7DbStructure(body, "DB" + dbNumber + ".DB");
+              if (fields.length) added.push(...fields);
+            }
+          } catch (err) {
+            binaryCandidates.push(item.path + " (SUBBLK parse error: " + err.message + ")");
           }
         }
-      } catch (err) {
-        binaryCandidates.push(item.path + " (SUBBLK parse error: " + err.message + ")");
+        const seen = new Set(found.map((symbol) => normalizeSignalAddress(symbol.address || symbol.operand || "")));
+        added.forEach(function (symbol) {
+          const id = normalizeSignalAddress(symbol.address || symbol.operand || "");
+          if (symbol.name && symbol.address && !seen.has(id)) {
+            seen.add(id);
+            found.push(symbol);
+          }
+        });
+        parsedDbStructures.add(dbNumber);
+        return added;
+      })();
+      pendingDbStructureLoads.set(dbNumber, task);
+      try {
+        return await task;
+      } finally {
+        pendingDbStructureLoads.delete(dbNumber);
       }
     }
     const dedup = new Map();
@@ -609,9 +635,10 @@
       binaryCandidates: binaryCandidates,
       visited: visited,
       subblkFiles: subblkFiles.length,
-      subblkRows: subblkRows,
-      subblkMemos: subblkMemos,
-      subblkStructures: subblkStructures,
+      subblkRows: 0,
+      subblkMemos: 0,
+      subblkStructures: 0,
+      loadDbStructures: loadDbStructures,
     };
   }
 
