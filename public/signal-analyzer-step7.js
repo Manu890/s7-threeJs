@@ -246,12 +246,13 @@
     return rows;
   }
 
-  function resolveProjectAddress(address) {
+  function resolveProjectAddress(address, projectSymbols) {
+    const symbols = Array.isArray(projectSymbols) ? projectSymbols : [];
     const target = normalizeStep7Address(address)
       .toUpperCase()
       .replace(/\s+/g, "")
       .replace(/,BYTE(\d+)/, ",DBB$1");
-    const direct = projectSymbols.find(function (s) {
+    const direct = symbols.find(function (s) {
       return (
         normalizeStep7Address(s.address)
           .toUpperCase()
