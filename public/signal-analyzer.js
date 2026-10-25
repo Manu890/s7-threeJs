@@ -812,16 +812,18 @@
       row.setAttribute("aria-selected", "false");
       row.tabIndex = 0;
       row.style.cssText =
-        "display:grid;grid-template-columns:" + columnTemplate +
-        ";gap:8px;min-height:24px;padding:4px 6px;box-sizing:border-box;" +
-        "align-items:center;cursor:pointer;border-bottom:1px solid #edf0f3";
-      columns.forEach(function (column) {
+        "display:block;width:100%;min-height:32px;padding:6px 8px;box-sizing:border-box;" +
+        "cursor:pointer;border-bottom:1px solid #edf0f3";
+      columns.forEach(function (column, index) {
         const cell = document.createElement("div");
         const value = String(column.value(symbol) || "").trim();
-        cell.textContent = value;
-        cell.title = value;
+        cell.textContent = (index === 0 ? "" : column.label + ": ") + value;
+        cell.title = column.label + ": " + value;
         cell.style.cssText =
-          "min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+          "min-width:0;overflow-wrap:anywhere;white-space:normal;" +
+          (index === 0
+            ? "font-weight:600;color:#172b3d;margin-bottom:3px"
+            : "font-size:11px;color:#526273;display:inline-block;margin-right:12px");
         row.appendChild(cell);
       });
       row.title = columns.map(function (column) {
