@@ -778,21 +778,9 @@
       return;
     }
 
-    // Virtualize the list: keep only the visible rows plus a small buffer in
-    // the DOM, while the scroll spacer represents the full result set.
-    const rowHeight = 24;
-    const viewportHeight = 220;
-    const bufferRows = 4;
-    const list = document.createElement("div");
-    list.setAttribute("role", "listbox");
-    list.setAttribute("aria-label", "Matching STEP 7 symbols");
-    list.tabIndex = 0;
-    list.style.cssText =
-      "display:block;position:relative;width:100%;height:" +
-      Math.min(viewportHeight, matches.length * rowHeight) +
-      "px;overflow-y:auto;overflow-x:hidden;box-sizing:border-box;" +
-      "background:#fff;color:#263442;border:1px solid #d4dbe2;" +
-      "border-radius:4px;font:12px Consolas,'Courier New',monospace;outline-offset:2px";
+    // Keep the result list simple and bounded to the first ten matches.
+    const maxResults = 10;
+    const matches = sortedMatches.slice(0, maxResults);
     const columns = [
       { label: "_SKZ", value: function (symbol) { return symbol.symbolName || symbol.name || ""; } },
       { label: "_OPIEC", value: function (symbol) { return symbol.operand || symbol.address || ""; } },
@@ -814,110 +802,61 @@
     });
     symbolResults.appendChild(header);
 
-    const spacer = document.createElement("div");
-    spacer.style.cssText = "position:relative;width:1px;height:" +
-      (matches.length * rowHeight) + "px;pointer-events:none";
-    list.appendChild(spacer);
-
-    const visibleRows = Math.min(
-      matches.length,
-      Math.ceil(Math.min(viewportHeight, matches.length * rowHeight) / rowHeight) + bufferRows * 2
-    );
-    const rows = [];
-    let selectedIndex = -1;
-    function selectSymbol(index) {
-      const s = matches[index];
-      if (!s) return;
-      selectedIndex = index;
-      const displayName = displayProjectSymbolName(s);
-      const nameInput = document.getElementById("signalNameInput");
-      const keyInput = document.getElementById("signalKeyInput");
-      nameInput.value = displayName;
-      nameInput.dispatchEvent(new Event("input", { bubbles: true }));
-      const sourceAddress = String(s.address || s.operand || "").trim();
-      if (sourceAddress) keyInput.value = normalizeStep7Address(sourceAddress);
-      nameInput.focus();
-    }
-    function renderRows() {
-      const firstVisible = Math.floor(list.scrollTop / rowHeight);
-      const firstRow = Math.max(0, firstVisible - bufferRows);
-      rows.forEach(function (row, offset) {
-        const index = firstRow + offset;
-        if (index >= matches.length) {
-          row.hidden = true;
-          row.removeAttribute("data-index");
-          return;
-        }
-        const s = matches[index];
-        row.hidden = false;
-        row.dataset.index = String(index);
-        row.replaceChildren();
-        row.style.display = "grid";
-        row.style.gridTemplateColumns = columnTemplate;
-        row.style.gap = "8px";
-        row.style.transform = "translateY(" + (index * rowHeight) + "px)";
-        columns.forEach(function (column) {
-          const cell = document.createElement("div");
-          const value = String(column.value(s) || "").trim();
-          cell.textContent = value;
-          cell.title = value;
-          cell.style.cssText =
-            "min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
-          row.appendChild(cell);
-        });
-        row.title = columns.map(function (column) {
-          return column.label + ": " + String(column.value(s) || "").trim();
-        }).join(" · ");
-        row.setAttribute("aria-selected", index === selectedIndex ? "true" : "false");
-        row.style.background = index === selectedIndex ? "#dcecff" : "#fff";
-        row.style.color = "#263442";
-      });
-    }
-    for (let i = 0; i < visibleRows; i++) {
+    const list = document.createElement("div");
+    list.setAttribute("role", "listbox");
+    list.setAttribute("aria-label", "Matching STEP 7 symbols");
+    list.style.cssText =
+      "display:block;width:100%;box-sizing:border-box;overflow-x:hidden;" +
+      "background:#fff;color:#263442;border:1px solid #d4dbe2;border-top:0;" +
+      "border-radius:0 0 4px 4px;font:12px Consolas,'Courier New',monospace";
+    matches.forEach(function (symbol) {
       const row = document.createElement("div");
       row.setAttribute("role", "option");
       row.setAttribute("aria-selected", "false");
+      row.tabIndex = 0;
       row.style.cssText =
-        "position:absolute;left:0;right:0;top:0;height:" + rowHeight +
-        "px;line-height:" + rowHeight + "px;padding:0 6px;box-sizing:border-box;" +
-        "white-space:nowrap;overflow:hidden;cursor:pointer;align-items:center";
-      row.addEventListener("click", function () {
-        const index = Number(row.dataset.index);
-        if (!Number.isInteger(index)) return;
-        selectedIndex = index;
-        renderRows();
-        selectSymbol(index);
+        "display:grid;grid-template-columns:" + columnTemplate +
+        ";gap:8px;min-height:24px;padding:4px 6px;box-sizing:border-box;" +
+        "align-items:center;cursor:pointer;border-bottom:1px solid #edf0f3";
+      columns.forEach(function (column) {
+        const cell = document.createElement("div");
+        const value = String(column.value(symbol) || "").trim();
+        cell.textContent = value;
+        cell.title = value;
+        cell.style.cssText =
+          "min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+        row.appendChild(cell);
       });
-      rows.push(row);
+      row.title = columns.map(function (column) {
+        return column.label + ": " + String(column.value(symbol) || "").trim();
+      }).join(" · ");
+      row.addEventListener("click", function () {
+        const displayName = displayProjectSymbolName(symbol);
+        const nameInput = document.getElementById("signalNameInput");
+        const keyInput = document.getElementById("signalKeyInput");
+        nameInput.value = displayName;
+        nameInput.dispatchEvent(new Event("input", { bubbles: true }));
+        const sourceAddress = String(symbol.address || symbol.operand || "").trim();
+        if (sourceAddress) keyInput.value = normalizeStep7Address(sourceAddress);
+        nameInput.focus();
+      });
+      row.addEventListener("keydown", function (event) {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          row.click();
+        }
+      });
       list.appendChild(row);
-    }
-    list.addEventListener("scroll", renderRows, { passive: true });
-    list.addEventListener("keydown", function (event) {
-      if (event.key !== "ArrowDown" && event.key !== "ArrowUp" &&
-          event.key !== "Home" && event.key !== "End" && event.key !== "Enter") return;
-      event.preventDefault();
-      if (event.key === "Enter") {
-        if (selectedIndex >= 0) selectSymbol(selectedIndex);
-        return;
-      }
-      if (event.key === "Home") selectedIndex = 0;
-      else if (event.key === "End") selectedIndex = matches.length - 1;
-      else if (event.key === "ArrowDown") selectedIndex = Math.min(matches.length - 1, selectedIndex + 1);
-      else selectedIndex = Math.max(0, selectedIndex < 0 ? 0 : selectedIndex - 1);
-      const top = selectedIndex * rowHeight;
-      if (top < list.scrollTop) list.scrollTop = top;
-      else if (top + rowHeight > list.scrollTop + list.clientHeight)
-        list.scrollTop = top + rowHeight - list.clientHeight;
-      renderRows();
     });
     symbolResults.appendChild(list);
+
     renderRows();
 
-    if (matches.length > visibleRows) {
+    if (sortedMatches.length > maxResults) {
       const note = document.createElement("div");
       note.className = "help-text";
-      note.textContent =
-        matches.length.toLocaleString() + " matches. Scroll to browse; type more to narrow the list.";
+      note.textContent = "Showing first " + maxResults + " of " + sortedMatches.length +
+        " matching symbols. Type more to narrow the list.";
       symbolResults.appendChild(note);
     }
   }
