@@ -739,14 +739,19 @@
             .replace(/\s+/g, "");
           return new RegExp("^DB0*" + requestedDb + "(?:[,.:/]|$)").test(address);
         })
-      : projectSymbols.filter(
-          (s) =>
-            !query ||
+      : projectSymbols.filter(function (s) {
+          const displayName = displayProjectSymbolName(s).trim().toLowerCase();
+          // A DB field must never leak into broad searches such as "db",
+          // even if that field was loaded earlier by an explicit DB-root query.
+          // Nested names become searchable only after the user types a dot.
+          if (displayName.includes(".") && !query.includes(".")) return false;
+          return (
             (s.name + " " + s.address + " " + s.type + " " + s.comment)
               .toLowerCase()
               .includes(query) ||
             normalizeStep7Address(s.address).replace(/\s+/g, "").includes(addressQuery)
-        );
+          );
+        });
     const nameInput = document.getElementById("signalNameInput");
     const showAllAlphabetically = !query && document.activeElement === nameInput;
     // On an empty focused input, list only top-level symbols. DB fields such
