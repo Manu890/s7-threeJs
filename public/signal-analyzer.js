@@ -594,8 +594,8 @@
   const symbolProjectStatus = document.getElementById("symbolProjectStatus");
   const symbolResults = document.getElementById("symbolResults");
   let projectSymbols = [];
-  function renderProjectSymbols() {
-    const query = symbolSearchInput.value.trim().toLowerCase(),
+  function renderProjectSymbols(queryOverride) {
+    const query = (queryOverride === undefined ? symbolSearchInput.value : queryOverride).trim().toLowerCase(),
       addressQuery = query.toUpperCase().replace(/\s+/g, "");
     symbolResults.replaceChildren();
 
@@ -838,7 +838,11 @@
   }
   document
     .getElementById("signalNameInput")
-    .addEventListener("input", fillSignalAddressFromProjectName);
+    .addEventListener("input", function () {
+      fillSignalAddressFromProjectName();
+      const query = this.value.trim();
+      renderProjectSymbols(query || undefined);
+    });
   document
     .getElementById("signalNameInput")
     .addEventListener("change", fillSignalAddressFromProjectName);
