@@ -214,6 +214,8 @@
     });
     const label = document.createElement("div");
     label.className = "trace-label";
+    const info = document.createElement("div");
+    info.className = "trace-label-info";
     const title = document.createElement("strong");
     title.style.color = s.color;
     title.textContent = s.label;
@@ -225,7 +227,7 @@
     const settingsButton = document.createElement("button");
     settingsButton.type = "button";
     settingsButton.className = "trace-settings-button";
-    settingsButton.textContent = "⚙ Settings";
+    settingsButton.textContent = "⚙";
     settingsButton.setAttribute("aria-label", "Configure " + s.label);
     settingsButton.addEventListener("click", function () {
       const popup = window.open(
@@ -238,9 +240,18 @@
           "Settings popup was blocked. Allow popups for this local analyzer and try again.";
       }
     });
+    info.append(title, address, value, settingsButton);
+    const gridValues = document.createElement("div");
+    gridValues.className = "trace-grid-values";
+    gridValues.setAttribute("aria-label", "Horizontal grid values");
+    for (let i = 0; i < 5; i++) {
+      const tick = document.createElement("span");
+      tick.textContent = "—";
+      gridValues.appendChild(tick);
+    }
     const symbolTooltip = (s.dataType || "—") + " · " + (s.comment || "—");
     label.title = symbolTooltip;
-    label.append(title, address, value, settingsButton);
+    label.append(info, gridValues);
     const wrap = document.createElement("div");
     wrap.className = "canvas-wrap";
     const canvas = document.createElement("canvas");
