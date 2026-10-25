@@ -642,7 +642,10 @@
     matches.forEach((s) => {
       const row = document.createElement("div");
       row.style.cssText =
-        "display:flex;gap:6px;align-items:center;padding:6px;background:#0b131e;border:1px solid #263447;border-radius:6px";
+        "display:flex;gap:6px;align-items:center;padding:6px;background:#0b131e;border:1px solid #263447;border-radius:6px;cursor:pointer";
+      row.tabIndex = 0;
+      row.setAttribute("role", "button");
+      row.title = "Select " + s.name;
       const info = document.createElement("span");
       info.style.cssText = "min-width:0;flex:1;overflow-wrap:anywhere";
       const name = document.createElement("strong");
@@ -654,42 +657,19 @@
       meta.textContent = s.address + (s.type ? " · " + s.type : "");
       info.append(name, meta);
       row.appendChild(info);
-      const add = document.createElement("button");
-      add.type = "button";
-      add.textContent = "Add";
-      add.style.cssText = "padding:4px 8px;flex-shrink:0";
-      add.addEventListener("click", function () {
-        const address = normalizeStep7Address(s.address),
-          key = address
-            .toUpperCase()
-            .replace(/\s+/g, "")
-            .replace(/[,.:/]/g, "_");
-        if (!/^[a-zA-Z_][a-zA-Z0-9_-]{0,39}$/.test(key)) {
-          symbolProjectStatus.textContent =
-            "Cannot create a WebSocket key from address " +
-            address +
-            ". This address format needs backend support.";
-          return;
+      function selectSymbol() {
+        const nameInput = document.getElementById("signalNameInput");
+        nameInput.value = s.name;
+        nameInput.dispatchEvent(new Event("input", { bubbles: true }));
+        nameInput.focus();
+      }
+      row.addEventListener("click", selectSymbol);
+      row.addEventListener("keydown", function (event) {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          selectSymbol();
         }
-        if (isDuplicateSignal(key, address)) {
-          symbolProjectStatus.textContent = "Already monitored: " + s.name + " (" + address + ").";
-          return;
-        }
-        const ok = signalManager.addSignal({
-          key: key,
-          label: s.name,
-          address: address,
-          type: normalizeSymbolType(s.dataType || s.type),
-          symbolName: s.symbolName || s.name,
-          operand: s.operand || s.address || address,
-          dataType: s.dataType || s.type || "",
-          comment: s.comment || "",
-        });
-        symbolProjectStatus.textContent = ok
-          ? "Added " + s.name + " (" + address + ")."
-          : "This signal is already in the chart.";
       });
-      row.appendChild(add);
       symbolResults.appendChild(row);
     });
     if (!matches.length) {
