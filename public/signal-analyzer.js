@@ -431,8 +431,18 @@
         chartFrozen,
         history,
         recorded,
-        recordedSampleCount,
-        lastTimestamp,
+        get recordedSampleCount() {
+          return recordedSampleCount;
+        },
+        set recordedSampleCount(value) {
+          recordedSampleCount = value;
+        },
+        get lastTimestamp() {
+          return lastTimestamp;
+        },
+        set lastTimestamp(value) {
+          lastTimestamp = value;
+        },
         maxSamples,
       };
     },
