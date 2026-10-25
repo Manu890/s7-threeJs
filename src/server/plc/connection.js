@@ -92,9 +92,9 @@ export class PLCConnection {
     const type = String(plcType || "")
       .trim()
       .toUpperCase();
-    const rawAddress = address.trim().replace(/\\s+/g, "");
+    const rawAddress = address.trim().replace(/\s+/g, "");
     const dbAddress = rawAddress.match(
-      /^DB(\\d+)(?:_|,|[.:/])(DBX|DBB|DBW|DBD)(\\d+(?:\\.\\d+)?)$/i
+      /^DB(\d+)(?:_|,|[.:/])(DBX|DBB|DBW|DBD)(\d+(?:\.\d+)?)$/i
     );
     let normalizedAddress = rawAddress;
     if (dbAddress) {
@@ -118,7 +118,8 @@ export class PLCConnection {
           "DWORD";
       }
       normalizedAddress = db + "," + operandType + offset;
-    }    if (this.variables[name] === normalizedAddress) {
+    }
+    if (this.variables[name] === normalizedAddress) {
       return;
     }
 
