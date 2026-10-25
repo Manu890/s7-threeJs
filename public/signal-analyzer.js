@@ -777,9 +777,8 @@
       return;
     }
 
-    // Keep the result list simple and bounded to the first ten matches.
-    const maxResults = 10;
-    const matches = sortedMatches.slice(0, maxResults);
+    // Render every match in a native scrollable list sized to about ten rows.
+    const matches = sortedMatches;
     const columns = [
       { label: "_SKZ", value: function (symbol) { return symbol.symbolName || symbol.name || ""; } },
       { label: "_OPIEC", value: function (symbol) { return symbol.operand || symbol.address || ""; } },
@@ -805,7 +804,8 @@
     list.setAttribute("role", "listbox");
     list.setAttribute("aria-label", "Matching STEP 7 symbols");
     list.style.cssText =
-      "display:block;width:100%;box-sizing:border-box;overflow-x:hidden;" +
+      "display:block;width:100%;max-height:320px;box-sizing:border-box;" +
+      "overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;" +
       "background:#fff;color:#263442;border:1px solid #d4dbe2;border-top:0;" +
       "border-radius:0 0 4px 4px;font:12px Consolas,'Courier New',monospace";
     matches.forEach(function (symbol) {
@@ -849,13 +849,6 @@
     });
     symbolResults.appendChild(list);
 
-    if (sortedMatches.length > maxResults) {
-      const note = document.createElement("div");
-      note.className = "help-text";
-      note.textContent = "Showing first " + maxResults + " of " + sortedMatches.length +
-        " matching symbols. Type more to narrow the list.";
-      symbolResults.appendChild(note);
-    }
   }
   document.getElementById("openStep7FolderBtn").addEventListener("click", async function () {
     if (!window.showDirectoryPicker) {
