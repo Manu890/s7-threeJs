@@ -610,7 +610,7 @@
   const loadingDbStructures = new Set();
   let projectStatusBase = "";
   function displayProjectSymbolName(symbol) {
-    const name = String(symbol.name || symbol.symbolName || "").trim();
+    const name = String(symbol.name || symbol.symbolName || symbol._SKZ || "").trim();
     const address = normalizeStep7Address(symbol.address || symbol.operand || "")
       .toUpperCase()
       .replace(/\s+/g, "");
@@ -828,7 +828,7 @@
         return column.label + ": " + String(column.value(symbol) || "").trim();
       }).join(" · ");
       row.addEventListener("click", function () {
-        const displayName = displayProjectSymbolName(symbol);
+        const displayName = displayProjectSymbolName(symbol) || String(symbol._SKZ || "").trim();
         const nameInput = document.getElementById("signalNameInput");
         const keyInput = document.getElementById("signalKeyInput");
         nameInput.value = displayName;
@@ -938,12 +938,12 @@
     if (!candidate || !projectSymbols.length) return;
 
     const symbolName = function (symbol) {
-      return String(symbol.name || "")
+      return String(symbol.name || symbol._SKZ || "")
         .trim()
         .toLowerCase();
     };
     const symbolAlias = function (symbol) {
-      return String(symbol.symbolName || "")
+      return String(symbol.symbolName || symbol._SKZ || "")
         .trim()
         .toLowerCase();
     };
