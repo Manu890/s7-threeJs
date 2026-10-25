@@ -92,20 +92,23 @@
           min = Math.min.apply(null, values),
           max = Math.max.apply(null, values),
           range = max - min || 1;
-        if (points.length < 2) {
-          // During startup, show only the current value at the bottom of the
-          // scale. Repeating a single sample across every grid label suggests
-          // a range that has not actually been observed yet.
+        const hasChangedValue = values.some(function (value) {
+          return value !== values[0];
+        });
+        if (!hasChangedValue) {
+          // Keep the scale collapsed until this signal has actually produced
+          // a different PLC value; repeated samples of the same value do not
+          // count as a change.
           gridValueLabels.forEach(function (tick) {
             tick.textContent = "";
             tick.removeAttribute("title");
           });
           const bottomLabel = gridValueLabels[gridValueLabels.length - 1];
           if (bottomLabel) {
-            bottomLabel.textContent = Number.isFinite(values[0])
-              ? Number(values[0].toPrecision(6)).toString()
+            bottomLabel.textContent = Number.isFinite(values[values.length - 1])
+              ? Number(values[values.length - 1].toPrecision(6)).toString()
               : "";
-            if (bottomLabel.textContent) bottomLabel.title = String(values[0]);
+            if (bottomLabel.textContent) bottomLabel.title = String(values[values.length - 1]);
           }
         } else {
           gridValueLabels.forEach(function (tick, index) {
