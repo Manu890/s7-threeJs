@@ -69,7 +69,11 @@
           .sort(function (a, b) {
             return a.timestamp - b.timestamp;
           });
+        const gridValueLabels = row.querySelectorAll(".trace-grid-values span");
         if (!points.length) {
+          gridValueLabels.forEach(function (tick) {
+            tick.textContent = "—";
+          });
           if (state.hoverTime !== null && state.hoverTime >= from && state.hoverTime <= now) {
             const x = ((state.hoverTime - from) / plotSpan) * cw;
             ctx.strokeStyle = "#16a34a";
@@ -87,6 +91,13 @@
           min = Math.min.apply(null, values),
           max = Math.max.apply(null, values),
           range = max - min || 1;
+        gridValueLabels.forEach(function (tick, index) {
+          const gridValue = max - ((max - min) * index) / 4;
+          tick.textContent = Number.isFinite(gridValue)
+            ? Number(gridValue.toPrecision(6)).toString()
+            : "—";
+          tick.title = String(gridValue);
+        });
         ctx.strokeStyle = s.color;
         ctx.lineWidth = 1.7;
         ctx.lineJoin = "round";
