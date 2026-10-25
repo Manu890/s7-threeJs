@@ -50,6 +50,7 @@
     function () {
       return {
         recording,
+        recordingStartedAt,
         get inspectionViewTime() {
           return inspectionViewTime;
         },
