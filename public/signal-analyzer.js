@@ -895,7 +895,7 @@
         "Data key must start with a letter or underscore and use only letters, numbers, _ or -.";
       return;
     }
-    if (isDuplicateSignal(key, address)) {
+    if (signalManager.isDuplicateSignal(key, address)) {
       error.textContent =
         "This signal is already in the chart. Each data key or PLC address can only be added once.";
       return;
