@@ -783,12 +783,6 @@
       { label: "_DATATYP", value: function (symbol) { return symbol.dataType || symbol.type || ""; } },
       { label: "_COMMENT", value: function (symbol) { return symbol.comment || ""; } },
     ];
-    const columns = [
-      { label: "_SKZ", value: function (symbol) { return symbol._SKZ || ""; } },
-      { label: "_OPIEC", value: function (symbol) { return symbol.operand || symbol.address || ""; } },
-      { label: "_DATATYP", value: function (symbol) { return symbol.dataType || symbol.type || ""; } },
-      { label: "_COMMENT", value: function (symbol) { return symbol.comment || ""; } },
-    ];
     const header = document.createElement("div");
     header.textContent = "Matching symbols";
     header.style.cssText =
