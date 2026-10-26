@@ -662,17 +662,53 @@
               await item.entry.getFile(),
               companion && companion.entry
             );
+            function valueFor(row, candidates) {
+              const entries = Object.keys(row).map(function (key) {
+                return { key: key, normalized: key.toUpperCase().replace(/[^A-Z0-9]/g, "") };
+              });
+              for (const candidate of candidates) {
+                const normalized = candidate.toUpperCase().replace(/[^A-Z0-9]/g, "");
+                const entry = entries.find(function (item) { return item.normalized === normalized; });
+                if (entry && String(row[entry.key] || "").trim()) return String(row[entry.key]).trim();
+              }
+              return "";
+            }
+            function looksLikeDbType(value) {
+              return /^(?:DB|DBLOCK|DATABLOCK|DATA_BLOCK|DATENBAUSTEIN)$/i.test(
+                String(value || "").trim().replace(/[\\s-]+/g, "_")
+              );
+            }
+            function explicitlyNonDbType(value) {
+              return /^(?:FB|FC|OB|SFB|SFC|UDT|FUNCTION_BLOCK|FUNCTION|ORGANIZATION_BLOCK)$/i.test(
+                String(value || "").trim().replace(/[\\s-]+/g, "_")
+              );
+            }
             for (const row of parsed.rows) {
-              const blockValue = row.BLKNUMBER || row.BLKNR || row.NUMBER || row.BLOCKNR || "";
-              const blockName = String(row.BLKNAME || row.NAME || row.BLOCKNAME || "").trim();
+              // SUBBLK.DBF schemas vary between STEP 7 releases. Normalize
+              // field names and support common object-name/type aliases.
+              const blockName = valueFor(row, [
+                "BLKNAME", "BLOCKNAME", "OBJNAME", "OBJECTNAME", "NAME", "_SKZ", "SYMBOLNAME", "BLKIDENT", "IDENT"
+              ]);
+              const blockValue = valueFor(row, [
+                "BLKNUMBER", "BLKNR", "BLOCKNR", "BLOCKNUMBER", "BLKNUM", "NUMBER", "BLKNO"
+              ]);
+              const blockType = valueFor(row, [
+                "BLKTYPE", "BLKTYP", "BLOCKTYPE", "OBJTYPE", "OBJECTTYPE", "SUBBLKTYPE", "TYPE", "BLKCLASS"
+              ]);
               const blockText = String(blockName + " " + blockValue);
               const match =
-                blockText.match(/\bDB\s*0*(\d+)\b/i) ||
-                String(blockValue).match(/^\s*0*(\d+)\s*$/);
+                blockText.match(/\\bDB\\s*0*(\\d+)\\b/i) ||
+                String(blockValue).match(/^\\s*0*(\\d+)\\s*$/);
               const rowDbNumber = match ? Number(match[1]) : null;
-              const nameMatches = rootKey && blockName.toLowerCase() === rootKey;
+              const nameMatches = !!rootKey && blockName.toLowerCase() === rootKey;
+              const isExplicitDb = looksLikeDbType(blockType);
+              const isExplicitNonDb = explicitlyNonDbType(blockType);
+              // A DB and FB can share block number 663. Exact named lookup
+              // takes precedence; numeric lookup must reject explicitly non-DB rows.
+              if (isExplicitNonDb && !isExplicitDb) continue;
               if (dbNumber !== null) {
                 if (rowDbNumber !== dbNumber && !nameMatches) continue;
+                if (!isExplicitDb && !/^DB\\s*0*\\d+$/i.test(blockName) && !nameMatches) continue;
               } else if (!nameMatches) {
                 continue;
               }
@@ -681,11 +717,15 @@
               const body = Object.keys(row)
                 .filter((k) => /_TEXT$/.test(k))
                 .map((k) => row[k])
-                .join("\n");
-              if (!body || !(/STRUCT/i.test(body) || /\bVAR\b[\s\S]*?\bEND_VAR\b/i.test(body))) continue;
+                .join("\\n");
+              if (!body || !(/STRUCT/i.test(body) || /\\bVAR\\b[\\s\\S]*?\\bEND_VAR\\b/i.test(body))) continue;
               const fields = parseStep7DbStructure(body, "DB" + resolvedDbNumber + ".DB");
               fields.forEach(function (field) {
                 if (rootName) field._dbRootName = rootName;
+                else if (blockName) field._dbRootName = blockName;
+                field._sourceBlockName = blockName;
+                field._sourceBlockType = blockType;
+                field._sourceBlockNumber = rowDbNumber;
                 field._OPIEC = field.address;
                 field._DATATYP = field.dataType || field.type || "";
                 field._COMMENT = field.comment || "DB structure field";
