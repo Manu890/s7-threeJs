@@ -134,7 +134,7 @@
       pixels: String(Math.max(300, pixels)),
     });
     const loadingFirstWindow = latest || inspectionViewTime === null;
-    if (loadingFirstWindow) params.set("oldest", "1");
+    if (loadingFirstWindow) params.set("latest", "1");
     else {
       params.set("from", String(inspectionViewTime - seconds * 1000));
       params.set("to", String(inspectionViewTime));
