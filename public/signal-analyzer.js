@@ -689,7 +689,14 @@
       ? String(dbRoot._OPIEC || dbRoot.operand || dbRoot.address || "")
           .match(/^DB\s*0*(\d+)(?:$|[,.:/])/i)
       : null;
-    // In the symbol-name input, a dotted root such as "db_sp_spu." must be\n    // looked up by its root name in SUBBLK.DBF/.DBT directly; do not require\n    // SYMLIST.DBF to resolve that name to a numeric DB first.\n    const requestedDb = directDbQuery\n      ? Number(directDbQuery[1])\n      : searchingKey && dbAddress\n        ? Number(dbAddress[1])\n        : null;
+    // In the symbol-name input, a dotted root such as "db_sp_spu." must be
+    // looked up by its root name in SUBBLK.DBF/.DBT directly; do not require
+    // SYMLIST.DBF to resolve that name to a numeric DB first.
+    const requestedDb = directDbQuery
+      ? Number(directDbQuery[1])
+      : searchingKey && dbAddress
+        ? Number(dbAddress[1])
+        : null;
     const dbMode = Number.isInteger(requestedDb);
     const structureRequestKey = dbMode ? "db:" + requestedDb : "name:" + rootToken.toLowerCase();
     const symlistHasDbFields = dbMode && projectSymbols.some(function (symbol) {
