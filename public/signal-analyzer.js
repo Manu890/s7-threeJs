@@ -922,6 +922,7 @@
       loadProjectDbStructures = result.loadDbStructures || null;
       loadedDbStructures.clear();
       loadingDbStructures.clear();
+      nameLookupLoads.clear();
       fillSignalNameFromProjectAddress();
       renderProjectSymbols();
       const namedSymbols = projectSymbols.filter(function (symbol) {
@@ -1086,10 +1087,8 @@
                 projectSymbols.push(symbol);
               }
             });
-            if (nameInput.value.trim().toLowerCase() === candidate) {
-              fillSignalAddressFromProjectName();
-              renderProjectSymbols();
-            }
+            fillSignalAddressFromProjectName();
+            renderProjectSymbols();
             symbolProjectStatus.textContent =
               projectStatusBase + " Name lookup checked for " + requestedRoot + ".";
           })
