@@ -640,8 +640,8 @@
       return /^DB0*\d+$/.test(rootAddress) && Number(rootAddress.slice(2)) === dbNumber;
     });
     const rootName =
-      (dbRoot && String(dbRoot.name || dbRoot.symbolName || "").trim()) ||
-      String(symbol._dbRootName || "").trim();
+      String(symbol._dbRootName || "").trim() ||
+      (dbRoot && String(dbRoot.name || dbRoot.symbolName || "").trim());
     if (rootName && name) return rootName + "." + name;
 
     // If the DB has no matching symbolic root, show a readable canonical address.
@@ -681,9 +681,16 @@
     const requestedDb = directDbQuery ? Number(directDbQuery[1]) : dbAddress ? Number(dbAddress[1]) : null;
     const dbMode = Number.isInteger(requestedDb);
     const structureRequestKey = dbMode ? "db:" + requestedDb : "name:" + rootToken.toLowerCase();
+    const symlistHasDbFields = dbMode && projectSymbols.some(function (symbol) {
+      if (symbol._dbStructure) return false;
+      const address = normalizeStep7Address(symbol._OPIEC || symbol.operand || symbol.address || "")
+        .toUpperCase().replace(/\s+/g, "");
+      return new RegExp("^DB0*" + requestedDb + ",").test(address);
+    });
 
     if (
       dbSymbolQuery &&
+      !symlistHasDbFields &&
       loadProjectDbStructures &&
       !loadedDbStructures.has(structureRequestKey) &&
       !loadingDbStructures.has(structureRequestKey)
@@ -692,7 +699,7 @@
       symbolProjectStatus.textContent =
         projectStatusBase + " Loading " + (requestedDb !== null ? "DB" + requestedDb : rootToken) +
         " structure from SUBBLK.DBF/.DBT…";
-      loadProjectDbStructures(requestedDb, rootToken)
+      loadProjectDbStructures(requestedDb, directDbQuery ? "" : rootToken)
         .then(function (fields) {
           const existing = new Set(
             projectSymbols.map(function (symbol) {
@@ -746,7 +753,7 @@
       matchingSymbols = projectSymbols.filter(function (symbol) {
         const address = normalizeStep7Address(symbol.address || symbol.operand || "")
           .toUpperCase().replace(/\s+/g, "");
-        const sameDb = dbMode && new RegExp("^DB0*" + requestedDb + "(?:[,.:/]|$)").test(address);
+        const sameDb = dbMode && new RegExp("^DB0*" + requestedDb + ",").test(address);
         const sameRoot = String(symbol._dbRootName || "").trim().toLowerCase() === rootToken.toLowerCase();
         const symbolName = String(symbol._SKZ || symbol.name || "").trim().toLowerCase();
         return sameDb || sameRoot || (!searchingKey && symbolName.startsWith(query));
