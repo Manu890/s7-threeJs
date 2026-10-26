@@ -902,7 +902,7 @@
 
     const listWrap = document.createElement("div");
     listWrap.style.cssText =
-      "display:grid;grid-template-columns:minmax(0,1fr) 14px;width:100%;min-width:0;max-width:100%;" +
+      "display:grid;grid-template-columns:minmax(0,1fr) 14px;width:calc(100% - 6px);min-width:0;max-width:100%;margin-right:6px;" +
       "height:min(65vh,520px);min-height:240px;box-sizing:border-box;background:#fff;border:1px solid #d4dbe2;border-top:0;" +
       "border-radius:0 0 4px 4px;overflow:hidden";
     const list = document.createElement("div");
@@ -911,8 +911,7 @@
     list.style.cssText =
       "display:block;width:100%;min-width:0;max-width:100%;height:100%;min-height:0;box-sizing:border-box;" +
       "overflow-x:hidden;overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none;overscroll-behavior:contain;" +
-      "scrollbar-gutter:auto;"
-      "background:#fff;color:#263442;font:12px Consolas,'Courier New',monospace";
+      "scrollbar-gutter:auto;background:#fff;color:#263442;font:12px Consolas,'Courier New',monospace";
     const scrollbar = document.createElement("div");
     scrollbar.setAttribute("aria-hidden", "true");
     scrollbar.style.cssText = "position:relative;min-width:14px;height:100%;background:#e2e8f0;border-left:1px solid #c4ced8;box-sizing:border-box;cursor:pointer";
