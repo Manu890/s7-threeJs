@@ -900,14 +900,61 @@
     });
     symbolResults.appendChild(header);
 
+    const listWrap = document.createElement("div");
+    listWrap.style.cssText =
+      "display:grid;grid-template-columns:minmax(0,1fr) 14px;width:100%;min-width:0;max-width:100%;" +
+      "height:min(65vh,520px);min-height:240px;box-sizing:border-box;background:#fff;border:1px solid #d4dbe2;border-top:0;" +
+      "border-radius:0 0 4px 4px;overflow:hidden";
     const list = document.createElement("div");
     list.setAttribute("role", "listbox");
     list.setAttribute("aria-label", "Matching STEP 7 symbols");
     list.style.cssText =
-      "display:block;width:100%;min-width:0;max-width:100%;max-height:65vh;min-height:240px;box-sizing:border-box;" +
-      "overflow-x:hidden;overflow-y:scroll;scrollbar-gutter:stable;overscroll-behavior:contain;" +
-      "background:#fff;color:#263442;border:1px solid #d4dbe2;border-top:0;" +
-      "border-radius:0 0 4px 4px;font:12px Consolas,'Courier New',monospace";
+      "display:block;width:100%;min-width:0;max-width:100%;height:100%;min-height:0;box-sizing:border-box;" +
+      "overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;" +
+      "background:#fff;color:#263442;font:12px Consolas,'Courier New',monospace";
+    const scrollbar = document.createElement("div");
+    scrollbar.setAttribute("aria-hidden", "true");
+    scrollbar.style.cssText = "position:relative;min-width:14px;height:100%;background:#e2e8f0;border-left:1px solid #c4ced8;box-sizing:border-box;cursor:pointer";
+    const scrollbarThumb = document.createElement("div");
+    scrollbarThumb.style.cssText = "position:absolute;left:2px;right:2px;top:0;height:28px;background:#657789;border-radius:7px;min-height:28px;box-sizing:border-box";
+    scrollbar.appendChild(scrollbarThumb);
+    function syncSymbolScrollbar() {
+      const trackHeight = scrollbar.clientHeight;
+      const maxScroll = Math.max(0, list.scrollHeight - list.clientHeight);
+      const thumbHeight = maxScroll ? Math.max(28, trackHeight * list.clientHeight / list.scrollHeight) : trackHeight;
+      const thumbTravel = Math.max(0, trackHeight - thumbHeight);
+      const thumbTop = maxScroll ? (list.scrollTop / maxScroll) * thumbTravel : 0;
+      scrollbarThumb.style.height = thumbHeight + "px";
+      scrollbarThumb.style.top = thumbTop + "px";
+      scrollbar.style.opacity = maxScroll ? "1" : "0.55";
+    }
+    list.addEventListener("scroll", syncSymbolScrollbar);
+    scrollbar.addEventListener("click", function (event) {
+      if (event.target === scrollbarThumb) return;
+      const bounds = scrollbar.getBoundingClientRect();
+      const maxScroll = Math.max(0, list.scrollHeight - list.clientHeight);
+      const thumbHeight = scrollbarThumb.offsetHeight;
+      const thumbCenter = event.clientY - bounds.top;
+      list.scrollTop = Math.max(0, Math.min(maxScroll, ((thumbCenter - thumbHeight / 2) / Math.max(1, bounds.height - thumbHeight)) * maxScroll));
+    });
+    scrollbarThumb.addEventListener("pointerdown", function (event) {
+      event.preventDefault();
+      const startY = event.clientY;
+      const startScroll = list.scrollTop;
+      const bounds = scrollbar.getBoundingClientRect();
+      const thumbHeight = scrollbarThumb.offsetHeight;
+      const maxScroll = Math.max(0, list.scrollHeight - list.clientHeight);
+      const travel = Math.max(1, bounds.height - thumbHeight);
+      function move(moveEvent) {
+        list.scrollTop = startScroll + (moveEvent.clientY - startY) * maxScroll / travel;
+      }
+      function end() {
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", end);
+      }
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", end);
+    });
     matches.forEach(function (symbol) {
       const row = document.createElement("div");
       row.setAttribute("role", "option");
@@ -949,7 +996,11 @@
       });
       list.appendChild(row);
     });
-    symbolResults.appendChild(list);
+    listWrap.appendChild(list);
+    listWrap.appendChild(scrollbar);
+    symbolResults.appendChild(listWrap);
+    syncSymbolScrollbar();
+    requestAnimationFrame(syncSymbolScrollbar);
     if (layout && window.matchMedia("(min-width: 801px)").matches) {
       const resultsWidth = Math.ceil(symbolResults.getBoundingClientRect().width);
       if (resultsWidth > 0) layout.style.setProperty("--symbol-results-sidebar-width", resultsWidth + "px");
