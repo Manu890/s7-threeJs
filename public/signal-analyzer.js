@@ -785,7 +785,29 @@
       { label: "_DATATYP", value: function (symbol) { return symbol.dataType || symbol.type || ""; } },
       { label: "_COMMENT", value: function (symbol) { return symbol.comment || ""; } },
     ];
-    const columnTemplate = "max-content max-content max-content max-content";
+    // Header and option rows are separate CSS grids, so independent max-content
+    // sizing makes their column boundaries drift. Compute one shared width per
+    // column from both its heading and every matching symbol value.
+    const measureCanvas = document.createElement("canvas");
+    const measureContext = measureCanvas.getContext("2d");
+    const columnWidths = columns.map(function (column) {
+      let maxWidth = 0;
+      if (measureContext) {
+        measureContext.font = "600 11px Consolas, 'Courier New', monospace";
+        maxWidth = measureContext.measureText(column.label).width;
+        measureContext.font = "12px Consolas, 'Courier New', monospace";
+        matches.forEach(function (symbol) {
+          const value = String(column.value(symbol) || "").trim();
+          maxWidth = Math.max(maxWidth, measureContext.measureText(value).width);
+        });
+      } else {
+        maxWidth = Math.max(column.label.length * 7, 80);
+      }
+      return Math.ceil(maxWidth + 2);
+    });
+    const columnTemplate = columnWidths.map(function (width) {
+      return width + "px";
+    }).join(" ");
     const header = document.createElement("div");
     header.setAttribute("aria-hidden", "true");
     header.style.cssText =
