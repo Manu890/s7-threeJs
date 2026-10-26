@@ -337,7 +337,7 @@
         if (match) { alignEven(); stack.push(match[1]); continue; }
         if (/^END_STRUCT\b/i.test(line)) { alignEven(); stack.pop(); continue; }
 
-        match = line.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*:\s*ARRAY\s*\[\s*(-?\d+)\s*\.\.\s*(-?\d+)\s*\]\s*OF\s*([A-Za-z_][A-Za-z0-9_]*)\s*;\s*(?::=\s*([^;]*?))?\s*(?:\/\/(.*))?$/i);
+        match = line.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*:\s*ARRAY\s*\[\s*(-?\d+)\s*\.\.\s*(-?\d+)\s*\]\s*(?:OF\b\s*)?(?:\/\/(.*))?$/i);
         if (match) {
           const name = match[1], low = Number(match[2]), high = Number(match[3]);
           const type = match[4].toUpperCase(), initial = (match[5] || "").trim(), comment = (match[6] || "").trim();
