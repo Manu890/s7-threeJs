@@ -10,17 +10,31 @@
       const viewNow = state.inspectionViewTime === null ? liveNow : state.inspectionViewTime,
         span = Number(document.getElementById("windowSelect").value) * 1000,
         plotData = state.historicalMode ? state.historicalSamples : state.history,
+        historicalTimestamps = state.historicalMode
+          ? state.historicalSamples
+              .map(function (sample) { return sample.timestamp; })
+              .filter(Number.isFinite)
+          : [],
+        historicalFrom = historicalTimestamps.length
+          ? Math.min.apply(null, historicalTimestamps)
+          : null,
+        historicalTo = historicalTimestamps.length
+          ? Math.max.apply(null, historicalTimestamps)
+          : null,
         isLiveRecording = state.recording && !state.chartFrozen && !state.historicalMode,
         keepSweepWindow = !state.historicalMode && (isLiveRecording || state.chartFrozen) && state.recordingStartedAt > 0,
         sweepOrigin = state.recordingStartedAt || (state.history.length ? state.history[0].timestamp : liveNow),
-        // Keep the same full-width sweep window after Stop is pressed. If the
-        // frozen view is re-anchored to the last sample, the trace jumps to
-        // the right edge instead of remaining where it was during recording.
-        from = keepSweepWindow
-          ? sweepOrigin + Math.floor(Math.max(0, viewNow - sweepOrigin) / span) * span
-          : viewNow - span,
-        now = keepSweepWindow ? from + span : viewNow,
-        plotSpan = span;
+        // Historical mode fits the axis to the timestamps actually returned
+        // from MongoDB. Live/frozen mode keeps its existing selected window.
+        from = state.historicalMode && historicalFrom !== null
+          ? historicalFrom
+          : keepSweepWindow
+            ? sweepOrigin + Math.floor(Math.max(0, viewNow - sweepOrigin) / span) * span
+            : viewNow - span,
+        now = state.historicalMode && historicalTo !== null
+          ? historicalTo
+          : keepSweepWindow ? from + span : viewNow,
+        plotSpan = Math.max(1, now - from);
       state.signals.forEach(function (s) {
         const row = state.traces.querySelector('[data-signal="' + CSS.escape(s.key) + '"]');
         if (!row) return;
@@ -128,11 +142,15 @@
           const x = ((p.timestamp - from) / plotSpan) * cw,
             y = ch - 8 - ((p[s.key] - min) / range) * (ch - 16);
           if (i === 0) {
-            // Extend the first captured value to the plot's left boundary.
-            // At 1–2 second scales, even one PLC polling interval is a visible
-            // gap when the first timestamp is slightly later than sweep start.
-            ctx.moveTo(0, y);
-            if (x > 0) ctx.lineTo(x, y);
+            if (state.historicalMode) {
+              // Historical axes start at the first returned MongoDB timestamp;
+              // do not fabricate a flat segment before the first stored sample.
+              ctx.moveTo(x, y);
+            } else {
+              // Preserve the existing live/frozen sweep rendering.
+              ctx.moveTo(0, y);
+              if (x > 0) ctx.lineTo(x, y);
+            }
           } else {
             const prev = points[i - 1],
               prevY = ch - 8 - ((prev[s.key] - min) / range) * (ch - 16);
