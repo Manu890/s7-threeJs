@@ -775,6 +775,23 @@
     let matchingSymbols;
     if (foundDottedOperandMatches) {
       matchingSymbols = dottedOperandMatches;
+    } else if (dbSymbolQuery && !searchingKey) {
+      // A trailing-dot query in signalNameInput is a named-DB request.
+      // List the fields loaded for that exact root, even when SYMLIST has no
+      // standalone row for the DB itself.
+      const normalizedRequestedRoot = rootToken.replace(/^["']|["']$/g, "").trim().toLowerCase();
+      matchingSymbols = projectSymbols.filter(function (symbol) {
+        const structureRoot = String(symbol._dbRootName || "").trim().toLowerCase();
+        const symbolName = String(symbol.name || symbol.symbolName || symbol._SKZ || "")
+          .replace(/\0/g, "").trim().toLowerCase();
+        const qualifiedName = structureRoot && symbolName ? structureRoot + "." + symbolName : "";
+        const address = normalizeStep7Address(symbol.address || symbol.operand || "")
+          .toUpperCase().replace(/\s+/g, "");
+        const sameDb = dbMode && new RegExp("^DB0*" + requestedDb + ",").test(address);
+        return structureRoot === normalizedRequestedRoot ||
+          qualifiedName.startsWith(query) ||
+          sameDb;
+      });
     } else if (dbSymbolQuery) {
       matchingSymbols = projectSymbols.filter(function (symbol) {
         const address = normalizeStep7Address(symbol.address || symbol.operand || "")
@@ -812,7 +829,13 @@
 
     const matches = matchingSymbols;
     const columns = [
-      { label: "_SKZ", value: function (symbol) { return symbol._SKZ || ""; } },
+      { label: "_SKZ", value: function (symbol) {
+        const rawName = String(symbol._SKZ || symbol.name || symbol.symbolName || "").replace(/\0/g, "").trim();
+        const root = String(symbol._dbRootName || "").replace(/\0/g, "").trim();
+        return root && rawName && rawName.toLowerCase() !== root.toLowerCase()
+          ? root + "." + rawName
+          : rawName;
+      } },
       { label: "_OPIEC", value: function (symbol) { return symbol._OPIEC || symbol.operand || symbol.address || ""; } },
       { label: "_DATATYP", value: function (symbol) { return symbol._DATATYP || symbol.dataType || symbol.type || ""; } },
       { label: "_COMMENT", value: function (symbol) { return symbol._COMMENT || symbol.comment || ""; } },
