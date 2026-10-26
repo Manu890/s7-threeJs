@@ -24,16 +24,15 @@
         isLiveRecording = state.recording && !state.chartFrozen && !state.historicalMode,
         keepSweepWindow = !state.historicalMode && (isLiveRecording || state.chartFrozen) && state.recordingStartedAt > 0,
         sweepOrigin = state.recordingStartedAt || (state.history.length ? state.history[0].timestamp : liveNow),
-        // Historical mode fits the axis to the timestamps actually returned
-        // from MongoDB. Live/frozen mode keeps its existing selected window.
+        // Historical mode anchors the left edge to the first MongoDB sample,
+        // while preserving the selected time-window width (e.g. 30 seconds).
+        // This keeps short recordings short instead of stretching them across the chart.
         from = state.historicalMode && historicalFrom !== null
           ? historicalFrom
           : keepSweepWindow
             ? sweepOrigin + Math.floor(Math.max(0, viewNow - sweepOrigin) / span) * span
             : viewNow - span,
-        now = state.historicalMode && historicalTo !== null
-          ? historicalTo
-          : keepSweepWindow ? from + span : viewNow,
+        now = keepSweepWindow || state.historicalMode ? from + span : viewNow,
         plotSpan = Math.max(1, now - from);
       state.signals.forEach(function (s) {
         const row = state.traces.querySelector('[data-signal="' + CSS.escape(s.key) + '"]');
