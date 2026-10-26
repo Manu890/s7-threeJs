@@ -702,7 +702,14 @@
         ? Number(dbAddress[1])
         : null;
     const dbMode = Number.isInteger(requestedDb);
-    const structureRequestKey = dbMode ? "db:" + requestedDb : "name:" + rootToken.toLowerCase();
+    // Named symbolic roots must be resolved against SUBBLK by name, even if
+    // SYMLIST already has other rows for the numeric DB. Passing the number
+    // here can hit the numeric-DB cache and skip the named block lookup.
+    const namedRootLookup = !!(dbSymbolQuery && !searchingKey && !directDbQuery);
+    const loadDbNumber = namedRootLookup ? null : requestedDb;
+    const structureRequestKey = loadDbNumber !== null && loadDbNumber !== undefined
+      ? "db:" + loadDbNumber
+      : "name:" + rootToken.toLowerCase();
     const symlistHasDbFields = dbMode && projectSymbols.some(function (symbol) {
       if (symbol._dbStructure) return false;
       const address = normalizeStep7Address(symbol._OPIEC || symbol.operand || symbol.address || "")
@@ -717,7 +724,7 @@
       // explicit numeric DB query such as DB12. when no SYMLIST fields exist.
       (!searchingKey || directDbQuery) &&
       !foundDottedOperandMatches &&
-      !symlistHasDbFields &&
+      (namedRootLookup || !symlistHasDbFields) &&
       loadProjectDbStructures &&
       !loadedDbStructures.has(structureRequestKey) &&
       !loadingDbStructures.has(structureRequestKey)
@@ -726,7 +733,7 @@
       symbolProjectStatus.textContent =
         projectStatusBase + " Loading " + (requestedDb !== null ? "DB" + requestedDb : rootToken) +
         " structure from SUBBLK.DBF/.DBT…";
-      loadProjectDbStructures(requestedDb, directDbQuery ? "" : rootToken)
+      loadProjectDbStructures(loadDbNumber, directDbQuery ? "" : rootToken)
         .then(function (fields) {
           const existing = new Set(
             projectSymbols.map(function (symbol) {
@@ -767,7 +774,7 @@
         .catch(function (error) {
           symbolProjectStatus.textContent =
             projectStatusBase + " Could not load " +
-            (requestedDb !== null ? "DB" + requestedDb : rootToken) +
+            (loadDbNumber !== null && loadDbNumber !== undefined ? "DB" + loadDbNumber : rootToken) +
             " structure: " + error.message;
         })
         .finally(function () {
