@@ -904,8 +904,8 @@
     list.setAttribute("role", "listbox");
     list.setAttribute("aria-label", "Matching STEP 7 symbols");
     list.style.cssText =
-      "display:block;width:max-content;min-width:100%;max-height:65vh;min-height:240px;box-sizing:border-box;" +
-      "overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;" +
+      "display:block;width:100%;min-width:0;max-width:100%;max-height:65vh;min-height:240px;box-sizing:border-box;" +
+      "overflow-x:hidden;overflow-y:scroll;scrollbar-gutter:stable;overscroll-behavior:contain;" +
       "background:#fff;color:#263442;border:1px solid #d4dbe2;border-top:0;" +
       "border-radius:0 0 4px 4px;font:12px Consolas,'Courier New',monospace";
     matches.forEach(function (symbol) {
