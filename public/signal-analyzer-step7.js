@@ -672,13 +672,34 @@
                 });
                 return metadata;
               });
+              const matchingRows = parsed.rows.filter(function (row) {
+                return Object.keys(row).some(function (key) {
+                  if (/_TEXT$/i.test(key)) return false;
+                  const value = String(row[key] || "").replace(/\\0/g, "").trim();
+                  return value.toLowerCase() === rootKey ||
+                    /^DB\\s*0*601$/i.test(value) ||
+                    /^0*601$/.test(value);
+                });
+              }).slice(0, 12).map(function (row) {
+                const metadata = {};
+                Object.keys(row).forEach(function (key) {
+                  if (/_TEXT$/i.test(key)) {
+                    metadata[key + "_length"] = String(row[key] || "").length;
+                    metadata[key + "_hasDeclaration"] = /\\b(?:STRUCT|VAR)\\b/i.test(String(row[key] || ""));
+                  } else {
+                    metadata[key] = String(row[key] || "").replace(/\\0/g, "").trim().slice(0, 100);
+                  }
+                });
+                return metadata;
+              });
               console.info("[STEP7 SUBBLK scan]", {
                 file: item.path,
                 companionDbtFound: !!companion,
                 rowCount: parsed.rows.length,
                 memoCount: parsed.memoCount,
                 fields: parsed.fields || [],
-                sampleMetadata: sampleRows
+                sampleMetadata: sampleRows,
+                matchingRows: matchingRows
               });
             }
             function valueFor(row, candidates) {
