@@ -244,6 +244,9 @@
         symbolName: name.replace(/\0/g, "").trim(),
         operand: get(addressField),
         dataType: get(typeField),
+        _OPIEC: get(addressField),
+        _DATATYP: get(typeField),
+        _COMMENT: get(commentField),
       });
     }
     return rows;
@@ -565,19 +568,30 @@
     // but defer parsing until the user explicitly requests a DB's fields by
     // typing a symbol/address followed by a dot in the analyzer input.
     const parsedDbStructures = new Set();
+    const parsedDbRootNames = new Set();
     const pendingDbStructureLoads = new Map();
-    async function loadDbStructures(requestedDb) {
-      const dbNumber = Number(requestedDb);
-      if (!Number.isInteger(dbNumber) || dbNumber < 0) return [];
-      if (parsedDbStructures.has(dbNumber)) {
+    async function loadDbStructures(requestedDb, requestedRootName) {
+      const hasDbNumber = requestedDb !== null && requestedDb !== undefined &&
+        Number.isInteger(Number(requestedDb)) && Number(requestedDb) >= 0;
+      const dbNumber = hasDbNumber ? Number(requestedDb) : null;
+      const rootName = String(requestedRootName || "").trim();
+      const rootKey = rootName.toLowerCase();
+      const cacheKey = dbNumber !== null ? "db:" + dbNumber : "name:" + rootKey;
+      if (dbNumber !== null && parsedDbStructures.has(dbNumber)) {
         return found.filter(function (symbol) {
           const address = normalizeSignalAddress(symbol.address || symbol.operand || "");
           return new RegExp("^DB0*" + dbNumber + "(?:_|$)").test(address);
         });
       }
-      if (pendingDbStructureLoads.has(dbNumber)) return pendingDbStructureLoads.get(dbNumber);
+      if (dbNumber === null && parsedDbRootNames.has(rootKey)) {
+        return found.filter(function (symbol) {
+          return String(symbol._dbRootName || "").trim().toLowerCase() === rootKey;
+        });
+      }
+      if (pendingDbStructureLoads.has(cacheKey)) return pendingDbStructureLoads.get(cacheKey);
       const task = (async function () {
         const added = [];
+        const discoveredDbNumbers = new Set();
         for (const item of subblkFiles) {
           try {
             const directory = item.path.includes("/")
@@ -592,18 +606,36 @@
             );
             for (const row of parsed.rows) {
               const blockValue = row.BLKNUMBER || row.BLKNR || row.NUMBER || row.BLOCKNR || "";
-              const blockName = row.BLKNAME || row.NAME || row.BLOCKNAME || "";
+              const blockName = String(row.BLKNAME || row.NAME || row.BLOCKNAME || "").trim();
+              const blockText = String(blockName + " " + blockValue);
               const match =
-                String(blockName + " " + blockValue).match(/\bDB\s*0*(\d+)\b/i) ||
+                blockText.match(/\bDB\s*0*(\d+)\b/i) ||
                 String(blockValue).match(/^\s*0*(\d+)\s*$/);
-              if (!match || Number(match[1]) !== dbNumber) continue;
+              const rowDbNumber = match ? Number(match[1]) : null;
+              const nameMatches = rootKey && blockName.toLowerCase() === rootKey;
+              if (dbNumber !== null) {
+                if (rowDbNumber !== dbNumber && !nameMatches) continue;
+              } else if (!nameMatches) {
+                continue;
+              }
+              const resolvedDbNumber = rowDbNumber !== null ? rowDbNumber : dbNumber;
+              if (resolvedDbNumber === null) continue;
               const body = Object.keys(row)
                 .filter((k) => /_TEXT$/.test(k))
                 .map((k) => row[k])
                 .join("\n");
               if (!body || !/STRUCT/i.test(body)) continue;
-              const fields = parseStep7DbStructure(body, "DB" + dbNumber + ".DB");
-              if (fields.length) added.push(...fields);
+              const fields = parseStep7DbStructure(body, "DB" + resolvedDbNumber + ".DB");
+              fields.forEach(function (field) {
+                if (rootName) field._dbRootName = rootName;
+                field._OPIEC = field.address;
+                field._DATATYP = field.dataType || field.type || "";
+                field._COMMENT = field.comment || "DB structure field";
+              });
+              if (fields.length) {
+                discoveredDbNumbers.add(resolvedDbNumber);
+                added.push(...fields);
+              }
             }
           } catch (err) {
             binaryCandidates.push(item.path + " (SUBBLK parse error: " + err.message + ")");
@@ -617,14 +649,16 @@
             found.push(symbol);
           }
         });
-        parsedDbStructures.add(dbNumber);
+        if (dbNumber !== null) parsedDbStructures.add(dbNumber);
+        else parsedDbRootNames.add(rootKey);
+        discoveredDbNumbers.forEach(function (number) { parsedDbStructures.add(number); });
         return added;
       })();
-      pendingDbStructureLoads.set(dbNumber, task);
+      pendingDbStructureLoads.set(cacheKey, task);
       try {
         return await task;
       } finally {
-        pendingDbStructureLoads.delete(dbNumber);
+        pendingDbStructureLoads.delete(cacheKey);
       }
     }
     const dedup = new Map();
