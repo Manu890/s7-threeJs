@@ -1187,7 +1187,7 @@
       const response = await fetch(recordingController.exportUrl(), { cache: "no-store" });
       if (!response.ok) throw new Error("Stored export unavailable");
       const csv = await response.text();
-      const nonEmptyLines = csv.split(/\\r?\\n/).filter(function (line) {
+      const nonEmptyLines = csv.split(/\r?\n/).filter(function (line) {
         return line.trim() !== "";
       });
       if (nonEmptyLines.length > 1) {
