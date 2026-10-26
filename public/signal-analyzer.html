@@ -33,7 +33,7 @@
     <input id="signalNameInput" maxlength="40" placeholder="Signal name (optional; e.g. Motor speed)" aria-label="Signal name">
     <input id="signalKeyInput" maxlength="64" placeholder="WebSocket key or PLC address (e.g. motorSpeed or DB1,INT6)" aria-label="WebSocket key or PLC address">
     <button class="primary" type="submit">＋ Add signal</button>
-    <div id="symbolResults" style="max-height:220px;overflow:auto;display:grid;gap:5px"></div>
+    <div id="symbolResults" style="display:grid;gap:5px"></div>
     <div class="help-text">Enter a WebSocket key to listen to an existing stream value (for example status), or enter a PLC address (for example DB1001,BYTE0) to generate its data key automatically. The real PLC backend must register and decode PLC addresses.</div>
     <div class="form-error" id="signalFormError" role="status"></div>
    </form>
