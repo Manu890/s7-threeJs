@@ -19,6 +19,12 @@ let plcConnected = false;
 let lastPersistedAt = null;
 let lastError = null;
 let totalStored = 0;
+// Diagnostic counters are process-lifetime totals and are intentionally not reset on Clear.
+let messagesReceived = 0;
+let samplesAccepted = 0;
+let samplesIgnored = 0;
+let lastSampleReceivedAt = null;
+let lastSampleAcceptedAt = null;
 let recordingEnabled = false;
 let flushing = false;
 const pending = [];
@@ -90,10 +96,18 @@ function connectPLCStream() {
     console.log(`📡 Receiving PLC samples from ${WS_URL}`);
   });
   socket.on("message", (raw) => {
+    messagesReceived++;
+    lastSampleReceivedAt = new Date().toISOString();
     try {
       const message = JSON.parse(raw.toString());
-      if (!message.data || typeof message.data !== "object" || Array.isArray(message.data)) return;
-      if (!recordingEnabled) return;
+      if (!message || !message.data || typeof message.data !== "object" || Array.isArray(message.data)) {
+        samplesIgnored++;
+        return;
+      }
+      if (!recordingEnabled) {
+        samplesIgnored++;
+        return;
+      }
       const timestampMs = Number(message.timestamp) || Date.now();
       pending.push({
         timestampMs,
@@ -101,11 +115,14 @@ function connectPLCStream() {
         data: message.data,
         source: "websocket",
       });
+      samplesAccepted++;
+      lastSampleAcceptedAt = new Date().toISOString();
       if (pending.length > MAX_BUFFERED) {
         pending.shift();
         lastError = `Persistence buffer reached ${MAX_BUFFERED} samples; oldest pending sample dropped. Check MongoDB.`;
       }
     } catch (error) {
+      samplesIgnored++;
       lastError = `Invalid WebSocket sample: ${error.message}`;
     }
   });
@@ -139,6 +156,11 @@ const api = http.createServer(async (req, res) => {
       plcConnected,
       bufferedSamples: pending.length,
       totalStored,
+      messagesReceived,
+      samplesAccepted,
+      samplesIgnored,
+      lastSampleReceivedAt,
+      lastSampleAcceptedAt,
       recordingEnabled,
       lastPersistedAt,
       lastError,
