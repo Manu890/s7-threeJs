@@ -759,11 +759,13 @@
         return sameDb || sameRoot || (!searchingKey && symbolName.startsWith(query));
       });
     } else if (searchingKey) {
-      // Plain key searches use the SYMLIST.DBF _OPIEC operand column.
+      // Search SYMLIST.DBF _OPIEC with whitespace-insensitive matching:
+      // "M2", "m2", and "m 2" all match an operand such as "M      24.1".
+      const normalizedKeyQuery = query.replace(/\s+/g, "");
       matchingSymbols = projectSymbols.filter(function (symbol) {
         const operand = String(symbol._OPIEC || symbol.operand || symbol.address || "")
-          .replace(/\0/g, "").trim().toLowerCase();
-        return operand.startsWith(query);
+          .replace(/\0/g, "").toLowerCase().replace(/\s+/g, "");
+        return operand.startsWith(normalizedKeyQuery);
       });
     } else {
       matchingSymbols = projectSymbols.filter(function (symbol) {
