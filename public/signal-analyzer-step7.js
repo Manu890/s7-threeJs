@@ -308,9 +308,12 @@
       }
       function add(name, type, comment, initial, byte, bit) {
         const path = stack.concat(name).filter(Boolean).join(".");
-        const isBool = type === "BOOL";
-        const addr = "DB" + db + "," + (isBool ? "DBX" + byte + "." + (bit || 0) :
-          (type === "BYTE" || type === "CHAR" ? "DBB" : type === "WORD" || type === "INT" || type === "UINT" || type === "S5TIME" || type === "DATE" ? "DBW" : "DBD") + byte);
+        const arrayElement = type.match(/\bOF\s+(\w+)$/i);
+        const addressType = arrayElement ? arrayElement[1].toUpperCase() : type;
+        const isBool = addressType === "BOOL";
+        const area = ["BYTE", "CHAR", "SINT", "USINT"].includes(addressType) ? "DBB" :
+          ["WORD", "INT", "UINT", "S5TIME", "DATE"].includes(addressType) ? "DBW" : "DBD";
+        const addr = "DB" + db + "," + (isBool ? "DBX" + byte + "." + (bit || 0) : area + byte);
         out.push({
           _SKZ: path,
           name: path,
