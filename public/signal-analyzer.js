@@ -690,6 +690,15 @@
       ? String(dbRoot._OPIEC || dbRoot.operand || dbRoot.address || "")
           .match(/^DB\s*0*(\d+)(?:$|[,.:/])/i)
       : null;
+    if (dbSymbolQuery && !searchingKey && !directDbQuery) {
+      console.info("[STEP7 named DB request]", {
+        query: query,
+        symlistRootFound: !!dbRoot,
+        symlistName: dbRoot ? String(dbRoot._SKZ || dbRoot.name || "").replace(/\0/g, "").trim() : "",
+        symlistOperand: dbRoot ? String(dbRoot._OPIEC || dbRoot.operand || dbRoot.address || "").replace(/\0/g, "").trim() : "",
+        resolvedDbNumber: dbAddress ? Number(dbAddress[1]) : null
+      });
+    }
     // In the symbol-name input, a dotted root such as "db_sp_spu." must be
     // looked up by its root name in SUBBLK.DBF/.DBT directly; do not require
     // SYMLIST.DBF to resolve that name to a numeric DB first.
