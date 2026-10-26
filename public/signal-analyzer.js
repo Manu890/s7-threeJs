@@ -706,10 +706,15 @@
     // SYMLIST already has other rows for the numeric DB. Passing the number
     // here can hit the numeric-DB cache and skip the named block lookup.
     const namedRootLookup = !!(dbSymbolQuery && !searchingKey && !directDbQuery);
-    const loadDbNumber = namedRootLookup ? null : requestedDb;
-    const structureRequestKey = loadDbNumber !== null && loadDbNumber !== undefined
-      ? "db:" + loadDbNumber
-      : "name:" + rootToken.toLowerCase();
+    // Keep the numeric DB resolved from SYMLIST, but also pass the symbolic
+    // root to SUBBLK. SUBBLK often identifies the block by number, not by the
+    // symbolic _SKZ name, so a name-only scan cannot find its structure row.
+    const loadDbNumber = requestedDb;
+    const structureRequestKey = namedRootLookup
+      ? "name:" + rootToken.toLowerCase()
+      : loadDbNumber !== null && loadDbNumber !== undefined
+        ? "db:" + loadDbNumber
+        : "name:" + rootToken.toLowerCase();
     const symlistHasDbFields = dbMode && projectSymbols.some(function (symbol) {
       if (symbol._dbStructure) return false;
       const address = normalizeStep7Address(symbol._OPIEC || symbol.operand || symbol.address || "")
