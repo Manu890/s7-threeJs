@@ -761,6 +761,7 @@
     } else if (searchingKey) {
       // Search SYMLIST.DBF _OPIEC with whitespace-insensitive matching:
       // "M2", "m2", and "m 2" all match an operand such as "M      24.1".
+      // Treat M2, M 2, and M      2 as the same operand prefix.
       const normalizedKeyQuery = query.replace(/\s+/g, "");
       matchingSymbols = projectSymbols.filter(function (symbol) {
         const operand = String(symbol._OPIEC || symbol.operand || symbol.address || "")
