@@ -608,6 +608,7 @@
   let loadProjectDbStructures = null;
   const loadedDbStructures = new Set();
   const loadingDbStructures = new Set();
+  const nameLookupLoads = new Set();
   let projectStatusBase = "";
   function displayProjectSymbolName(symbol) {
     const name = String(symbol.name || symbol.symbolName || symbol._SKZ || "").trim();
@@ -1053,6 +1054,49 @@
         resolved = projectSymbols.find(function (symbol) {
           return symbolName(symbol) === fieldName || symbolAlias(symbol) === fieldName;
         });
+      }
+    }
+
+    // Load a named SUBBLK structure when the user enters a fully qualified
+    // name directly, without requiring a trailing-dot autocomplete query first.
+    if (!resolved && candidate.includes(".") && loadProjectDbStructures) {
+      const separator = candidate.lastIndexOf(".");
+      const requestedRoot = candidate.slice(0, separator).trim();
+      const rootKey = requestedRoot.replace(/[.]+$/, "").replace(/^["\']|["\']$/g, "").toLowerCase();
+      if (rootKey && !nameLookupLoads.has(rootKey)) {
+        nameLookupLoads.add(rootKey);
+        loadProjectDbStructures(null, requestedRoot)
+          .then(function (fields) {
+            const byAddress = new Map(
+              projectSymbols.map(function (symbol) {
+                return [
+                  normalizeStep7Address(symbol.address || symbol.operand || "").toUpperCase().replace(/\s+/g, ""),
+                  symbol
+                ];
+              })
+            );
+            (fields || []).forEach(function (symbol) {
+              const address = normalizeStep7Address(symbol.address || symbol.operand || "").toUpperCase().replace(/\s+/g, "");
+              if (!symbol.name || !address) return;
+              const existing = byAddress.get(address);
+              if (existing) {
+                if (!existing._dbRootName && symbol._dbRootName) existing._dbRootName = symbol._dbRootName;
+              } else {
+                byAddress.set(address, symbol);
+                projectSymbols.push(symbol);
+              }
+            });
+            if (nameInput.value.trim().toLowerCase() === candidate) {
+              fillSignalAddressFromProjectName();
+              renderProjectSymbols();
+            }
+            symbolProjectStatus.textContent =
+              projectStatusBase + " Name lookup checked for " + requestedRoot + ".";
+          })
+          .catch(function (error) {
+            symbolProjectStatus.textContent =
+              projectStatusBase + " Could not resolve " + requestedRoot + ": " + error.message;
+          });
       }
     }
 
