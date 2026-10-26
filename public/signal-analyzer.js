@@ -814,10 +814,12 @@
       "display:grid;grid-template-columns:" + columnTemplate +
       ";width:max-content;min-width:100%;gap:8px;padding:5px 6px;box-sizing:border-box;background:#eaf0f6;" +
       "border:1px solid #d4dbe2;border-bottom:0;font:600 11px Consolas,'Courier New',monospace;color:#263442";
-    columns.forEach(function (column) {
+    columns.forEach(function (column, index) {
       const cell = document.createElement("div");
       cell.textContent = column.label;
-      cell.style.cssText = "min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+      cell.style.cssText =
+        "min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" +
+        (index < columns.length - 1 ? "border-right:1px solid #c6d0da;padding-right:4px;" : "");
       header.appendChild(cell);
     });
     symbolResults.appendChild(header);
@@ -839,13 +841,14 @@
         "display:grid;grid-template-columns:" + columnTemplate +
         ";width:max-content;min-width:100%;gap:8px;min-height:24px;padding:4px 6px;box-sizing:border-box;" +
         "align-items:center;cursor:pointer;border-bottom:1px solid #edf0f3";
-      columns.forEach(function (column) {
+      columns.forEach(function (column, index) {
         const cell = document.createElement("div");
         const value = String(column.value(symbol) || "").trim();
         cell.textContent = value;
         cell.title = value;
         cell.style.cssText =
-          "min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+          "min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" +
+          (index < columns.length - 1 ? "border-right:1px solid #d4dbe2;padding-right:4px;" : "");
         row.appendChild(cell);
       });
       row.title = columns.map(function (column) {
