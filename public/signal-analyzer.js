@@ -1006,23 +1006,38 @@
         .toLowerCase();
     };
     let resolved = projectSymbols.find(function (symbol) {
-      return symbolName(symbol) === candidate || symbolAlias(symbol) === candidate;
+      const qualifiedName = String(symbol._dbRootName || "").trim().toLowerCase();
+      return (
+        symbolName(symbol) === candidate ||
+        symbolAlias(symbol) === candidate ||
+        (qualifiedName && qualifiedName + "." + symbolName(symbol) === candidate) ||
+        (qualifiedName && qualifiedName + "." + symbolAlias(symbol) === candidate)
+      );
     });
 
-    // STEP 7 DB structure parsers may expose a field as "temp_wt" while the
-    // symbol table names the containing DB "db_visu_add". Resolve the qualified
-    // form "db_visu_add.temp_wt" by finding the DB number first, then the field
-    // with a matching name in that same DB.
+    // Resolve a qualified DB field such as "db_sp_spu.temp_wt" even when
+    // SYMLIST.DBF has no standalone symbol row for the named DB root. SUBBLK
+    // structure rows carry that root in _dbRootName, so this name-based lookup
+    // does not depend on signal-key/address resolution.
     if (!resolved && candidate.includes(".")) {
       const separator = candidate.lastIndexOf(".");
       const rootName = candidate.slice(0, separator);
       const fieldName = candidate.slice(separator + 1);
+
+      resolved = projectSymbols.find(function (symbol) {
+        const structureRoot = String(symbol._dbRootName || "").trim().toLowerCase();
+        return (
+          structureRoot === rootName &&
+          (symbolName(symbol) === fieldName || symbolAlias(symbol) === fieldName)
+        );
+      });
+
       const root = projectSymbols.find(function (symbol) {
         return symbolName(symbol) === rootName || symbolAlias(symbol) === rootName;
       });
       const rootAddress = root && String(root.address || root.operand || "");
-      const dbMatch = rootAddress && rootAddress.match(/^DB\\s*0*(\\d+)(?:$|[,.:/])/i);
-      if (dbMatch) {
+      const dbMatch = rootAddress && rootAddress.match(/^DB\s*0*(\d+)(?:$|[,.:/])/i);
+      if (!resolved && dbMatch) {
         const dbPrefix = "DB" + Number(dbMatch[1]) + ",";
         resolved = projectSymbols.find(function (symbol) {
           const address = normalizeStep7Address(symbol.address || symbol.operand || "")
