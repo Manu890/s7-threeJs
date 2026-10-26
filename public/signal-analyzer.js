@@ -662,6 +662,17 @@
     const directDbQuery = query.match(/^db\s*0*(\d+)\.$/i);
     const rootToken = dbSymbolQuery ? dbSymbolQuery[1].trim() : "";
     const normalizedRootToken = normalizeStep7Address(rootToken).toUpperCase().replace(/\s+/g, "");
+    // For a key/address query ending in a dot, first search SYMLIST.DBF _OPIEC
+    // using the full normalized prefix (for example, M24. matches M24.0).
+    // Only try the SUBBLK.DBF/.DBT fallback if SYMLIST has no operand matches.
+    const dottedOperandMatches = searchingKey && dbSymbolQuery
+      ? projectSymbols.filter(function (symbol) {
+          const operand = String(symbol._OPIEC || symbol.operand || symbol.address || "")
+            .replace(/\0/g, "").toLowerCase().replace(/\s+/g, "");
+          return operand.startsWith(query.replace(/\s+/g, ""));
+        })
+      : [];
+    const foundDottedOperandMatches = dottedOperandMatches.length > 0;
     // Resolve a dotted root from SYMLIST's _OPIEC operand first, then by its
     // symbol name. If neither resolves, the SUBBLK loader can match the block name.
     const dbRoot = dbSymbolQuery && !directDbQuery
@@ -690,6 +701,7 @@
 
     if (
       dbSymbolQuery &&
+      !foundDottedOperandMatches &&
       !symlistHasDbFields &&
       loadProjectDbStructures &&
       !loadedDbStructures.has(structureRequestKey) &&
@@ -749,7 +761,9 @@
     }
 
     let matchingSymbols;
-    if (dbSymbolQuery) {
+    if (foundDottedOperandMatches) {
+      matchingSymbols = dottedOperandMatches;
+    } else if (dbSymbolQuery) {
       matchingSymbols = projectSymbols.filter(function (symbol) {
         const address = normalizeStep7Address(symbol.address || symbol.operand || "")
           .toUpperCase().replace(/\s+/g, "");
