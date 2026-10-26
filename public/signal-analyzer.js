@@ -1178,16 +1178,53 @@
   document.getElementById("recordBtn").addEventListener("click", function () {
     recordingController.toggle(this);
   });
-  document.getElementById("exportBtn").addEventListener("click", function () {
-    // Export all stored MongoDB samples so the CSV starts at the same oldest
-    // sample as the stored-history chart, regardless of the current UI session.
-    const url = recordingController.exportUrl();
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "plc-recording.csv";
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+  document.getElementById("exportBtn").addEventListener("click", async function () {
+    const button = this;
+    button.disabled = true;
+    try {
+      // Prefer the complete MongoDB export, but fall back to samples currently
+      // held by the analyzer if the persistence service returns only a header.
+      const response = await fetch(recordingController.exportUrl(), { cache: "no-store" });
+      if (!response.ok) throw new Error("Stored export unavailable");
+      const csv = await response.text();
+      const nonEmptyLines = csv.split(/\\r?\\n/).filter(function (line) {
+        return line.trim() !== "";
+      });
+      if (nonEmptyLines.length > 1) {
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "plc-recording.csv";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+        document.getElementById("sampleStatus").textContent =
+          "Exported stored MongoDB samples.";
+        return;
+      }
+
+      const localSamples = historicalMode ? historicalSamples : history.concat(recorded);
+      exportCSV(localSamples, "plc-recording.csv");
+      if (localSamples.length) {
+        document.getElementById("sampleStatus").textContent =
+          "MongoDB export was empty; exported " +
+          localSamples.length.toLocaleString() +
+          " samples available in the analyzer instead.";
+      }
+    } catch (error) {
+      const localSamples = historicalMode ? historicalSamples : history.concat(recorded);
+      exportCSV(localSamples, "plc-recording.csv");
+      if (localSamples.length) {
+        document.getElementById("sampleStatus").textContent =
+          "Stored export unavailable; exported " +
+          localSamples.length.toLocaleString() +
+          " samples available in the analyzer instead.";
+      }
+    } finally {
+      button.disabled = false;
+    }
   });
   function exportCSV(rows, filename) {
     if (!rows.length) {
