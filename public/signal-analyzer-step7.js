@@ -702,6 +702,18 @@
                 String(blockValue).match(/^\s*0*(\d+)\s*$/);
               const rowDbNumber = match ? Number(match[1]) : null;
               const nameMatches = !!rootKey && normalizeRootName(blockName) === rootKey;
+              // Diagnostic breadcrumbs contain metadata only (no DB structure
+              // text), so users can report why a named DB lookup failed.
+              if (rootKey && (nameMatches || /visu_add/i.test(blockName))) {
+                console.info("[STEP7 DB lookup]", {
+                  requestedRoot: rootName,
+                  blockName: blockName,
+                  blockNumber: blockValue,
+                  blockType: blockType,
+                  nameMatches: nameMatches,
+                  textFields: Object.keys(row).filter((k) => /_TEXT$/i.test(k))
+                });
+              }
               const isExplicitDb = looksLikeDbType(blockType);
               const isExplicitNonDb = explicitlyNonDbType(blockType);
               // A DB and FB can share block number 663. Exact named lookup
