@@ -396,7 +396,53 @@
         }
       }
       alignEven();
-      if (out.length) return out;
+      if (out.length) {
+        // Expand ARRAY declarations into individually addressable fields, matching
+        // STEP 7 offsets: BOOL elements are bit-packed; other elements use type size.
+        const expanded = [];
+        out.forEach(function (field) {
+          const array = String(field.type || "").match(/^ARRAY\[(-?\d+)\.\.(-?\d+)\]\s+OF\s+(\w+)$/i);
+          if (!array) {
+            expanded.push(field);
+            return;
+          }
+          const low = Number(array[1]), high = Number(array[2]);
+          const elementType = array[3].toUpperCase();
+          const count = high - low + 1;
+          if (count <= 0 || count > 100000) return;
+          const baseByte = Number(field._byteOffset) || 0;
+          const baseBit = Number(field._bitOffset) || 0;
+          const elementSize = sizes[elementType];
+          if (elementType !== "BOOL" && elementSize === undefined) {
+            expanded.push(field);
+            return;
+          }
+          for (let index = low; index <= high; index++) {
+            const relative = index - low;
+            const byte = elementType === "BOOL"
+              ? baseByte + Math.floor((baseBit + relative) / 8)
+              : baseByte + relative * elementSize;
+            const bit = elementType === "BOOL" ? (baseBit + relative) % 8 : null;
+            const area = ["BYTE", "CHAR", "SINT", "USINT"].includes(elementType) ? "DBB" :
+              ["WORD", "INT", "UINT", "S5TIME", "DATE"].includes(elementType) ? "DBW" : "DBD";
+            const address = "DB" + db + "," + (elementType === "BOOL" ? "DBX" + byte + "." + bit : area + byte);
+            const name = String(field.name || field._SKZ || "").replace(/\.$/, "") + "[" + index + "]";
+            expanded.push({
+              ...field,
+              _SKZ: name,
+              name: name,
+              address: address,
+              type: elementType,
+              operand: address,
+              dataType: elementType,
+              _byteOffset: byte,
+              _bitOffset: bit,
+              _initialValue: "",
+            });
+          }
+        });
+        return expanded;
+      }
     }
 
     // Fallback for textual AWL/SCL exports that express fields inside STRUCT.
