@@ -639,7 +639,9 @@
         .replace(/\s+/g, "");
       return /^DB0*\d+$/.test(rootAddress) && Number(rootAddress.slice(2)) === dbNumber;
     });
-    const rootName = dbRoot && String(dbRoot.name || dbRoot.symbolName || "").trim();
+    const rootName =
+      (dbRoot && String(dbRoot.name || dbRoot.symbolName || "").trim()) ||
+      String(symbol._dbRootName || "").trim();
     if (rootName && name) return rootName + "." + name;
 
     // If the DB has no matching symbolic root, show a readable canonical address.
@@ -647,147 +649,138 @@
       (field[4] === undefined ? "" : "." + field[4]);
   }
   function renderProjectSymbols() {
-    const query = document.getElementById("signalNameInput").value.trim().toLowerCase(),
-      addressQuery = query.toUpperCase().replace(/\s+/g, "");
+    const nameInput = document.getElementById("signalNameInput");
+    const keyInput = document.getElementById("signalKeyInput");
+    const searchingKey = document.activeElement === keyInput;
+    const query = (searchingKey ? keyInput.value : nameInput.value).trim().toLowerCase();
     symbolResults.replaceChildren();
     const layout = document.querySelector(".layout");
     if (layout) layout.style.removeProperty("--symbol-results-sidebar-width");
-
-    // Keep the suggestion panel empty until the user actually types a query.
-    // In particular, focusing an empty input must not render the full project symbol list.
     if (!query) return;
 
-    // A trailing dot after a DB symbol (for example db_visu_add.) means
-    // "show every parsed field belonging to that data block".
     const dbSymbolQuery = query.match(/^(.+)\.$/);
     const directDbQuery = query.match(/^db\s*0*(\d+)\.$/i);
-    const dbRoot =
-      dbSymbolQuery && !directDbQuery
-        ? projectSymbols.find(function (s) {
-            const name = String(s.name || "")
-              .trim()
-              .toLowerCase();
-            const symbolName = String(s.symbolName || "")
-              .trim()
-              .toLowerCase();
-            return name === dbSymbolQuery[1].trim() || symbolName === dbSymbolQuery[1].trim();
-          })
-        : null;
-    const dbAddress = dbRoot
-      ? String(dbRoot.address || dbRoot.operand || "").match(/^DB\s*0*(\d+)(?:$|[,.:/])/i)
+    const rootToken = dbSymbolQuery ? dbSymbolQuery[1].trim() : "";
+    const normalizedRootToken = normalizeStep7Address(rootToken).toUpperCase().replace(/\s+/g, "");
+    // Resolve a dotted root from SYMLIST's _OPIEC operand first, then by its
+    // symbol name. If neither resolves, the SUBBLK loader can match the block name.
+    const dbRoot = dbSymbolQuery && !directDbQuery
+      ? projectSymbols.find(function (symbol) {
+          const operand = normalizeStep7Address(symbol._OPIEC || symbol.operand || symbol.address || "")
+            .toUpperCase().replace(/\s+/g, "");
+          if (searchingKey && operand === normalizedRootToken) return true;
+          const name = String(symbol._SKZ || symbol.name || "").replace(/\0/g, "").trim().toLowerCase();
+          const alias = String(symbol.symbolName || "").trim().toLowerCase();
+          return name === rootToken.toLowerCase() || alias === rootToken.toLowerCase();
+        })
       : null;
-    const requestedDb = directDbQuery
-      ? Number(directDbQuery[1])
-      : dbAddress
-        ? Number(dbAddress[1])
-        : null;
+    const dbAddress = dbRoot
+      ? String(dbRoot._OPIEC || dbRoot.operand || dbRoot.address || "")
+          .match(/^DB\s*0*(\d+)(?:$|[,.:/])/i)
+      : null;
+    const requestedDb = directDbQuery ? Number(directDbQuery[1]) : dbAddress ? Number(dbAddress[1]) : null;
     const dbMode = Number.isInteger(requestedDb);
+    const structureRequestKey = dbMode ? "db:" + requestedDb : "name:" + rootToken.toLowerCase();
 
-    // SUBBLK.DBF/.DBT is intentionally parsed lazily: only a query ending in
-    // a dot (for example db_visu_add. or DB601.) should trigger DB structure loading.
     if (
-      dbMode &&
       dbSymbolQuery &&
       loadProjectDbStructures &&
-      !loadedDbStructures.has(requestedDb) &&
-      !loadingDbStructures.has(requestedDb)
+      !loadedDbStructures.has(structureRequestKey) &&
+      !loadingDbStructures.has(structureRequestKey)
     ) {
-      loadingDbStructures.add(requestedDb);
+      loadingDbStructures.add(structureRequestKey);
       symbolProjectStatus.textContent =
-        projectStatusBase + " Loading DB" + requestedDb + " structure on demand…";
-      loadProjectDbStructures(requestedDb)
+        projectStatusBase + " Loading " + (requestedDb !== null ? "DB" + requestedDb : rootToken) +
+        " structure from SUBBLK.DBF/.DBT…";
+      loadProjectDbStructures(requestedDb, rootToken)
         .then(function (fields) {
           const existing = new Set(
             projectSymbols.map(function (symbol) {
               return normalizeStep7Address(symbol.address || symbol.operand || "")
-                .toUpperCase()
-                .replace(/\s+/g, "");
+                .toUpperCase().replace(/\s+/g, "");
             })
           );
           let addedCount = 0;
           (fields || []).forEach(function (symbol) {
             const address = normalizeStep7Address(symbol.address || symbol.operand || "")
-              .toUpperCase()
-              .replace(/\s+/g, "");
-            if (!symbol.name || !address || existing.has(address)) return;
-            existing.add(address);
-            projectSymbols.push(symbol);
-            addedCount++;
+              .toUpperCase().replace(/\s+/g, "");
+            if (!symbol.name || !address) return;
+            const duplicate = existing.has(address);
+            if (!duplicate) {
+              existing.add(address);
+              projectSymbols.push(symbol);
+              addedCount++;
+            } else if (symbol._dbRootName) {
+              const current = projectSymbols.find(function (candidate) {
+                return normalizeStep7Address(candidate.address || candidate.operand || "")
+                  .toUpperCase().replace(/\s+/g, "") === address;
+              });
+              if (current && !current._dbRootName) current._dbRootName = symbol._dbRootName;
+            }
           });
-          loadedDbStructures.add(requestedDb);
-          const input = document.getElementById("signalNameInput");
-          if (input.value.trim().toLowerCase() === query) renderProjectSymbols();
+          loadedDbStructures.add(structureRequestKey);
+          const firstField = (fields || [])[0];
+          const actualDbMatch = firstField && String(firstField.address || "")
+            .match(/^DB\s*0*(\d+)(?:$|[,.:/])/i);
+          const actualDb = requestedDb !== null ? requestedDb : actualDbMatch ? Number(actualDbMatch[1]) : null;
+          if (actualDb !== null) loadedDbStructures.add("db:" + actualDb);
+          if ((searchingKey ? keyInput.value : nameInput.value).trim().toLowerCase() === query)
+            renderProjectSymbols();
           symbolProjectStatus.textContent =
-            projectStatusBase +
-            " On demand: DB" +
-            requestedDb +
-            " structure checked; " +
-            addedCount +
-            " new field(s) added.";
+            projectStatusBase + " Structure checked for " +
+            (actualDb !== null ? "DB" + actualDb : rootToken) + "; " + addedCount + " new field(s) added.";
         })
         .catch(function (error) {
           symbolProjectStatus.textContent =
-            projectStatusBase + " Could not load DB" + requestedDb + " structure: " + error.message;
+            projectStatusBase + " Could not load " +
+            (requestedDb !== null ? "DB" + requestedDb : rootToken) +
+            " structure: " + error.message;
         })
         .finally(function () {
-          loadingDbStructures.delete(requestedDb);
+          loadingDbStructures.delete(structureRequestKey);
         });
     }
 
-    const matchingSymbols = dbMode
-      ? projectSymbols.filter(function (s) {
-          const address = normalizeStep7Address(s.address || s.operand || "")
-            .toUpperCase()
-            .replace(/\s+/g, "");
-          return new RegExp("^DB0*" + requestedDb + "(?:[,.:/]|$)").test(address);
-        })
-      : projectSymbols.filter(function (s) {
-          // Search exclusively the normalized _SKZ field populated by the
-          // STEP 7 parser. Never fall back to name, address, type, or comment.
-          const symbolName = String(s._SKZ || "").replace(/\0/g, "").trim().toLowerCase();
-          // Filter by the source _SKZ value itself. A derived display label or
-          // DB address must not hide a top-level symbol whose _SKZ starts "db".
-          if (symbolName.includes(".") && !query.includes(".")) return false;
-          return symbolName.startsWith(query);
-        });
-    const nameInput = document.getElementById("signalNameInput");
-    const showAllAlphabetically = !query && document.activeElement === nameInput;
-    // On an empty focused input, list only top-level symbols. DB fields such
-    // as db_visu_add.res01 should appear only after the user types the root
-    // name followed by a dot (db_visu_add.).
-    const topLevelSymbols = matchingSymbols.filter(function (s) {
-      const displayName = displayProjectSymbolName(s);
-      return displayName.indexOf(".") === -1;
-    });
-    const sortedMatches = showAllAlphabetically
-      ? topLevelSymbols.slice().sort(function (a, b) {
-          return displayProjectSymbolName(a).localeCompare(displayProjectSymbolName(b), undefined, {
-            sensitivity: "base",
-            numeric: true,
-          });
-        })
-      : matchingSymbols;
-    if (!sortedMatches.length) {
+    let matchingSymbols;
+    if (dbSymbolQuery) {
+      matchingSymbols = projectSymbols.filter(function (symbol) {
+        const address = normalizeStep7Address(symbol.address || symbol.operand || "")
+          .toUpperCase().replace(/\s+/g, "");
+        const sameDb = dbMode && new RegExp("^DB0*" + requestedDb + "(?:[,.:/]|$)").test(address);
+        const sameRoot = String(symbol._dbRootName || "").trim().toLowerCase() === rootToken.toLowerCase();
+        const symbolName = String(symbol._SKZ || symbol.name || "").trim().toLowerCase();
+        return sameDb || sameRoot || (!searchingKey && symbolName.startsWith(query));
+      });
+    } else if (searchingKey) {
+      // Plain key searches use the SYMLIST.DBF _OPIEC operand column.
+      matchingSymbols = projectSymbols.filter(function (symbol) {
+        const operand = String(symbol._OPIEC || symbol.operand || symbol.address || "")
+          .replace(/\0/g, "").trim().toLowerCase();
+        return operand.startsWith(query);
+      });
+    } else {
+      matchingSymbols = projectSymbols.filter(function (symbol) {
+        const symbolName = String(symbol._SKZ || "").replace(/\0/g, "").trim().toLowerCase();
+        if (symbolName.includes(".") && !query.includes(".")) return false;
+        return symbolName.startsWith(query);
+      });
+    }
+
+    if (!matchingSymbols.length) {
       const empty = document.createElement("div");
       empty.className = "help-text";
-      empty.textContent = query
-        ? "No matching symbols."
-        : "No readable symbols found in this project.";
+      empty.textContent = "No matching symbols.";
       symbolResults.appendChild(empty);
       return;
     }
 
-    // Render every match in a native scrollable list sized to about ten rows.
-    const matches = sortedMatches;
+    const matches = matchingSymbols;
     const columns = [
       { label: "_SKZ", value: function (symbol) { return symbol._SKZ || ""; } },
-      { label: "_OPIEC", value: function (symbol) { return symbol.operand || symbol.address || ""; } },
-      { label: "_DATATYP", value: function (symbol) { return symbol.dataType || symbol.type || ""; } },
-      { label: "_COMMENT", value: function (symbol) { return symbol.comment || ""; } },
+      { label: "_OPIEC", value: function (symbol) { return symbol._OPIEC || symbol.operand || symbol.address || ""; } },
+      { label: "_DATATYP", value: function (symbol) { return symbol._DATATYP || symbol.dataType || symbol.type || ""; } },
+      { label: "_COMMENT", value: function (symbol) { return symbol._COMMENT || symbol.comment || ""; } },
     ];
-    // Header and option rows are separate CSS grids, so independent max-content
-    // sizing makes their column boundaries drift. Compute one shared width per
-    // column from both its heading and every matching symbol value.
     const measureCanvas = document.createElement("canvas");
     const measureContext = measureCanvas.getContext("2d");
     const columnWidths = columns.map(function (column) {
@@ -805,9 +798,7 @@
       }
       return Math.ceil(maxWidth + 2);
     });
-    const columnTemplate = columnWidths.map(function (width) {
-      return width + "px";
-    }).join(" ");
+    const columnTemplate = columnWidths.map(function (width) { return width + "px"; }).join(" ");
     const header = document.createElement("div");
     header.setAttribute("aria-hidden", "true");
     header.style.cssText =
@@ -856,12 +847,13 @@
       }).join(" · ");
       row.addEventListener("click", function () {
         const displayName = displayProjectSymbolName(symbol) || String(symbol._SKZ || "").trim();
-        const nameInput = document.getElementById("signalNameInput");
-        const keyInput = document.getElementById("signalKeyInput");
         nameInput.value = displayName;
         nameInput.dispatchEvent(new Event("input", { bubbles: true }));
         const sourceAddress = String(symbol.address || symbol.operand || "").trim();
-        if (sourceAddress) keyInput.value = normalizeStep7Address(sourceAddress);
+        if (sourceAddress) {
+          keyInput.value = normalizeStep7Address(sourceAddress);
+          keyInput.dispatchEvent(new Event("input", { bubbles: true }));
+        }
         nameInput.focus();
       });
       row.addEventListener("keydown", function (event) {
@@ -875,11 +867,8 @@
     symbolResults.appendChild(list);
     if (layout && window.matchMedia("(min-width: 801px)").matches) {
       const resultsWidth = Math.ceil(symbolResults.getBoundingClientRect().width);
-      if (resultsWidth > 0) {
-        layout.style.setProperty("--symbol-results-sidebar-width", resultsWidth + "px");
-      }
+      if (resultsWidth > 0) layout.style.setProperty("--symbol-results-sidebar-width", resultsWidth + "px");
     }
-
   }
   document.getElementById("openStep7FolderBtn").addEventListener("click", async function () {
     if (!window.showDirectoryPicker) {
@@ -958,6 +947,9 @@
     const resolved = resolveProjectAddress(candidate, projectSymbols);
     if (resolved) nameInput.value = resolved.name || "";
   }
+  document
+    .getElementById("signalKeyInput")
+    .addEventListener("input", renderProjectSymbols);
   document
     .getElementById("signalKeyInput")
     .addEventListener("change", fillSignalNameFromProjectAddress);
