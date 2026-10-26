@@ -650,6 +650,8 @@
     const query = document.getElementById("signalNameInput").value.trim().toLowerCase(),
       addressQuery = query.toUpperCase().replace(/\s+/g, "");
     symbolResults.replaceChildren();
+    const layout = document.querySelector(".layout");
+    if (layout) layout.style.removeProperty("--symbol-results-sidebar-width");
 
     // Keep the suggestion panel empty until the user actually types a query.
     // In particular, focusing an empty input must not render the full project symbol list.
@@ -846,6 +848,12 @@
       list.appendChild(row);
     });
     symbolResults.appendChild(list);
+    if (layout && window.matchMedia("(min-width: 801px)").matches) {
+      const resultsWidth = Math.ceil(symbolResults.getBoundingClientRect().width);
+      if (resultsWidth > 0) {
+        layout.style.setProperty("--symbol-results-sidebar-width", resultsWidth + "px");
+      }
+    }
 
   }
   document.getElementById("openStep7FolderBtn").addEventListener("click", async function () {
