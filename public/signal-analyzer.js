@@ -219,8 +219,10 @@
     const title = document.createElement("strong");
     title.style.color = s.color;
     title.textContent = s.label;
+    title.title = s.label;
     const address = document.createElement("small");
     address.textContent = s.operand || s.address || "key: " + s.key;
+    address.title = address.textContent;
     const value = document.createElement("em");
     value.id = "value-" + safeId(s.key);
     value.textContent = "—";
