@@ -632,8 +632,9 @@
       const hasDbNumber = requestedDb !== null && requestedDb !== undefined &&
         Number.isInteger(Number(requestedDb)) && Number(requestedDb) >= 0;
       const dbNumber = hasDbNumber ? Number(requestedDb) : null;
-      const rootName = String(requestedRootName || "").trim();
-      const rootKey = rootName.toLowerCase();
+      const rootName = String(requestedRootName || "").trim().replace(/\.+$/, "").trim();
+      const normalizeRootName = (value) => String(value || "").trim().replace(/\.+$/, "").trim().replace(/^["']|["']$/g, "").toLowerCase();
+      const rootKey = normalizeRootName(rootName);
       const cacheKey = dbNumber !== null ? "db:" + dbNumber : "name:" + rootKey;
       if (dbNumber !== null && parsedDbStructures.has(dbNumber)) {
         return found.filter(function (symbol) {
@@ -643,7 +644,7 @@
       }
       if (dbNumber === null && parsedDbRootNames.has(rootKey)) {
         return found.filter(function (symbol) {
-          return String(symbol._dbRootName || "").trim().toLowerCase() === rootKey;
+          return normalizeRootName(symbol._dbRootName) === rootKey;
         });
       }
       if (pendingDbStructureLoads.has(cacheKey)) return pendingDbStructureLoads.get(cacheKey);
@@ -700,7 +701,7 @@
                 blockText.match(/\\bDB\\s*0*(\\d+)\\b/i) ||
                 String(blockValue).match(/^\\s*0*(\\d+)\\s*$/);
               const rowDbNumber = match ? Number(match[1]) : null;
-              const nameMatches = !!rootKey && blockName.toLowerCase() === rootKey;
+              const nameMatches = !!rootKey && normalizeRootName(blockName) === rootKey;
               const isExplicitDb = looksLikeDbType(blockType);
               const isExplicitNonDb = explicitlyNonDbType(blockType);
               // A DB and FB can share block number 663. Exact named lookup
