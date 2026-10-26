@@ -53,7 +53,7 @@ button:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
 
 
 /* STEP 7 symbol results: compact, readable Windows-style list */
-#symbolResults{margin-top:2px;width:max-content;min-width:0;max-width:calc(100vw - 48px);max-height:220px;overflow:auto;padding:1px;background:#eef1f4;border:1px solid #d4dbe2;border-radius:4px;gap:4px!important}
+#symbolResults{margin-top:2px;width:max-content;min-width:0;max-width:calc(100vw - 48px);max-height:none;overflow:visible;padding:1px;background:#eef1f4;border:1px solid #d4dbe2;border-radius:4px;gap:4px!important}
 #symbolResults>div:not(.help-text):not([aria-hidden="true"]):not([role="listbox"]){display:flex!important;gap:8px!important;align-items:center!important;padding:7px 8px!important;background:#fff!important;border:1px solid #d6dde4!important;border-radius:3px!important;color:#263442}
 #symbolResults>div:not(.help-text):hover{background:#edf5fb!important;border-color:#9bbbd5!important}
 #symbolResults>div>span{min-width:0;flex:1;overflow-wrap:anywhere}
