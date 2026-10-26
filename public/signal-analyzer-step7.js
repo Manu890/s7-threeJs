@@ -676,12 +676,12 @@
             }
             function looksLikeDbType(value) {
               return /^(?:DB|DBLOCK|DATABLOCK|DATA_BLOCK|DATENBAUSTEIN)$/i.test(
-                String(value || "").trim().replace(/[\\s-]+/g, "_")
+                String(value || "").trim().replace(/[\s-]+/g, "_")
               );
             }
             function explicitlyNonDbType(value) {
               return /^(?:FB|FC|OB|SFB|SFC|UDT|FUNCTION_BLOCK|FUNCTION|ORGANIZATION_BLOCK)$/i.test(
-                String(value || "").trim().replace(/[\\s-]+/g, "_")
+                String(value || "").trim().replace(/[\s-]+/g, "_")
               );
             }
             for (const row of parsed.rows) {
@@ -698,8 +698,8 @@
               ]);
               const blockText = String(blockName + " " + blockValue);
               const match =
-                blockText.match(/\\bDB\\s*0*(\\d+)\\b/i) ||
-                String(blockValue).match(/^\\s*0*(\\d+)\\s*$/);
+                blockText.match(/\bDB\s*0*(\d+)\b/i) ||
+                String(blockValue).match(/^\s*0*(\d+)\s*$/);
               const rowDbNumber = match ? Number(match[1]) : null;
               const nameMatches = !!rootKey && normalizeRootName(blockName) === rootKey;
               const isExplicitDb = looksLikeDbType(blockType);
@@ -709,7 +709,7 @@
               if (isExplicitNonDb && !isExplicitDb) continue;
               if (dbNumber !== null) {
                 if (rowDbNumber !== dbNumber && !nameMatches) continue;
-                if (!isExplicitDb && !/^DB\\s*0*\\d+$/i.test(blockName) && !nameMatches) continue;
+                if (!isExplicitDb && !/^DB\s*0*\d+$/i.test(blockName) && !nameMatches) continue;
               } else if (!nameMatches) {
                 continue;
               }
@@ -718,8 +718,8 @@
               const body = Object.keys(row)
                 .filter((k) => /_TEXT$/.test(k))
                 .map((k) => row[k])
-                .join("\\n");
-              if (!body || !(/STRUCT/i.test(body) || /\\bVAR\\b[\\s\\S]*?\\bEND_VAR\\b/i.test(body))) continue;
+                .join("\n");
+              if (!body || !(/STRUCT/i.test(body) || /\bVAR\b[\s\S]*?\bEND_VAR\b/i.test(body))) continue;
               const fields = parseStep7DbStructure(body, "DB" + resolvedDbNumber + ".DB");
               fields.forEach(function (field) {
                 if (rootName) field._dbRootName = rootName;
