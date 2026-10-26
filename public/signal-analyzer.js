@@ -820,7 +820,9 @@
       } else {
         maxWidth = Math.max(column.label.length * 7, 80);
       }
-      return Math.ceil(maxWidth + 2);
+      // Leave room for each cell's padding, the vertical separator, and
+      // small font-metric differences so the longest value is not clipped.
+      return Math.ceil(maxWidth + 18);
     });
     const columnTemplate = columnWidths.map(function (width) { return width + "px"; }).join(" ");
     const header = document.createElement("div");
