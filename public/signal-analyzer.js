@@ -693,9 +693,12 @@
     // In the symbol-name input, a dotted root such as "db_sp_spu." must be
     // looked up by its root name in SUBBLK.DBF/.DBT directly; do not require
     // SYMLIST.DBF to resolve that name to a numeric DB first.
+    // Resolve a named DB through SYMLIST.DBF's _SKZ first. If that row
+    // carries a numeric DB operand in _OPIEC, use it to target SUBBLK while
+    // retaining the symbolic root name (for example, db_visu_add).
     const requestedDb = directDbQuery
       ? Number(directDbQuery[1])
-      : searchingKey && dbAddress
+      : dbAddress
         ? Number(dbAddress[1])
         : null;
     const dbMode = Number.isInteger(requestedDb);
