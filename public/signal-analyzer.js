@@ -1262,19 +1262,28 @@
       const health = await recordingController.getHealth();
       if (health.mongoConnected && health.plcConnected) {
         status.textContent = health.recordingEnabled
-          ? "MongoDB: recording · buffered " + health.bufferedSamples
-          : "MongoDB: recording stopped";
-        status.style.color = "var(--green)";
+          ? "MongoDB: recording · buffered " +
+            health.bufferedSamples +
+            " · saved this session " +
+            Number(health.totalStored || 0).toLocaleString()
+          : "MongoDB: recording stopped · saved this session " +
+            Number(health.totalStored || 0).toLocaleString();
+        status.style.color = health.lastError ? "var(--amber)" : "var(--green)";
       } else {
         status.textContent =
           "MongoDB: " +
           (health.mongoConnected ? "connected" : "offline") +
           " · PLC stream: " +
-          (health.plcConnected ? "connected" : "offline");
+          (health.plcConnected ? "connected" : "offline") +
+          " · saved this session " +
+          Number(health.totalStored || 0).toLocaleString();
         status.style.color = "var(--amber)";
       }
-      status.title =
-        health.lastError || "Stored samples since service start: " + health.totalStored;
+      status.title = health.lastError
+        ? "Persistence warning: " + health.lastError
+        : "Samples successfully written since persistence service start: " +
+          Number(health.totalStored || 0).toLocaleString() +
+          (health.lastPersistedAt ? "\nLast saved: " + health.lastPersistedAt : "\nNo successful batch write reported yet.");
     } catch (e) {
       status.textContent = "MongoDB persistence: service not running";
       status.style.color = "var(--red)";
