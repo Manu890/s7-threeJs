@@ -675,9 +675,9 @@
               const matchingRows = parsed.rows.filter(function (row) {
                 return Object.keys(row).some(function (key) {
                   if (/_TEXT$/i.test(key)) return false;
-                  const value = String(row[key] || "").replace(/\\0/g, "").trim();
+                  const value = String(row[key] || "").replace(/\0/g, "").trim();
                   return value.toLowerCase() === rootKey ||
-                    /^DB\\s*0*601$/i.test(value) ||
+                    /^DB\s*0*601$/i.test(value) ||
                     /^0*601$/.test(value);
                 });
               }).slice(0, 12).map(function (row) {
@@ -685,9 +685,9 @@
                 Object.keys(row).forEach(function (key) {
                   if (/_TEXT$/i.test(key)) {
                     metadata[key + "_length"] = String(row[key] || "").length;
-                    metadata[key + "_hasDeclaration"] = /\\b(?:STRUCT|VAR)\\b/i.test(String(row[key] || ""));
+                    metadata[key + "_hasDeclaration"] = /\b(?:STRUCT|VAR)\b/i.test(String(row[key] || ""));
                   } else {
-                    metadata[key] = String(row[key] || "").replace(/\\0/g, "").trim().slice(0, 100);
+                    metadata[key] = String(row[key] || "").replace(/\0/g, "").trim().slice(0, 100);
                   }
                 });
                 return metadata;
@@ -760,7 +760,18 @@
               if (isExplicitNonDb && !isExplicitDb) continue;
               if (dbNumber !== null) {
                 if (rowDbNumber !== dbNumber && !nameMatches) continue;
-                if (!isExplicitDb && !/^DB\s*0*\d+$/i.test(blockName) && !nameMatches) continue;
+                const hasDeclaration = Object.keys(row)
+                  .filter((key) => /_TEXT$/i.test(key))
+                  .some((key) =>
+                    /\bSTRUCT\b/i.test(String(row[key] || "")) ||
+                    /\bVAR\b[\s\S]*?\bEND_VAR\b/i.test(String(row[key] || ""))
+                  );
+                if (
+                  !isExplicitDb &&
+                  !/^DB\s*0*\d+$/i.test(blockName) &&
+                  !nameMatches &&
+                  !hasDeclaration
+                ) continue;
               } else if (!nameMatches) {
                 continue;
               }
