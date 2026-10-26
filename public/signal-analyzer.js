@@ -783,12 +783,12 @@
       { label: "_DATATYP", value: function (symbol) { return symbol.dataType || symbol.type || ""; } },
       { label: "_COMMENT", value: function (symbol) { return symbol.comment || ""; } },
     ];
-    const columnTemplate = "minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, .8fr) minmax(0, 1.6fr)";
+    const columnTemplate = "max-content max-content max-content max-content";
     const header = document.createElement("div");
     header.setAttribute("aria-hidden", "true");
     header.style.cssText =
       "display:grid;grid-template-columns:" + columnTemplate +
-      ";gap:8px;padding:5px 6px;box-sizing:border-box;background:#eaf0f6;" +
+      ";width:max-content;min-width:100%;gap:8px;padding:5px 6px;box-sizing:border-box;background:#eaf0f6;" +
       "border:1px solid #d4dbe2;border-bottom:0;font:600 11px Consolas,'Courier New',monospace;color:#263442";
     columns.forEach(function (column) {
       const cell = document.createElement("div");
@@ -802,7 +802,7 @@
     list.setAttribute("role", "listbox");
     list.setAttribute("aria-label", "Matching STEP 7 symbols");
     list.style.cssText =
-      "display:block;width:100%;max-height:65vh;min-height:240px;box-sizing:border-box;" +
+      "display:block;width:max-content;min-width:100%;max-height:65vh;min-height:240px;box-sizing:border-box;" +
       "overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;" +
       "background:#fff;color:#263442;border:1px solid #d4dbe2;border-top:0;" +
       "border-radius:0 0 4px 4px;font:12px Consolas,'Courier New',monospace";
@@ -813,7 +813,7 @@
       row.tabIndex = 0;
       row.style.cssText =
         "display:grid;grid-template-columns:" + columnTemplate +
-        ";gap:8px;min-height:24px;padding:4px 6px;box-sizing:border-box;" +
+        ";width:max-content;min-width:100%;gap:8px;min-height:24px;padding:4px 6px;box-sizing:border-box;" +
         "align-items:center;cursor:pointer;border-bottom:1px solid #edf0f3";
       columns.forEach(function (column) {
         const cell = document.createElement("div");
