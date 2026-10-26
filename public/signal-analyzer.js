@@ -910,7 +910,8 @@
     list.setAttribute("aria-label", "Matching STEP 7 symbols");
     list.style.cssText =
       "display:block;width:100%;min-width:0;max-width:100%;height:100%;min-height:0;box-sizing:border-box;" +
-      "overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;" +
+      "overflow-x:hidden;overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none;overscroll-behavior:contain;" +
+      "scrollbar-gutter:auto;"
       "background:#fff;color:#263442;font:12px Consolas,'Courier New',monospace";
     const scrollbar = document.createElement("div");
     scrollbar.setAttribute("aria-hidden", "true");
