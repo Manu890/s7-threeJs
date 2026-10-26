@@ -709,6 +709,10 @@
 
     if (
       dbSymbolQuery &&
+      // Key/address searches (for example M23.) must stay in SYMLIST.DBF.
+      // SUBBLK structure loading is only for symbol-name lookups, plus an
+      // explicit numeric DB query such as DB12. when no SYMLIST fields exist.
+      (!searchingKey || directDbQuery) &&
       !foundDottedOperandMatches &&
       !symlistHasDbFields &&
       loadProjectDbStructures &&
