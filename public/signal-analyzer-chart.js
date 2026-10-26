@@ -23,7 +23,12 @@
           : null,
         isLiveRecording = state.recording && !state.chartFrozen && !state.historicalMode,
         keepSweepWindow = !state.historicalMode && (isLiveRecording || state.chartFrozen) && state.recordingStartedAt > 0,
-        sweepOrigin = state.recordingStartedAt || (state.history.length ? state.history[0].timestamp : liveNow),
+        // Anchor a recording's live sweep to its first actual PLC sample, not
+        // the button-click time. That timestamp is the sample timestamp persisted
+        // by the MongoDB recorder, so the first live axis tick matches the data.
+        sweepOrigin = state.history.length
+          ? state.history[0].timestamp
+          : state.recordingStartedAt || liveNow,
         // Historical mode anchors the left edge to the first MongoDB sample,
         // while preserving the selected time-window width (e.g. 30 seconds).
         // This keeps short recordings short instead of stretching them across the chart.
