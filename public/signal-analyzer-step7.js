@@ -283,50 +283,130 @@
     if (!m) return [];
     const db = Number(m[1]),
       out = [];
-    let inStruct = false,
-      offset = 0,
-      bit = -1;
     const sizes = {
       BOOL: 0,
-      BYTE: 1,
-      CHAR: 1,
-      SINT: 1,
-      USINT: 1,
-      WORD: 2,
-      INT: 2,
-      UINT: 2,
-      S5TIME: 2,
-      DATE: 2,
-      DWORD: 4,
-      DINT: 4,
-      UDINT: 4,
-      REAL: 4,
-      TIME: 4,
-      TIME_OF_DAY: 4,
-      LREAL: 8,
-      LINT: 8,
-      ULINT: 8,
-      LTIME: 8,
-      DATE_AND_TIME: 8,
-      DT: 8,
+      BYTE: 1, CHAR: 1, SINT: 1, USINT: 1,
+      WORD: 2, INT: 2, UINT: 2, S5TIME: 2, DATE: 2,
+      DWORD: 4, DINT: 4, UDINT: 4, REAL: 4, TIME: 4, TIME_OF_DAY: 4,
+      LREAL: 8, LINT: 8, ULINT: 8, LTIME: 8, DATE_AND_TIME: 8, DT: 8,
       DTL: 12,
     };
+    const varBlock = src.match(/\bVAR\b([\s\S]*?)\bEND_VAR\b/i);
+    if (varBlock) {
+      // SUBBLK memo text stores a DB's declarations in a VAR/END_VAR block.
+      // Parse it with STEP 7's byte/bit alignment rules rather than expecting
+      // an exported DATA_BLOCK ... STRUCT wrapper.
+      const lines = varBlock[1].replace(/\r/g, "").split("\n");
+      const pos = [0, 0];
+      const stack = [];
+      function alignEven() {
+        if (pos[1]) { pos[0]++; pos[1] = 0; }
+        if (pos[0] % 2) pos[0]++;
+      }
+      function alignByte() {
+        if (pos[1]) { pos[0]++; pos[1] = 0; }
+      }
+      function add(name, type, comment, initial, byte, bit) {
+        const path = stack.concat(name).filter(Boolean).join(".");
+        const isBool = type === "BOOL";
+        const addr = "DB" + db + "," + (isBool ? "DBX" + byte + "." + (bit || 0) :
+          (type === "BYTE" || type === "CHAR" ? "DBB" : type === "WORD" || type === "INT" || type === "UINT" || type === "S5TIME" || type === "DATE" ? "DBW" : "DBD") + byte);
+        out.push({
+          _SKZ: path,
+          name: path,
+          address: addr,
+          type: type,
+          comment: comment || (initial ? "Initial value: " + initial : "DB structure field"),
+          symbolName: path,
+          operand: addr,
+          dataType: type,
+          _dbStructure: true,
+          _byteOffset: byte,
+          _bitOffset: isBool ? (bit || 0) : null,
+          _initialValue: initial || "",
+        });
+      }
+      let i = 0;
+      while (i < lines.length) {
+        const line = lines[i++].trim();
+        if (!line) continue;
+        let match = line.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*:\s*STRUCT\b/i);
+        if (match) { alignEven(); stack.push(match[1]); continue; }
+        if (/^END_STRUCT\b/i.test(line)) { alignEven(); stack.pop(); continue; }
+
+        match = line.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*:\s*ARRAY\s*\[\s*(-?\d+)\s*\.\.\s*(-?\d+)\s*\]\s*OF\s*([A-Za-z_][A-Za-z0-9_]*)\s*;\s*(?::=\s*([^;]*?))?\s*(?:\/\/(.*))?$/i);
+        if (match) {
+          const name = match[1], low = Number(match[2]), high = Number(match[3]);
+          const type = match[4].toUpperCase(), initial = (match[5] || "").trim(), comment = (match[6] || "").trim();
+          const count = high - low + 1;
+          if (count > 0 && sizes[type] !== undefined) {
+            alignEven();
+            const byte = pos[0];
+            add(name, "ARRAY[" + low + ".." + high + "] OF " + type, comment, initial, byte);
+            if (type === "BOOL") pos[0] += Math.ceil(count / 8);
+            else pos[0] += count * Math.max(1, sizes[type]);
+            alignEven();
+          }
+          continue;
+        }
+
+        match = line.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*:\s*ARRAY\s*\[\s*(-?\d+)\s*\.\.\s*(-?\d+)\s*\]\s*(?:\/\/(.*))?$/i);
+        if (match) {
+          const name = match[1], low = Number(match[2]), high = Number(match[3]);
+          const comment = (match[4] || "").trim();
+          const next = (lines[i++] || "").trim();
+          const element = next.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*;\s*(?::=\s*([^;]*?))?\s*(?:\/\/(.*))?$/);
+          if (!element) { i--; continue; }
+          const type = element[1].toUpperCase(), initial = (element[2] || "").trim();
+          const fullComment = comment || (element[3] || "").trim();
+          const count = high - low + 1;
+          if (count > 0 && sizes[type] !== undefined) {
+            alignEven();
+            const byte = pos[0];
+            add(name, "ARRAY[" + low + ".." + high + "] OF " + type, fullComment, initial, byte, type === "BOOL" ? 0 : undefined);
+            if (type === "BOOL") pos[0] += Math.ceil(count / 8);
+            else pos[0] += count * Math.max(1, sizes[type]);
+            alignEven();
+          }
+          continue;
+        }
+
+        match = line.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*:\s*([A-Za-z_][A-Za-z0-9_]*)(?:\s*:=\s*([^;]*?))?\s*;\s*(?:\/\/(.*))?$/);
+        if (!match) continue;
+        const name = match[1], type = match[2].toUpperCase();
+        const initial = (match[3] || "").trim(), comment = (match[4] || "").trim();
+        const str = type.match(/^STRING(?:\s*\[\s*(\d+)\s*\])?$/);
+        const size = str ? 2 + Number(str[1] || 254) : sizes[type];
+        if (size === undefined) continue;
+        if (type === "BOOL") {
+          add(name, type, comment, initial, pos[0], pos[1]);
+          pos[1]++;
+          if (pos[1] === 8) { pos[0]++; pos[1] = 0; }
+        } else if (type === "BYTE" || type === "CHAR" || type === "SINT" || type === "USINT") {
+          alignByte();
+          add(name, type, comment, initial, pos[0]);
+          pos[0] += size;
+        } else {
+          alignEven();
+          add(name, type, comment, initial, pos[0]);
+          pos[0] += size;
+        }
+      }
+      alignEven();
+      if (out.length) return out;
+    }
+
+    // Fallback for textual AWL/SCL exports that express fields inside STRUCT.
+    let inStruct = false, offset = 0, bit = -1;
     src.split(/\r?\n/).forEach(function (raw) {
       const line = raw.replace(/\/\/.*$/, "").trim();
       if (!line) return;
-      if (/\bSTRUCT\b/i.test(line)) {
-        inStruct = true;
-        return;
-      }
-      if (/\bEND_STRUCT\b/i.test(line)) {
-        inStruct = false;
-        return;
-      }
+      if (/\bSTRUCT\b/i.test(line)) { inStruct = true; return; }
+      if (/\bEND_STRUCT\b/i.test(line)) { inStruct = false; return; }
       if (!inStruct || /^(DATA_BLOCK|TITLE|VERSION|BEGIN|END_DATA_BLOCK)\b/i.test(line)) return;
       const f = line.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.+?)\s*;?$/);
       if (!f) return;
-      const name = f[1],
-        type = f[2].replace(/;$/, "").trim().toUpperCase();
+      const name = f[1], type = f[2].replace(/;$/, "").trim().toUpperCase();
       let size = sizes[type];
       const arr = type.match(/^ARRAY\s*\[\s*(-?\d+)\s*\.\.\s*(-?\d+)\s*\]\s*OF\s*(\w+)$/);
       if (arr && sizes[arr[3]] !== undefined)
@@ -335,47 +415,18 @@
       if (str) size = 2 + Number(str[1] || 254);
       if (size === undefined) return;
       if (type === "BOOL") {
-        if (bit < 0 || bit > 7) {
-          offset = Math.ceil(offset);
-          bit = 0;
-        }
+        if (bit < 0 || bit > 7) { offset = Math.ceil(offset); bit = 0; }
         const addr = "DB" + db + ",DBX" + offset + "." + bit;
-        out.push({
-          _SKZ: name,
-          name: name,
-          address: addr,
-          type: "BOOL",
-          comment: "DB structure field",
-          symbolName: name,
-          operand: addr,
-          dataType: "BOOL",
-          _dbStructure: true,
-        });
+        out.push({ _SKZ: name, name, address: addr, type: "BOOL", comment: "DB structure field", symbolName: name, operand: addr, dataType: "BOOL", _dbStructure: true });
         bit++;
-        if (bit > 7) {
-          offset++;
-          bit = -1;
-        }
+        if (bit > 7) { offset++; bit = -1; }
         return;
       }
-      if (bit >= 0) {
-        offset++;
-        bit = -1;
-      }
+      if (bit >= 0) { offset++; bit = -1; }
       if (size >= 2 && offset % 2) offset++;
-      const prefix = size === 1 ? "DBB" : size === 2 ? "DBW" : size === 4 ? "DBD" : "DBB",
-        addr = "DB" + db + "," + prefix + offset;
-      out.push({
-        _SKZ: name,
-        name: name,
-        address: addr,
-        type: type,
-        comment: "DB structure field · offset " + offset + " · " + type,
-        symbolName: name,
-        operand: addr,
-        dataType: type,
-        _dbStructure: true,
-      });
+      const prefix = size === 1 ? "DBB" : size === 2 ? "DBW" : size === 4 ? "DBD" : "DBB";
+      const addr = "DB" + db + "," + prefix + offset;
+      out.push({ _SKZ: name, name, address: addr, type, comment: "DB structure field · offset " + offset + " · " + type, symbolName: name, operand: addr, dataType: type, _dbStructure: true });
       offset += size;
     });
     return out;
@@ -383,32 +434,36 @@
   async function readStep7DbtMemo(dbtBytes, blockNumber) {
     if (!dbtBytes || !Number.isInteger(blockNumber) || blockNumber <= 0) return "";
     const start = blockNumber * 512;
-    if (start >= dbtBytes.length) return "";
+    if (start + 8 > dbtBytes.length) return "";
+    const view = new DataView(dbtBytes.buffer, dbtBytes.byteOffset, dbtBytes.byteLength);
+    // STEP 7's SUBBLK DBT memo header stores the total memo length at +4;
+    // the first 8 bytes are the header. This matches the block reader used by
+    // the DB 663 parser: payload = memoStart + 8, length = storedLength - 8.
+    const storedLength = view.getUint32(start + 4, true);
+    if (storedLength > 8 && storedLength <= dbtBytes.length - start) {
+      const payload = dbtBytes.slice(start + 8, start + storedLength);
+      const text = new TextDecoder("windows-1252").decode(payload).replace(/\0/g, "");
+      const printable = (text.match(/[\t\r\n\x20-\x7E\u00A0-\u00FF]/g) || []).length;
+      if (text.length && printable / text.length > 0.82) return text;
+    }
+    // Keep support for DBT variants that use a block-sized or FF FF 08 00
+    // header instead of the length format above.
     const bytes = dbtBytes.slice(start, Math.min(dbtBytes.length, start + 512));
     let payload = bytes;
-    if (
-      bytes.length >= 8 &&
-      bytes[0] === 0xff &&
-      bytes[1] === 0xff &&
-      bytes[2] === 0x08 &&
-      bytes[3] === 0x00
-    ) {
-      const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-      const length = [view.getUint32(4, true), view.getUint32(4, false)].find(
-        (n) => n > 0 && n <= bytes.length - 8
-      );
+    if (bytes.length >= 8 && bytes[0] === 0xff && bytes[1] === 0xff &&
+        bytes[2] === 0x08 && bytes[3] === 0x00) {
+      const blockView = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+      const length = [blockView.getUint32(4, true), blockView.getUint32(4, false)]
+        .find((n) => n > 0 && n <= bytes.length - 8);
       if (length) payload = bytes.slice(8, 8 + length);
     } else {
       let stop = -1;
       for (let i = 0; i < bytes.length - 1; i++) {
-        if (bytes[i] === 0x1a && bytes[i + 1] === 0x1a) {
-          stop = i;
-          break;
-        }
+        if (bytes[i] === 0x1a && bytes[i + 1] === 0x1a) { stop = i; break; }
       }
       if (stop > 0) payload = bytes.slice(0, stop);
     }
-    const text = new TextDecoder("windows-1252").decode(payload);
+    const text = new TextDecoder("windows-1252").decode(payload).replace(/\0/g, "");
     const printable = (text.match(/[\t\r\n\x20-\x7E\u00A0-\u00FF]/g) || []).length;
     return text.length && printable / text.length > 0.82 ? text : "";
   }
@@ -624,7 +679,7 @@
                 .filter((k) => /_TEXT$/.test(k))
                 .map((k) => row[k])
                 .join("\n");
-              if (!body || !/STRUCT/i.test(body)) continue;
+              if (!body || !(/STRUCT/i.test(body) || /\bVAR\b[\s\S]*?\bEND_VAR\b/i.test(body))) continue;
               const fields = parseStep7DbStructure(body, "DB" + resolvedDbNumber + ".DB");
               fields.forEach(function (field) {
                 if (rootName) field._dbRootName = rootName;
