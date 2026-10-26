@@ -663,6 +663,24 @@
               await item.entry.getFile(),
               companion && companion.entry
             );
+            if (rootKey) {
+              const sampleRows = parsed.rows.slice(0, 3).map(function (row) {
+                const metadata = {};
+                Object.keys(row).forEach(function (key) {
+                  if (/_TEXT$/i.test(key)) return;
+                  metadata[key] = String(row[key] || "").trim().slice(0, 100);
+                });
+                return metadata;
+              });
+              console.info("[STEP7 SUBBLK scan]", {
+                file: item.path,
+                companionDbtFound: !!companion,
+                rowCount: parsed.rows.length,
+                memoCount: parsed.memoCount,
+                fields: parsed.fields || [],
+                sampleMetadata: sampleRows
+              });
+            }
             function valueFor(row, candidates) {
               const entries = Object.keys(row).map(function (key) {
                 return { key: key, normalized: key.toUpperCase().replace(/[^A-Z0-9]/g, "") };
