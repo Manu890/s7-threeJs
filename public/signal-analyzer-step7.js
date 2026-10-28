@@ -851,7 +851,7 @@
               // register the numeric FB identity too. Some STEP 7 SUBBLK.DBF
               // versions store source text beginning at VAR (without a
               // FUNCTION_BLOCK header) and use a non-FB symbolic metadata name.
-              if (name && (/^fb\b/i.test(name) || nameMatch)) fbDefinitions.set(name, candidateText);
+              if (name && (/^fb/i.test(name) || nameMatch)) fbDefinitions.set(name, candidateText);
               const number = valueFor(candidate, ["BLKNUMBER","BLKNR","BLOCKNR","BLOCKNUMBER","BLKNUM","NUMBER","BLKNO"]);
               if (number !== undefined && number !== null && /^\s*\d+\s*$/.test(String(number))) {
                 const numericName = "fb" + String(Number(number));
