@@ -901,16 +901,11 @@
                     /\bSTRUCT\b/i.test(String(row[key] || "")) ||
                     /\bVAR\b[\s\S]*?\bEND_VAR\b/i.test(String(row[key] || ""))
                   );
-                // A numeric block number alone is not enough to identify a DB:
-                // STEP 7 projects can contain an FB declaration with the same
-                // number. Only accept non-explicit-DB rows when the metadata
-                // identifies the DB itself (DB1150) or its symbolic DB name.
-                // Otherwise an FB VAR section can be misread as the DB layout
-                // and expose only its primitive members (e.g. sxhmfpAblegen).
                 if (
                   !isExplicitDb &&
                   !/^DB\s*0*\d+$/i.test(blockName) &&
-                  !nameMatches
+                  !nameMatches &&
+                  !hasDeclaration
                 ) continue;
               } else if (!nameMatches) {
                 continue;
