@@ -887,7 +887,7 @@
               const nameMatches = !!rootKey && normalizeRootName(blockName) === rootKey;
               // Diagnostic breadcrumbs contain metadata only (no DB structure
               // text), so users can report why a named DB lookup failed.
-              if (rootKey && (nameMatches || /visu_add/i.test(blockName))) {
+              if (rootKey && (nameMatches || /visu_add/i.test(blockName) || (dbNumber !== null && rowDbNumber === dbNumber))) {
                 console.info("[STEP7 DB lookup]", {
                   requestedRoot: rootName,
                   blockName: blockName,
