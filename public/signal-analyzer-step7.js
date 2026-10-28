@@ -927,11 +927,24 @@
                 .join("\n");
               if (!body) continue;
               const instanceHeader = body.match(/\bDATA_BLOCK\s+(?:"[^"]+"|[A-Za-z_]\w*)\s+(?:"([^"]+)"|([A-Za-z_]\w*))/i);
-              const instanceType = instanceHeader && String(instanceHeader[1] || instanceHeader[2]).toLowerCase();
+              const instanceType = instanceHeader && String(instanceHeader[1] || instanceHeader[2]).toLowerCase().replace(/\s+/g, "");
               const isInstanceDb = !!instanceType && fbDefinitions.has(instanceType);
-              if (!isInstanceDb && !(/STRUCT/i.test(body) || /\bVAR\b[\s\S]*?\bEND_VAR\b/i.test(body))) continue;
-              const fields = isInstanceDb
-                ? parseStep7InstanceDbStructure(body, "DB" + resolvedDbNumber + ".DB", fbDefinitions)
+              // Some STEP 7 exports store the instance FB's VAR declaration as
+              // the readable row for the same block number, while the actual
+              // DB row contains only compiled MC5 data. In that case, use the
+              // FB declaration as the layout template for the named DB root.
+              const numericFbType = "fb" + String(resolvedDbNumber);
+              const useNumericFbTemplate = !isInstanceDb && !!rootName &&
+                rowDbNumber === resolvedDbNumber &&
+                fbDefinitions.has(numericFbType) &&
+                /\bVAR(?:_INPUT|_OUTPUT|_IN_OUT)?\b[\s\S]*?\bEND_VAR\b/i.test(body);
+              const instanceSource = useNumericFbTemplate
+                ? 'DATA_BLOCK "' + rootName.replace(/"/g, "") + '" "' + numericFbType + '"\\nEND_DATA_BLOCK'
+                : body;
+              if (!isInstanceDb && !useNumericFbTemplate &&
+                  !(/STRUCT/i.test(body) || /\bVAR\b[\s\S]*?\bEND_VAR\b/i.test(body))) continue;
+              const fields = (isInstanceDb || useNumericFbTemplate)
+                ? parseStep7InstanceDbStructure(instanceSource, "DB" + resolvedDbNumber + ".DB", fbDefinitions)
                 : parseStep7DbStructure(body, "DB" + resolvedDbNumber + ".DB");
               fields.forEach(function (field) {
                 if (rootName) field._dbRootName = rootName;
