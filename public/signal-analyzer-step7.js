@@ -541,7 +541,7 @@
       if(stack.includes(type)||stack.length>24)return;
       const source=defs.get(type);if(!source)return;
       const next=stack.concat(type);
-      getSections(source).forEach(section=>parseLines(section.body.replace(/\r/g,"").split("\n"),prefix,s,next));
+      getSections(source).forEach(section=>{const start=out.length;parseLines(section.body.replace(/\r/g,"").split("\n"),prefix,s,next);for(let i=start;i<out.length;i++){if(!out[i]._section)out[i]._section=section.kind;}});
       wordAlign(s);
     }
     const state={byte:0,bit:0};expand(rootType,[],state,[]);
