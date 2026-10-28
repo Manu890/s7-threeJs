@@ -864,6 +864,10 @@
       } },
       { label: "_OPIEC", value: function (symbol) { return symbol._OPIEC || symbol.operand || symbol.address || ""; } },
       { label: "_DATATYP", value: function (symbol) { return symbol._DATATYP || symbol.dataType || symbol.type || ""; } },
+      { label: "_SECTION", value: function (symbol) {
+        const section = String(symbol._section || symbol.section || "").toUpperCase();
+        return section === "VAR" ? "STAT" : section === "VAR_INPUT" ? "IN" : section === "VAR_OUTPUT" ? "OUT" : section === "VAR_IN_OUT" ? "IN_OUT" : section;
+      } },
       { label: "_COMMENT", value: function (symbol) { return symbol._COMMENT || symbol.comment || ""; } },
     ];
     const measureCanvas = document.createElement("canvas");
