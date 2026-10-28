@@ -480,6 +480,77 @@
     });
     return out;
   }
+
+  function parseStep7InstanceDbStructure(text, filename, fbDefinitions) {
+    const src=String(text||"");
+    const dbMatch=src.match(/(?:DATA_BLOCK\s+)?DB\s*0*(\d+)\b/i)||String(filename||"").match(/\bDB\s*0*(\d+)\b/i);
+    const header=src.match(/\bDATA_BLOCK\s+(?:"([^"]+)"|([A-Za-z_]\w*))\s+(?:"([^"]+)"|([A-Za-z_]\w*))/i);
+    if(!dbMatch||!header)return [];
+    const db=Number(dbMatch[1]),rootType=String(header[3]||header[4]||"").toLowerCase(),defs=fbDefinitions||new Map(),out=[];
+    if(!defs.has(rootType))return [];
+    const sizes={BOOL:0,BYTE:1,CHAR:1,SINT:1,USINT:1,WORD:2,INT:2,UINT:2,S5TIME:2,DATE:2,DWORD:4,DINT:4,UDINT:4,REAL:4,TIME:4,TIME_OF_DAY:4,LREAL:8,LINT:8,ULINT:8,LTIME:8,DATE_AND_TIME:8,DT:8,DTL:12};
+    function byteAlign(s){if(s.bit){s.byte++;s.bit=0;}}
+    function wordAlign(s){byteAlign(s);if(s.byte%2)s.byte++;}
+    function emit(path,type,size,s,initial) {
+      const byte=s.byte,bit=type==="BOOL"?s.bit:null;
+      const area=["BYTE","CHAR","SINT","USINT"].includes(type)?"DBB":["WORD","INT","UINT","S5TIME","DATE"].includes(type)?"DBW":"DBD";
+      const address="DB"+db+","+(type==="BOOL"?"DBX"+byte+"."+bit:area+byte);
+      out.push({_SKZ:path,name:path,address,type,comment:initial!==undefined?"Initial value: "+initial:"Instance DB field",symbolName:path,operand:address,dataType:type,_dbStructure:true,_byteOffset:byte,_bitOffset:bit,_initialValue:initial===undefined?"":initial});
+      if(type==="BOOL"){s.bit++;if(s.bit===8){s.byte++;s.bit=0;}}else s.byte+=size;
+    }
+    function getSections(source) {
+      const result=[],re=/\b(VAR_INPUT|VAR_OUTPUT|VAR_IN_OUT|VAR)\b([\s\S]*?)\bEND_VAR\b/gi;let m;
+      while((m=re.exec(source)))result.push({kind:m[1].toUpperCase(),body:m[2]});
+      return result;
+    }
+    function parseLines(lines,prefix,s,stack) {
+      for(let i=0;i<lines.length;i++) {
+        const line=lines[i].replace(/\/\/.*$/,"").trim();if(!line)continue;
+        const arrayStruct=line.match(/^([A-Za-z_]\w*)\s*:\s*ARRAY\s*\[\s*(-?\d+)\s*\.\.\s*(-?\d+)\s*\]\s*OF\s*STRUCT/i);
+        const struct=line.match(/^([A-Za-z_]\w*)\s*:\s*STRUCT/i);
+        if(arrayStruct||struct) {
+          const name=(arrayStruct||struct)[1];let depth=1,end=i+1;
+          for(;end<lines.length;end++){if(/\bSTRUCT\b/i.test(lines[end])&&!/^\s*END_STRUCT\b/i.test(lines[end]))depth++;if(/^\s*END_STRUCT\b/i.test(lines[end])&&--depth===0)break;}
+          const body=lines.slice(i+1,end),low=arrayStruct?Number(arrayStruct[2]):0,high=arrayStruct?Number(arrayStruct[3]):0;
+          wordAlign(s);
+          if(arrayStruct&&high>=low&&high-low<=10000){for(let n=low;n<=high;n++){wordAlign(s);parseLines(body,prefix.concat(name+"["+n+"]"),s,stack);wordAlign(s);}}
+          else parseLines(body,prefix.concat(name),s,stack);
+          i=end;continue;
+        }
+        if(/^END_STRUCT\b/i.test(line)){wordAlign(s);continue;}
+        const m=line.match(/^([A-Za-z_]\w*)\s*:\s*(.+?)\s*;?\s*$/);if(!m)continue;
+        const name=m[1],raw=m[2].replace(/;\s*$/,"").trim(),path=prefix.concat(name).join(".");
+        const array=raw.match(/^ARRAY\s*\[\s*(-?\d+)\s*\.\.\s*(-?\d+)\s*\]\s*OF\s*(.+)$/i);
+        if(array) {
+          const low=Number(array[1]),high=Number(array[2]),type=array[3].trim().replace(/^["']|["']$/g,"").toUpperCase();
+          if(high<low||high-low>10000)continue;
+          if(defs.has(type.toLowerCase())){for(let n=low;n<=high;n++){wordAlign(s);expand(type.toLowerCase(),prefix.concat(name+"["+n+"]"),s,stack);}continue;}
+          if(sizes[type]===undefined)continue;
+          wordAlign(s);
+          for(let n=low;n<=high;n++){if(type==="BOOL")emit(path+"["+n+"]",type,0,s);else{wordAlign(s);emit(path+"["+n+"]",type,sizes[type],s);}}
+          wordAlign(s);continue;
+        }
+        const type=raw.replace(/\s*:=.*$/,"").replace(/^["']|["']$/g,"").toUpperCase();
+        if(defs.has(type.toLowerCase())){wordAlign(s);expand(type.toLowerCase(),prefix.concat(name),s,stack);continue;}
+        const stringType=type.match(/^STRING(?:\s*\[\s*(\d+)\s*\])?$/),size=stringType?2+Number(stringType[1]||254):sizes[type];
+        if(size===undefined)continue;
+        if(type==="BOOL")emit(path,type,0,s);else if(size===1){byteAlign(s);emit(path,type,size,s);}else{wordAlign(s);emit(path,type,size,s);}
+      }
+    }
+    function expand(type,prefix,s,stack) {
+      if(stack.includes(type)||stack.length>24)return;
+      const source=defs.get(type);if(!source)return;
+      const next=stack.concat(type);
+      getSections(source).forEach(section=>parseLines(section.body.replace(/\r/g,"").split("\n"),prefix,s,next));
+      wordAlign(s);
+    }
+    const state={byte:0,bit:0};expand(rootType,[],state,[]);
+    const begin=src.match(/\bBEGIN\b([\s\S]*?)\bEND_DATA_BLOCK\b/i),initials=new Map();
+    if(begin){const re=/([A-Za-z_]\w*(?:\s*\[\s*-?\d+\s*\])?(?:\.[A-Za-z_]\w*(?:\s*\[\s*-?\d+\s*\])?)*)\s*:=\s*([^;]+);/g;let m;while((m=re.exec(begin[1])))initials.set(m[1].replace(/\s+/g,""),m[2].trim());}
+    out.forEach(field=>{const key=field.name.replace(/\s+/g,"");if(initials.has(key)){field._initialValue=initials.get(key);field.comment="Initial value: "+field._initialValue;}});
+    return out;
+  }
+
   async function readStep7DbtMemo(dbtBytes, blockNumber) {
     if (!dbtBytes || !Number.isInteger(blockNumber) || blockNumber <= 0) return "";
     const start = blockNumber * 512;
@@ -769,6 +840,17 @@
                 String(value || "").trim().replace(/[\s-]+/g, "_")
               );
             }
+            const fbDefinitions = new Map();
+            parsed.rows.forEach(function (candidate) {
+              const candidateText = Object.keys(candidate).filter((key) => /_TEXT$/i.test(key)).map((key) => String(candidate[key] || "")).join("\n");
+              if (!candidateText) return;
+              const nameMatch = candidateText.match(/\bFUNCTION_BLOCK\s+(?:"([^"]+)"|([A-Za-z_]\w*))/i);
+              if (!nameMatch) return;
+              const name = String(nameMatch[1] || nameMatch[2]).toLowerCase();
+              fbDefinitions.set(name, candidateText);
+              const number = valueFor(candidate, ["BLKNUMBER","BLKNR","BLOCKNR","BLOCKNUMBER","BLKNUM","NUMBER","BLKNO"]);
+              if (number !== undefined && number !== null && /^\s*\d+\s*$/.test(String(number))) fbDefinitions.set(("fb"+String(Number(number))), candidateText);
+            });
             for (const row of parsed.rows) {
               // SUBBLK.DBF schemas vary between STEP 7 releases. Normalize
               // field names and support common object-name/type aliases.
@@ -827,8 +909,14 @@
                 .filter((k) => /_TEXT$/.test(k))
                 .map((k) => row[k])
                 .join("\n");
-              if (!body || !(/STRUCT/i.test(body) || /\bVAR\b[\s\S]*?\bEND_VAR\b/i.test(body))) continue;
-              const fields = parseStep7DbStructure(body, "DB" + resolvedDbNumber + ".DB");
+              if (!body) continue;
+              const instanceHeader = body.match(/\bDATA_BLOCK\s+(?:"[^"]+"|[A-Za-z_]\w*)\s+(?:"([^"]+)"|([A-Za-z_]\w*))/i);
+              const instanceType = instanceHeader && String(instanceHeader[1] || instanceHeader[2]).toLowerCase();
+              const isInstanceDb = !!instanceType && fbDefinitions.has(instanceType);
+              if (!isInstanceDb && !(/STRUCT/i.test(body) || /\bVAR\b[\s\S]*?\bEND_VAR\b/i.test(body))) continue;
+              const fields = isInstanceDb
+                ? parseStep7InstanceDbStructure(body, "DB" + resolvedDbNumber + ".DB", fbDefinitions)
+                : parseStep7DbStructure(body, "DB" + resolvedDbNumber + ".DB");
               fields.forEach(function (field) {
                 if (rootName) field._dbRootName = rootName;
                 else if (blockName) field._dbRootName = blockName;
@@ -897,6 +985,7 @@
     parseDbfSymbolFile,
     resolveProjectAddress,
     parseStep7DbStructure,
+    parseStep7InstanceDbStructure,
     readStep7DbtMemo,
     parseStep7SubblkDbf,
     walkStep7Folder,
