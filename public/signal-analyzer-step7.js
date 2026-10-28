@@ -843,13 +843,16 @@
             const fbDefinitions = new Map();
             parsed.rows.forEach(function (candidate) {
               const candidateText = Object.keys(candidate).filter((key) => /_TEXT$/i.test(key)).map((key) => String(candidate[key] || "")).join("\n");
-              if (!candidateText) return;
+              if (!candidateText || !/\bVAR(?:_INPUT|_OUTPUT|_IN_OUT)?\b[\s\S]*?\bEND_VAR\b/i.test(candidateText)) return;
               const nameMatch = candidateText.match(/\bFUNCTION_BLOCK\s+(?:"([^"]+)"|([A-Za-z_]\w*))/i);
-              if (!nameMatch) return;
-              const name = String(nameMatch[1] || nameMatch[2]).toLowerCase();
-              fbDefinitions.set(name, candidateText);
+              const metadataName = valueFor(candidate, ["BLKNAME","BLOCKNAME","OBJNAME","OBJECTNAME","NAME","_SKZ","SYMBOLNAME","BLKIDENT","IDENT"]);
+              const name = String(nameMatch ? (nameMatch[1] || nameMatch[2]) : metadataName || "").replace(/^["']|["']$/g, "").trim().toLowerCase();
+              if (name && (/^fb\b/i.test(name) || nameMatch)) fbDefinitions.set(name, candidateText);
               const number = valueFor(candidate, ["BLKNUMBER","BLKNR","BLOCKNR","BLOCKNUMBER","BLKNUM","NUMBER","BLKNO"]);
-              if (number !== undefined && number !== null && /^\s*\d+\s*$/.test(String(number))) fbDefinitions.set(("fb"+String(Number(number))), candidateText);
+              if (number !== undefined && number !== null && /^\s*\d+\s*$/.test(String(number))) {
+                const numericName = "fb" + String(Number(number));
+                if (name && (/^fb\b/i.test(name) || nameMatch)) fbDefinitions.set(numericName, candidateText);
+              }
             });
             for (const row of parsed.rows) {
               // SUBBLK.DBF schemas vary between STEP 7 releases. Normalize
