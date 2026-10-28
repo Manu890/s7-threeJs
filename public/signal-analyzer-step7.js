@@ -514,7 +514,7 @@
           const body=lines.slice(i+1,end),low=arrayStruct?Number(arrayStruct[2]):0,high=arrayStruct?Number(arrayStruct[3]):0;
           wordAlign(s);
           if(arrayStruct&&high>=low&&high-low<=10000){for(let n=low;n<=high;n++){wordAlign(s);parseLines(body,prefix.concat(name+"["+n+"]"),s,stack);wordAlign(s);}}
-          else parseLines(body,prefix.concat(name),s,stack);
+          else {parseLines(body,prefix.concat(name),s,stack);wordAlign(s);}
           i=end;continue;
         }
         if(/^END_STRUCT\b/i.test(line)){wordAlign(s);continue;}
