@@ -790,19 +790,28 @@
                 return metadata;
               });
               const matchingRows = parsed.rows.filter(function (row) {
-                return Object.keys(row).some(function (key) {
-                  if (/_TEXT$/i.test(key)) return false;
-                  const value = String(row[key] || "").replace(/\0/g, "").trim();
-                  return value.toLowerCase() === rootKey ||
-                    /^DB\s*0*601$/i.test(value) ||
-                    /^0*601$/.test(value);
+                const metadataValues = Object.keys(row).filter(function (key) {
+                  return !/_TEXT$/i.test(key);
+                }).map(function (key) {
+                  return String(row[key] || "").replace(/\0/g, "").trim();
                 });
-              }).slice(0, 12).map(function (row) {
+                const blockNumber = String(valueFor(row, ["BLKNUMBER","BLKNR","BLOCKNR","BLOCKNUMBER","BLKNUM","NUMBER","BLKNO"]) || "").replace(/^0+/, "");
+                const textValues = Object.keys(row).filter(function (key) {
+                  return /_TEXT$/i.test(key);
+                }).map(function (key) { return String(row[key] || ""); });
+                return metadataValues.some(function (value) { return value.toLowerCase() === rootKey; }) ||
+                  (dbNumber !== null && blockNumber === String(dbNumber)) ||
+                  textValues.some(function (value) {
+                    return /FUNCTION_BLOCK\s+"?FB_TAKTZEIT|Gesamt\s*:\s*"?FB_TAKTZEIT|Baugruppen\s*:\s*ARRAY/i.test(value);
+                  });
+              }).slice(0, 30).map(function (row) {
                 const metadata = {};
                 Object.keys(row).forEach(function (key) {
                   if (/_TEXT$/i.test(key)) {
-                    metadata[key + "_length"] = String(row[key] || "").length;
-                    metadata[key + "_hasDeclaration"] = /\b(?:STRUCT|VAR)\b/i.test(String(row[key] || ""));
+                    const value = String(row[key] || "").replace(/\0/g, "");
+                    metadata[key + "_length"] = value.length;
+                    metadata[key + "_hasDeclaration"] = /\b(?:STRUCT|VAR)\b/i.test(value);
+                    metadata[key + "_snippet"] = value.slice(0, 220);
                   } else {
                     metadata[key] = String(row[key] || "").replace(/\0/g, "").trim().slice(0, 100);
                   }
