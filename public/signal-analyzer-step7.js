@@ -486,7 +486,7 @@
     const dbMatch=src.match(/(?:DATA_BLOCK\s+)?DB\s*0*(\d+)\b/i)||String(filename||"").match(/\bDB\s*0*(\d+)\b/i);
     const header=src.match(/\bDATA_BLOCK\s+(?:"([^"]+)"|([A-Za-z_]\w*))\s+(?:"([^"]+)"|([A-Za-z_]\w*))/i);
     if(!dbMatch||!header)return [];
-    const db=Number(dbMatch[1]),rootType=String(header[3]||header[4]||"").toLowerCase(),defs=fbDefinitions||new Map(),out=[];
+    const db=Number(dbMatch[1]),rootType=String(header[3]||header[4]||"").toLowerCase().replace(/\s+/g,""),defs=fbDefinitions||new Map(),out=[];
     if(!defs.has(rootType))return [];
     const sizes={BOOL:0,BYTE:1,CHAR:1,SINT:1,USINT:1,WORD:2,INT:2,UINT:2,S5TIME:2,DATE:2,DWORD:4,DINT:4,UDINT:4,REAL:4,TIME:4,TIME_OF_DAY:4,LREAL:8,LINT:8,ULINT:8,LTIME:8,DATE_AND_TIME:8,DT:8,DTL:12};
     function byteAlign(s){if(s.bit){s.byte++;s.bit=0;}}
@@ -530,7 +530,7 @@
           for(let n=low;n<=high;n++){if(type==="BOOL")emit(path+"["+n+"]",type,0,s);else{wordAlign(s);emit(path+"["+n+"]",type,sizes[type],s);}}
           wordAlign(s);continue;
         }
-        const type=raw.replace(/\s*:=.*$/,"").replace(/^["']|["']$/g,"").toUpperCase();
+        const type=raw.replace(/\s*:=.*$/,"").replace(/^["']|["']$/g,"").toUpperCase().replace(/\s+/g,"");
         if(defs.has(type.toLowerCase())){wordAlign(s);expand(type.toLowerCase(),prefix.concat(name),s,stack);continue;}
         const stringType=type.match(/^STRING(?:\s*\[\s*(\d+)\s*\])?$/),size=stringType?2+Number(stringType[1]||254):sizes[type];
         if(size===undefined)continue;
@@ -846,7 +846,7 @@
               if (!candidateText || !/\bVAR(?:_INPUT|_OUTPUT|_IN_OUT)?\b[\s\S]*?\bEND_VAR\b/i.test(candidateText)) return;
               const nameMatch = candidateText.match(/\bFUNCTION_BLOCK\s+(?:"([^"]+)"|([A-Za-z_]\w*))/i);
               const metadataName = valueFor(candidate, ["BLKNAME","BLOCKNAME","OBJNAME","OBJECTNAME","NAME","_SKZ","SYMBOLNAME","BLKIDENT","IDENT"]);
-              const name = String(nameMatch ? (nameMatch[1] || nameMatch[2]) : metadataName || "").replace(/^["']|["']$/g, "").trim().toLowerCase();
+              const name = String(nameMatch ? (nameMatch[1] || nameMatch[2]) : metadataName || "").replace(/^["']|["']$/g, "").trim().toLowerCase().replace(/\s+/g, "");
               if (name && (/^fb\b/i.test(name) || nameMatch)) fbDefinitions.set(name, candidateText);
               const number = valueFor(candidate, ["BLKNUMBER","BLKNR","BLOCKNR","BLOCKNUMBER","BLKNUM","NUMBER","BLKNO"]);
               if (number !== undefined && number !== null && /^\s*\d+\s*$/.test(String(number))) {
