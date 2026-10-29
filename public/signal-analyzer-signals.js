@@ -1,5 +1,8 @@
 (function () {
   // Owns signal collection operations and the signal-list controls.
+  function formatAddressForDisplay(address) {
+    return String(address || "").replace(/(DB[0-9]+)[ ]*,[ ]*/gi, "$1.");
+  }
   function create(getState, actions) {
     function reorderSignals(draggedKey, targetKey) {
       const state = getState();
@@ -46,7 +49,7 @@
         name.textContent = signal.label;
         const address = document.createElement("div");
         address.className = "signal-address";
-        address.textContent = signal.address || "key: " + signal.key;
+        address.textContent = formatAddressForDisplay(signal.address || "key: " + signal.key);
         details.append(name, address);
         const current = document.createElement("span");
         current.className = "signal-current";
