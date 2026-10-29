@@ -186,6 +186,10 @@
             " stored samples.";
     drawAll();
   }
+  function formatAddressForDisplay(address) {
+    return String(address || "").replace(/(DB[0-9]+)[ ]*,[ ]*/gi, "$1.");
+  }
+
   function safeId(key) {
     return key.replace(/[^a-zA-Z0-9_-]/g, "_");
   }
@@ -221,7 +225,7 @@
     title.textContent = s.label;
     title.title = s.label;
     const address = document.createElement("small");
-    address.textContent = s.operand || s.address || "key: " + s.key;
+    address.textContent = formatAddressForDisplay(s.operand || s.address || "key: " + s.key);
     address.title = address.textContent;
     const value = document.createElement("em");
     value.id = "value-" + safeId(s.key);
@@ -862,7 +866,7 @@
           ? root + "." + rawName
           : rawName;
       } },
-      { label: "_OPIEC", value: function (symbol) { return symbol._OPIEC || symbol.operand || symbol.address || ""; } },
+      { label: "_OPIEC", value: function (symbol) { return formatAddressForDisplay(symbol._OPIEC || symbol.operand || symbol.address || ""); } },
       { label: "_DATATYP", value: function (symbol) { return symbol._DATATYP || symbol.dataType || symbol.type || ""; } },
       { label: "_SECTION", value: function (symbol) {
         const section = String(symbol._section || symbol.section || "").toUpperCase();
