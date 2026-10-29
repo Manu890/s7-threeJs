@@ -857,6 +857,21 @@
               );
             }
             const fbDefinitions = new Map();
+            const fbDefinitionScores = new Map();
+            function registerFbDefinition(key, source) {
+              if (!key || !source) return;
+              // SUBBLK can expose several memo fragments for one block number.
+              // Keep the most complete declaration instead of letting a later,
+              // shorter VAR_INPUT/VAR_OUTPUT fragment overwrite the GRAPH template.
+              const declarationCount = (source.match(/^\s*[A-Za-z_]\w*\s*:/gm) || []).length;
+              const sectionCount = (source.match(/\bVAR(?:_(?:INPUT|OUTPUT|IN_OUT|STAT|TEMP|CONSTANT))?\b[\s\S]*?\bEND_VAR\b/gi) || []).length;
+              const graphMarkers = (source.match(/\b(?:G7T|G7S|G7_FBMARK|G7_RELEASE|G7_ID2|G7_ID1)\b/gi) || []).length;
+              const score = graphMarkers * 10000 + declarationCount * 100 + sectionCount * 10 + Math.min(source.length, 999999) / 1000000;
+              if (score > (fbDefinitionScores.get(key) || -1)) {
+                fbDefinitionScores.set(key, score);
+                fbDefinitions.set(key, source);
+              }
+            }
             parsed.rows.forEach(function (candidate) {
               const candidateText = Object.keys(candidate).filter((key) => /_TEXT$/i.test(key)).map((key) => String(candidate[key] || "")).join("\n");
               if (!candidateText || !/\bVAR(?:_(?:INPUT|OUTPUT|IN_OUT|STAT|TEMP|CONSTANT))?\b[\s\S]*?\bEND_VAR\b/i.test(candidateText)) return;
@@ -864,14 +879,13 @@
               const metadataName = valueFor(candidate, ["BLKNAME","BLOCKNAME","OBJNAME","OBJECTNAME","NAME","_SKZ","SYMBOLNAME","BLKIDENT","IDENT"]);
               const name = String(nameMatch ? (nameMatch[1] || nameMatch[2]) : metadataName || "").replace(/^["']|["']$/g, "").trim().toLowerCase().replace(/\s+/g, "");
               // Register declarations by symbolic FB name when available, but always
-              // register the numeric FB identity too. Some STEP 7 SUBBLK.DBF
-              // versions store source text beginning at VAR (without a
-              // FUNCTION_BLOCK header) and use a non-FB symbolic metadata name.
-              if (name && (/^fb/i.test(name) || nameMatch)) fbDefinitions.set(name, candidateText);
+              // register the numeric FB identity too. Prefer the richest candidate
+              // when duplicate rows represent the same block.
+              if (name && (/^fb/i.test(name) || nameMatch)) registerFbDefinition(name, candidateText);
               const number = valueFor(candidate, ["BLKNUMBER","BLKNR","BLOCKNR","BLOCKNUMBER","BLKNUM","NUMBER","BLKNO"]);
               if (number !== undefined && number !== null && /^\s*\d+\s*$/.test(String(number))) {
                 const numericName = "fb" + String(Number(number));
-                fbDefinitions.set(numericName, candidateText);
+                registerFbDefinition(numericName, candidateText);
               }
             });
             for (const row of parsed.rows) {
@@ -946,7 +960,7 @@
                 fbDefinitions.has(numericFbType) &&
                 /\bVAR(?:_(?:INPUT|OUTPUT|IN_OUT|STAT|TEMP|CONSTANT))?\b[\s\S]*?\bEND_VAR\b/i.test(body);
               const instanceSource = useNumericFbTemplate
-                ? 'DATA_BLOCK "' + rootName.replace(/"/g, "") + '" "' + numericFbType + '"\\nEND_DATA_BLOCK'
+                ? 'DATA_BLOCK "' + rootName.replace(/"/g, "") + '" "' + numericFbType + '"\nEND_DATA_BLOCK'
                 : body;
               if (!isInstanceDb && !useNumericFbTemplate &&
                   !(/STRUCT/i.test(body) || /\bVAR(?:_(?:INPUT|OUTPUT|IN_OUT|STAT|TEMP|CONSTANT))?\b[\s\S]*?\bEND_VAR\b/i.test(body))) continue;
