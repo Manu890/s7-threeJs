@@ -525,7 +525,7 @@
           const low=Number(array[1]),high=Number(array[2]),type=array[3].trim().replace(/^["']|["']$/g,"").toUpperCase();
           if(high<low||high-low>10000)continue;
           if(defs.has(type.toLowerCase())){for(let n=low;n<=high;n++){wordAlign(s);expand(type.toLowerCase(),prefix.concat(name+"["+n+"]"),s,stack);}continue;}
-          if(sizes[type]===undefined)continue;
+          if(sizes[type]===undefined){console.warn("[STEP7 instance DB unknown array element type]",{db,rootType,path,declaredType:type,byteOffset:s.byte,bitOffset:s.bit,sourceLine:line});continue;}
           wordAlign(s);
           for(let n=low;n<=high;n++){if(type==="BOOL")emit(path+"["+n+"]",type,0,s);else{wordAlign(s);emit(path+"["+n+"]",type,sizes[type],s);}}
           wordAlign(s);continue;
@@ -533,7 +533,7 @@
         const type=raw.replace(/\s*:=.*$/,"").replace(/^["']|["']$/g,"").toUpperCase().replace(/\s+/g,"");
         if(defs.has(type.toLowerCase())){wordAlign(s);expand(type.toLowerCase(),prefix.concat(name),s,stack);continue;}
         const stringType=type.match(/^STRING(?:\s*\[\s*(\d+)\s*\])?$/),size=stringType?2+Number(stringType[1]||254):sizes[type];
-        if(size===undefined)continue;
+        if(size===undefined){console.warn("[STEP7 instance DB unknown declaration type]",{db,rootType,path,declaredType:raw,normalizedType:type,byteOffset:s.byte,bitOffset:s.bit,sourceLine:line});continue;}
         if(type==="BOOL")emit(path,type,0,s);else if(size===1){byteAlign(s);emit(path,type,size,s);}else{wordAlign(s);emit(path,type,size,s);}
       }
     }
