@@ -859,7 +859,7 @@
             const fbDefinitions = new Map();
             parsed.rows.forEach(function (candidate) {
               const candidateText = Object.keys(candidate).filter((key) => /_TEXT$/i.test(key)).map((key) => String(candidate[key] || "")).join("\n");
-              if (!candidateText || !/\bVAR(?:_INPUT|_OUTPUT|_IN_OUT)?\b[\s\S]*?\bEND_VAR\b/i.test(candidateText)) return;
+              if (!candidateText || !/\bVAR(?:_(?:INPUT|OUTPUT|IN_OUT|STAT|TEMP|CONSTANT))?\b[\s\S]*?\bEND_VAR\b/i.test(candidateText)) return;
               const nameMatch = candidateText.match(/\bFUNCTION_BLOCK\s+(?:"([^"]+)"|([A-Za-z_]\w*))/i);
               const metadataName = valueFor(candidate, ["BLKNAME","BLOCKNAME","OBJNAME","OBJECTNAME","NAME","_SKZ","SYMBOLNAME","BLKIDENT","IDENT"]);
               const name = String(nameMatch ? (nameMatch[1] || nameMatch[2]) : metadataName || "").replace(/^["']|["']$/g, "").trim().toLowerCase().replace(/\s+/g, "");
@@ -915,7 +915,7 @@
                   .filter((key) => /_TEXT$/i.test(key))
                   .some((key) =>
                     /\bSTRUCT\b/i.test(String(row[key] || "")) ||
-                    /\bVAR\b[\s\S]*?\bEND_VAR\b/i.test(String(row[key] || ""))
+                    /\bVAR(?:_(?:INPUT|OUTPUT|IN_OUT|STAT|TEMP|CONSTANT))?\b[\s\S]*?\bEND_VAR\b/i.test(String(row[key] || ""))
                   );
                 if (
                   !isExplicitDb &&
@@ -944,12 +944,12 @@
               const useNumericFbTemplate = !isInstanceDb && !!rootName &&
                 rowDbNumber === resolvedDbNumber &&
                 fbDefinitions.has(numericFbType) &&
-                /\bVAR(?:_INPUT|_OUTPUT|_IN_OUT)?\b[\s\S]*?\bEND_VAR\b/i.test(body);
+                /\bVAR(?:_(?:INPUT|OUTPUT|IN_OUT|STAT|TEMP|CONSTANT))?\b[\s\S]*?\bEND_VAR\b/i.test(body);
               const instanceSource = useNumericFbTemplate
                 ? 'DATA_BLOCK "' + rootName.replace(/"/g, "") + '" "' + numericFbType + '"\\nEND_DATA_BLOCK'
                 : body;
               if (!isInstanceDb && !useNumericFbTemplate &&
-                  !(/STRUCT/i.test(body) || /\bVAR\b[\s\S]*?\bEND_VAR\b/i.test(body))) continue;
+                  !(/STRUCT/i.test(body) || /\bVAR(?:_(?:INPUT|OUTPUT|IN_OUT|STAT|TEMP|CONSTANT))?\b[\s\S]*?\bEND_VAR\b/i.test(body))) continue;
               const fields = (isInstanceDb || useNumericFbTemplate)
                 ? parseStep7InstanceDbStructure(instanceSource, "DB" + resolvedDbNumber + ".DB", fbDefinitions)
                 : parseStep7DbStructure(body, "DB" + resolvedDbNumber + ".DB");
