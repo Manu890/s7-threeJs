@@ -1,5 +1,8 @@
 (function () {
   const STORAGE_KEY = "s7-threejs-signal-analyzer-signals-v1";
+  function formatAddressForDisplay(address) {
+    return String(address || "").replace(/(DB[0-9]+)[ ]*,[ ]*/gi, "$1.");
+  }
   const params = new URLSearchParams(location.search);
   const key = params.get("key");
   const typeOptions = [
@@ -60,7 +63,7 @@
     return;
   }
   document.getElementById("signalName").textContent =
-    signal.label + " · " + (signal.address || "key: " + signal.key);
+    signal.label + " · " + formatAddressForDisplay(signal.address || "key: " + signal.key);
   type.value = signal.type || "B";
   precision.value = String(
     Math.min(20, Math.max(0, signal.precision === undefined ? 2 : Number(signal.precision) || 0))
