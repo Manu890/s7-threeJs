@@ -527,7 +527,14 @@
           if(defs.has(type.toLowerCase())){for(let n=low;n<=high;n++){wordAlign(s);expand(type.toLowerCase(),prefix.concat(name+"["+n+"]"),s,stack);}continue;}
           if(sizes[type]===undefined){console.warn("[STEP7 instance DB unknown array element type]",{db,rootType,path,declaredType:type,byteOffset:s.byte,bitOffset:s.bit,sourceLine:line});continue;}
           wordAlign(s);
-          for(let n=low;n<=high;n++){if(type==="BOOL")emit(path+"["+n+"]",type,0,s);else{wordAlign(s);emit(path+"["+n+"]",type,sizes[type],s);}}
+          for(let n=low;n<=high;n++){
+            if(type==="BOOL") emit(path+"["+n+"]",type,0,s);
+            else {
+              if(sizes[type]>1) wordAlign(s);
+              else byteAlign(s);
+              emit(path+"["+n+"]",type,sizes[type],s);
+            }
+          }
           wordAlign(s);continue;
         }
         const type=raw.replace(/\s*:=.*$/,"").replace(/^["']|["']$/g,"").toUpperCase().replace(/\s+/g,"");
