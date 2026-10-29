@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PLC Signal Analyzer · S7 Three.js</title>
+<link rel="stylesheet" href="/public/signal-analyzer.css">
+
+</head>
+<body>
+<header>
+ <div class="brand"><div class="logo">S7</div><div><h1>PLC Signal Analyzer</h1><small>Live acquisition · WebSocket trace monitor</small></div></div>
+ <div class="connection"><span id="connectionDot" class="dot"></span><span id="connectionText">Connecting to PLC stream…</span></div>
+</header>
+<main>
+ <div class="toolbar">
+  <button id="recordBtn" class="primary">● Start recording</button>
+  <button id="exportBtn">↓ Export CSV</button>
+  <button id="loadStoredBtn">Load stored history</button>
+  <span class="spacer"></span>
+  <label class="label" for="windowSelect">Time window</label>
+  <select id="windowSelect"><option value="1">1 second</option><option value="5">5 seconds</option><option value="30" selected>30 seconds</option><option value="60">1 minute</option><option value="120">2 minutes</option><option value="300">5 minutes</option><option value="600">10 minutes</option><option value="900">15 minutes</option><option value="1800">30 minutes</option><option value="3600">1 hour</option><option value="21600">6 hours</option><option value="86400">24 hours</option><option value="172800">48 hours</option><option value="259200">72 hours</option></select>
+ </div>
+ <div class="layout">
+  <aside class="sidebar">
+   <div class="section-head"><span>Signal list <small id="signalCount">0 signals</small></span><button id="removeAllSignalsBtn" class="danger" type="button">Remove all</button></div>
+   <div class="add-signal" style="border-bottom:1px solid var(--border)">
+    <button id="openStep7FolderBtn" type="button">📂 Open STEP 7 V5 project folder</button>
+    <div class="help-text">Choose the extracted project folder. The browser scans it locally for exported symbol tables and common STEP 7 symbol database files; files are not uploaded.</div>
+    <div id="symbolProjectStatus" class="help-text" role="status">No STEP 7 project folder selected.</div>
+   </div>
+   <form class="add-signal" id="addSignalForm">
+    <input id="signalNameInput" maxlength="40" placeholder="Signal name (optional; e.g. Motor speed)" aria-label="Signal name">
+    <input id="signalKeyInput" maxlength="64" placeholder="WebSocket key or PLC address (e.g. motorSpeed or DB1,INT6)" aria-label="WebSocket key or PLC address">
+    <button class="primary" type="submit">＋ Add signal</button>
+    <div id="symbolResults" style="display:grid;gap:5px"></div>
+    <div class="help-text">Enter a WebSocket key to listen to an existing stream value (for example status), or enter a PLC address (for example DB1001,BYTE0) to generate its data key automatically. The real PLC backend must register and decode PLC addresses.</div>
+    <div class="form-error" id="signalFormError" role="status"></div>
+   </form>
+   <div id="signalList" class="signal-list"></div>
+   <div style="padding:12px 14px;color:var(--muted);font-size:11px;line-height:1.6">Uncheck a signal to hide its trace. Use Remove to delete any signal, or Remove all to clear the entire list. Drag a trace up or down to change its vertical order. Hover over a trace to inspect nearby values.</div>
+  </aside>
+  <section class="trace-panel">
+   <div class="trace-head"><div><strong>Signal traces · y(t)</strong><small>Numeric traces auto-scaled per signal · shared time axis</small></div><label class="zoom-control" for="timeZoom">Time scale <input id="timeZoom" type="range" min="0" max="18" step="0.1" value="4.9" aria-label="Time scale"><output id="timeZoomValue" for="timeZoom">30 s</output></label></div>
+   <div id="traces" class="trace-scroll"></div>
+   <div class="time-axis"><div class="axis-label">Local clock (HH:mm:ss.SSS)</div><div id="axisTicks" class="axis-ticks"><span>--:--:--.---</span><span>--:--:--.---</span><span>--:--:--.---</span><span>--:--:--.---</span><span>--:--:--.---</span></div></div>
+  </section>
+ </div>
+ <div class="footer"><span id="sampleStatus">Waiting for first sample…</span><span id="recordStatus">Recording is off</span><span id="persistenceStatus">MongoDB persistence: checking…</span><span>Source: WebSocket · ws://localhost:8080</span></div>
+</main>
+<script src="/public/signal-analyzer-step7.js" defer></script>
+<script src="/public/signal-analyzer-signal-config.js" defer></script>
+<script src="/public/signal-analyzer-chart.js" defer></script>
+<script src="/public/signal-analyzer-time-navigation.js" defer></script>
+<script src="/public/signal-analyzer-acquisition.js" defer></script>
+<script src="/public/signal-analyzer-recording.js" defer></script>
+<script src="/public/signal-analyzer-signals.js" defer></script>
+<script src="/public/signal-analyzer.js" defer></script>
+</body>
+</html>

@@ -1,9 +1,5 @@
 import { PLCConnection } from "./src/server/plc/connection.js";
-import {
-  DEFAULT_PLC_CONFIG,
-  DEFAULT_VARIABLES,
-  WRITE_VARIABLES,
-} from "./src/shared/constants.js";
+import { DEFAULT_PLC_CONFIG, DEFAULT_VARIABLES, WRITE_VARIABLES } from "./src/shared/constants.js";
 
 /**
  * Test PLC Write Operation
@@ -39,9 +35,7 @@ plc.onConnect(() => {
 
       // Try to write value
       const testValue = 123;
-      console.log(
-        `✍️  Writing value ${testValue} to DB1002.BYTE0 (variable: "read")...`
-      );
+      console.log(`✍️  Writing value ${testValue} to DB1002.BYTE0 (variable: "read")...`);
 
       return plc.write("read", testValue);
     })
@@ -57,9 +51,7 @@ plc.onConnect(() => {
       return plc.read();
     })
     .then((data) => {
-      console.log(
-        `📊 Verification - read (DB1002.BYTE0): ${data.read || "N/A"}`
-      );
+      console.log(`📊 Verification - read (DB1002.BYTE0): ${data.read || "N/A"}`);
 
       if (data.read === 123) {
         console.log("✅ SUCCESS! Value was written and verified!\n");
@@ -92,9 +84,7 @@ console.log("🔌 Connecting to PLC...\n");
 plc.connect().catch((error) => {
   console.error("❌ Connection failed:", error.message);
   console.error("\n💡 Troubleshooting:");
-  console.error(
-    "  1. Check PLC IP address (current: " + DEFAULT_PLC_CONFIG.host + ")"
-  );
+  console.error("  1. Check PLC IP address (current: " + DEFAULT_PLC_CONFIG.host + ")");
   console.error("  2. Verify DB1002 exists in TIA Portal");
   console.error('  3. Ensure DB1002.DBB0 variable "read" exists');
   console.error("  4. Check PUT/GET is enabled on PLC");

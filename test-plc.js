@@ -71,9 +71,7 @@ async function test() {
 
     // Common errors:
     console.error("💡 Possible reasons:");
-    console.error(
-      "   1. IP address is not accessible (check ping 192.168.0.10)"
-    );
+    console.error("   1. IP address is not accessible (check ping 192.168.0.10)");
     console.error("   2. PUT/GET is not enabled in TIA Portal");
     console.error("   3. Wrong rack/slot");
     console.error("   4. Firewall blocks port 102");

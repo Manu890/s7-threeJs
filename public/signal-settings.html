@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Signal Settings · PLC Signal Analyzer</title>
+<link rel="stylesheet" href="/public/signal-settings.css">
+
+</head>
+<body>
+<main>
+<h1>Signal settings</h1>
+<p id="signalName">Choose the data type and display precision for this trace.</p>
+<div class="field"><label for="type">PLC data type</label><select id="type"></select><div class="hint">Changing this updates how the PLC address is decoded.</div></div>
+<div class="field"><label for="precision">Display precision</label><select id="precision"></select><div class="hint">Digits after the decimal point for REAL values. This changes display formatting only, not the recorded raw sample.</div></div>
+<div class="actions"><button class="primary" id="save">Save settings</button><a href="signal-analyzer.html">Cancel</a></div>
+<div id="status" role="status"></div>
+</main>
+<script src="/public/signal-settings.js" defer></script>
+</body>
+</html>
