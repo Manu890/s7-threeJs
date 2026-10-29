@@ -499,7 +499,7 @@
       if(type==="BOOL"){s.bit++;if(s.bit===8){s.byte++;s.bit=0;}}else s.byte+=size;
     }
     function getSections(source) {
-      const result=[],re=/\b(VAR_INPUT|VAR_OUTPUT|VAR_IN_OUT|VAR)\b([\s\S]*?)\bEND_VAR\b/gi;let m;
+      const result=[],re=/\b(VAR_INPUT|VAR_OUTPUT|VAR_IN_OUT|VAR_STAT|VAR_TEMP|VAR_CONSTANT|VAR)\b([\s\S]*?)\bEND_VAR\b/gi;let m;
       while((m=re.exec(source)))result.push({kind:m[1].toUpperCase(),body:m[2]});
       return result;
     }
