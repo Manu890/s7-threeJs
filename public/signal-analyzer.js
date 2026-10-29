@@ -862,8 +862,21 @@
       { label: "_SKZ", value: function (symbol) {
         const rawName = String(symbol._SKZ || symbol.name || symbol.symbolName || "").replace(/\0/g, "").trim();
         const root = String(symbol._dbRootName || "").replace(/\0/g, "").trim();
-        return root && rawName && rawName.toLowerCase() !== root.toLowerCase()
-          ? root + "." + rawName
+        // SUBBLK lookup keys are normalized to lowercase for matching, but
+        // display the original STEP 7 DB symbol name when it is available.
+        const rootSymbol = root && projectSymbols.find(function (candidate) {
+          const candidateName = String(candidate._SKZ || candidate.name || candidate.symbolName || "")
+            .replace(/\0/g, "").trim();
+          const candidateAddress = normalizeStep7Address(candidate.address || candidate.operand || "")
+            .toUpperCase().replace(/\s+/g, "");
+          return candidateName.toLowerCase() === root.toLowerCase() &&
+            /^DB\d+$/.test(candidateAddress);
+        });
+        const displayRoot = rootSymbol
+          ? String(rootSymbol._SKZ || rootSymbol.name || rootSymbol.symbolName || "").replace(/\0/g, "").trim()
+          : root;
+        return displayRoot && rawName && rawName.toLowerCase() !== displayRoot.toLowerCase()
+          ? displayRoot + "." + rawName
           : rawName;
       } },
       { label: "_OPIEC", value: function (symbol) { return formatAddressForDisplay(symbol._OPIEC || symbol.operand || symbol.address || ""); } },
