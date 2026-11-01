@@ -454,8 +454,43 @@
       const name = f[1], type = f[2].replace(/;$/, "").trim().toUpperCase();
       let size = sizes[type];
       const arr = type.match(/^ARRAY\s*\[\s*(-?\d+)\s*\.\.\s*(-?\d+)\s*\]\s*OF\s*(\w+)$/);
-      if (arr && sizes[arr[3]] !== undefined)
-        size = (Number(arr[2]) - Number(arr[1]) + 1) * Math.max(1, sizes[arr[3]]);
+      if (arr) {
+        const low = Number(arr[1]), high = Number(arr[2]);
+        const count = high - low + 1;
+        const elementType = arr[3].toUpperCase();
+        if (count <= 0 || count > 100000 || sizes[elementType] === undefined) return;
+
+        // STEP 7 BOOL arrays are bit-packed, not one byte per element.
+        // Expand them here because this STRUCT fallback does not use the VAR parser.
+        if (elementType === "BOOL") {
+          if (bit >= 0) { offset++; bit = -1; }
+          const baseByte = offset;
+          for (let index = low; index <= high; index++) {
+            const relative = index - low;
+            const byte = baseByte + Math.floor(relative / 8);
+            const elementBit = relative % 8;
+            const address = "DB" + db + ",DBX" + byte + "." + elementBit;
+            const elementName = name + "[" + index + "]";
+            out.push({
+              _SKZ: elementName,
+              name: elementName,
+              address: address,
+              type: "BOOL",
+              comment: "DB structure field · offset " + byte + "." + elementBit + " · BOOL array element",
+              symbolName: elementName,
+              operand: address,
+              dataType: "BOOL",
+              _dbStructure: true,
+              _byteOffset: byte,
+              _bitOffset: elementBit,
+            });
+          }
+          offset += Math.ceil(count / 8);
+          return;
+        }
+
+        size = count * Math.max(1, sizes[elementType]);
+      }
       const str = type.match(/^STRING(?:\s*\[\s*(\d+)\s*\])?$/);
       if (str) size = 2 + Number(str[1] || 254);
       if (size === undefined) return;
