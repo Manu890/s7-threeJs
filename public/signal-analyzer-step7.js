@@ -294,15 +294,11 @@
     const varBlock = src.match(/\bVAR\b([\s\S]*?)\bEND_VAR\b/i);
     if (varBlock) {
       // SUBBLK memo text stores a DB's declarations in a VAR/END_VAR block.
-      // Parse it with STEP 7's byte/bit alignment rules rather than expecting
+      // Parse it with sequential byte/bit offsets rather than expecting
       // an exported DATA_BLOCK ... STRUCT wrapper.
       const lines = varBlock[1].replace(/\r/g, "").split("\n");
       const pos = [0, 0];
       const stack = [];
-      function alignEven() {
-        if (pos[1]) { pos[0]++; pos[1] = 0; }
-        if (pos[0] % 2) pos[0]++;
-      }
       function alignByte() {
         if (pos[1]) { pos[0]++; pos[1] = 0; }
       }
@@ -334,8 +330,8 @@
         const line = lines[i++].trim();
         if (!line) continue;
         let match = line.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*:\s*STRUCT\b/i);
-        if (match) { alignEven(); stack.push(match[1]); continue; }
-        if (/^END_STRUCT\b/i.test(line)) { alignEven(); stack.pop(); continue; }
+        if (match) { alignByte(); stack.push(match[1]); continue; }
+        if (/^END_STRUCT\b/i.test(line)) { alignByte(); stack.pop(); continue; }
 
         match = line.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*:\s*ARRAY\s*\[\s*(-?\d+)\s*\.\.\s*(-?\d+)\s*\]\s*OF\s*([A-Za-z_][A-Za-z0-9_]*)\s*;\s*(?::=\s*([^;]*?))?\s*(?:\/\/(.*))?$/i);
         if (match) {
@@ -343,12 +339,12 @@
           const type = match[4].toUpperCase(), initial = (match[5] || "").trim(), comment = (match[6] || "").trim();
           const count = high - low + 1;
           if (count > 0 && sizes[type] !== undefined) {
-            alignEven();
+            alignByte();
             const byte = pos[0];
             add(name, "ARRAY[" + low + ".." + high + "] OF " + type, comment, initial, byte);
             if (type === "BOOL") pos[0] += Math.ceil(count / 8);
             else pos[0] += count * Math.max(1, sizes[type]);
-            alignEven();
+            alignByte();
           }
           continue;
         }
@@ -364,12 +360,12 @@
           const fullComment = comment || (element[3] || "").trim();
           const count = high - low + 1;
           if (count > 0 && sizes[type] !== undefined) {
-            alignEven();
+            alignByte();
             const byte = pos[0];
             add(name, "ARRAY[" + low + ".." + high + "] OF " + type, fullComment, initial, byte, type === "BOOL" ? 0 : undefined);
             if (type === "BOOL") pos[0] += Math.ceil(count / 8);
             else pos[0] += count * Math.max(1, sizes[type]);
-            alignEven();
+            alignByte();
           }
           continue;
         }
@@ -390,12 +386,12 @@
           add(name, type, comment, initial, pos[0]);
           pos[0] += size;
         } else {
-          alignEven();
+          alignByte();
           add(name, type, comment, initial, pos[0]);
           pos[0] += size;
         }
       }
-      alignEven();
+      alignByte();
       if (out.length) {
         // Expand ARRAY declarations into individually addressable fields, matching
         // STEP 7 offsets: BOOL elements are bit-packed; other elements use type size.
@@ -472,7 +468,6 @@
         return;
       }
       if (bit >= 0) { offset++; bit = -1; }
-      if (size >= 2 && offset % 2) offset++;
       const prefix = size === 1 ? "DBB" : size === 2 ? "DBW" : size === 4 ? "DBD" : "DBB";
       const addr = "DB" + db + "," + prefix + offset;
       out.push({ _SKZ: name, name, address: addr, type, comment: "DB structure field · offset " + offset + " · " + type, symbolName: name, operand: addr, dataType: type, _dbStructure: true });
