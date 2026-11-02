@@ -3,7 +3,7 @@
 // ============================================
 
 export const DEFAULT_PLC_CONFIG = {
-  host: "192.168.0.10", // nodes7 uses 'host' instead of 'ip'
+  host: "192.168.0.1", // nodes7 uses 'host' instead of 'ip'
   port: 102, // S7 default port
   rack: 0,
   slot: 2,
